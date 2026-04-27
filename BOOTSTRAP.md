@@ -9,9 +9,9 @@ This file documents how the repository was bootstrapped and how to set up a fres
 This repository is a **self-sustaining, autonomous research lab** where LLM agents explore
 the **P vs NP problem** using **Lean4** for formal proofs.
 
-| Agent | Runs | Model | API Key Secret |
+| Agent | Runs | Model | Auth / Secret |
 |---|---|---|---|
-| Project Leader | Every 8 hours | GPT-4o (configurable) | `OPENAI_API_KEY` |
+| Project Leader | Every 8 hours | GitHub Copilot coding agent (request strongest reasoning/math model in issue prompt) | `GH_PAT` |
 | Researcher | Every 30 minutes | Mistral Large (configurable) | `MISTRAL_VIBE_KEY` |
 
 ---
@@ -21,11 +21,13 @@ the **P vs NP problem** using **Lean4** for formal proofs.
 ```
 .
 ├── .github/
+│   ├── prompts/
+│   │   └── project_leader_issue.md  # Issue prompt for Copilot Project Leader
 │   ├── scripts/
-│   │   ├── project_leader.py   # Project Leader LLM agent
-│   │   └── researcher.py       # Researcher LLM agent
+│   │   ├── create_copilot_issue.py  # Creates & assigns Copilot issues
+│   │   └── researcher.py            # Researcher LLM agent
 │   └── workflows/
-│       ├── project_leader.yml  # Runs project_leader.py every 8 h
+│       ├── project_leader.yml  # Creates and assigns a Copilot issue every 8 h
 │       ├── researcher.yml      # Runs researcher.py every 30 min
 │       └── lean_check.yml      # Verifies Lean4 proofs on every push
 ├── candidates/
@@ -59,7 +61,7 @@ Go to **Settings → Secrets and variables → Actions → Secrets** and add:
 | Secret name | Value |
 |---|---|
 | `MISTRAL_VIBE_KEY` | Your Mistral API key |
-| `OPENAI_API_KEY` | Your OpenAI API key |
+| `GH_PAT` | GitHub token/PAT with permission to create issues and assign Copilot |
 
 ### 3. (Optional) Add Repository Variables
 
@@ -67,7 +69,6 @@ Go to **Settings → Secrets and variables → Actions → Variables** and optio
 
 | Variable name | Default | Description |
 |---|---|---|
-| `OPENAI_MODEL` | `gpt-4o` | OpenAI model for Project Leader |
 | `MISTRAL_MODEL` | `mistral-large-latest` | Mistral model for Researcher |
 
 ### 4. Enable GitHub Actions
@@ -76,7 +77,7 @@ Go to **Settings → Actions → General** and ensure Actions are enabled.
 
 ### 5. Trigger the first run
 
-- Go to **Actions → Project Leader → Run workflow** to generate the first ideas.
+- Go to **Actions → Project Leader → Run workflow** to create and assign the first Copilot Project Leader issue.
 - After that, the scheduled workflows will run automatically.
 
 ---
@@ -85,7 +86,7 @@ Go to **Settings → Actions → General** and ensure Actions are enabled.
 
 ### Communication via files
 
-All agent communication happens through committed files — no direct API calls between agents.
+All agent communication happens through committed files and GitHub issues — no direct inter-agent API calls.
 
 | File | Written by | Read by |
 |---|---|---|
@@ -95,12 +96,13 @@ All agent communication happens through committed files — no direct API calls 
 | `candidates/<idea>/Proof.lean` | Researchers | Project Leader (review) |
 | `lib/utils.lean` | Researchers (on instruction) | Researchers |
 | `OVERVIEW.md`, `README.md` | Project Leader | Humans |
+| Project Leader issue | Workflow | GitHub Copilot coding agent |
 
 ### Idea lifecycle
 
-1. **Generation** — Project Leader creates `candidates/<idea-name>/` with boilerplate.
-2. **Research** — Researcher picks the highest-priority active idea and advances the proof.
-3. **Review** — Project Leader reviews progress, updates priorities and hints.
+1. **Kickoff** — The Project Leader workflow creates a GitHub issue and assigns the GitHub Copilot coding agent to it.
+2. **Generation / Review** — The Project Leader reviews progress, updates priorities and hints, and creates new ideas when needed.
+3. **Research** — Researcher picks the highest-priority active idea and advances the proof.
 4. **Success / Dead End** — Project Leader declares success (no `sorry`) or archives the idea.
 5. **Pivot** — If all ideas are dead ends, Project Leader generates new ones.
 
@@ -127,13 +129,13 @@ lake build
 
 ## Agent Prompts
 
-### Project Leader system prompt
+### Project Leader issue prompt
 
-> You are the project leader for the "P vs NP" research project. You are a senior mathematics
-> researcher with deep expertise in theoretical computer science and formal proof systems (Lean4).
-> Your role is to generate ideas, manage priorities, review progress, and update documentation.
+> Use the utmost capable logic, mathematics, and reasoning model available to the GitHub Copilot
+> coding agent for this issue. This task is primarily about deep mathematical reasoning, formal
+> proof strategy, repository-wide planning, and careful document curation.
 
-Full prompt: [`.github/scripts/project_leader.py`](.github/scripts/project_leader.py)
+Full prompt: [`.github/prompts/project_leader_issue.md`](.github/prompts/project_leader_issue.md)
 
 ### Researcher system prompt
 

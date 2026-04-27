@@ -4,42 +4,45 @@ on:
   schedule:
     - cron: '0 */8 * * *'  # Every 8 hours
   workflow_dispatch:
+    inputs:
+      trigger_reason:
+        description: 'Why this Project Leader run is being triggered'
+        required: false
+        default: 'manual dispatch'
+        type: string
 
 jobs:
   run_project_leader:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
 
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 20
+          fetch-depth: 1
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
 
       - name: Install dependencies
         run: pip install requests
 
-      - name: Run Project Leader Agent
+      - name: Create and assign Copilot Project Leader issue
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          OPENAI_MODEL: ${{ vars.OPENAI_MODEL || 'gpt-4o' }}
-        run: python .github/scripts/project_leader.py
-
-      - name: Clean up trailing whitespace
+          GH_PAT: ${{ secrets.GH_PAT }}
+          REPOSITORY: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          TRIGGER_REASON: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.trigger_reason || 'scheduled run' }}
         run: |
-          find candidates -name "*.md" -exec sed -i 's/[[:space:]]*$//' {} \;
-          find . -maxdepth 1 -name "*.md" -exec sed -i 's/[[:space:]]*$//' {} \;
-
-      - name: Commit and push changes
-        run: |
-          git config --global user.name "Project Leader"
-          git config --global user.email "project-leader@p-vs-np.github"
-          git add .
-          git diff --quiet && git diff --staged --quiet || \
-            git commit -m "Project Leader update: manage priorities and review progress"
-          git push
+          python .github/scripts/create_copilot_issue.py \
+            "${{ github.repository_owner }}" \
+            "${{ github.event.repository.name }}" \
+            .github/prompts/project_leader_issue.md \
+            --title "Project Leader run $(date -u +'%Y-%m-%d %H:%M UTC')" \
+            --var "repository=${REPOSITORY}" \
+            --var "trigger=${TRIGGER_REASON}" \
+            --var "timestamp=$(date -u +'%Y-%m-%d %H:%M:%S UTC')" \
+            --var "run_url=${RUN_URL}"
