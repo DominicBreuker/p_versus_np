@@ -35,16 +35,14 @@ from pathlib import Path
 REPO_ROOT: Path = Path(__file__).resolve().parent.parent.parent
 PROMPT_TEMPLATE_PATH: Path = REPO_ROOT / ".github" / "prompts" / "researcher_vibe.md"
 PROMPT_FILENAME = ".mistral-researcher-prompt.md"
-
+PRIORITY_ORDER: dict[str, int] = {"High": 0, "Medium": 1, "Low": 2}
+DEAD_STATUSES: set[str] = {"Dead End", "Archived"}
+ALLOWED_SHARED_FILES: set[str] = {"lib/utils.lean"}
 MISTRAL_API_KEY: str = os.environ.get("MISTRAL_VIBE_KEY") or os.environ.get("MISTRAL_API_KEY", "")
 MISTRAL_MODEL: str = os.environ.get("MISTRAL_MODEL", "").strip()
 MISTRAL_MAX_TURNS: str = os.environ.get("MISTRAL_MAX_TURNS", "12").strip()
 MISTRAL_MAX_PRICE: str = os.environ.get("MISTRAL_MAX_PRICE", "").strip()
 MISTRAL_TIMEOUT_SECONDS: int = int(os.environ.get("MISTRAL_TIMEOUT_SECONDS", "1800"))
-
-PRIORITY_ORDER: dict[str, int] = {"High": 0, "Medium": 1, "Low": 2}
-DEAD_STATUSES: set[str] = {"Dead End", "Archived"}
-ALLOWED_SHARED_FILES: set[str] = {"lib/utils.lean"}
 
 
 # ---------------------------------------------------------------------------
@@ -53,6 +51,7 @@ ALLOWED_SHARED_FILES: set[str] = {"lib/utils.lean"}
 
 
 def read_file(path: Path) -> str:
+    """Read UTF-8 text from a file and return an empty string on failure."""
     try:
         return path.read_text(encoding="utf-8")
     except (FileNotFoundError, OSError):
@@ -60,6 +59,7 @@ def read_file(path: Path) -> str:
 
 
 def write_file(path: Path, content: str) -> None:
+    """Write UTF-8 text to a file, creating parent directories as needed."""
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
 

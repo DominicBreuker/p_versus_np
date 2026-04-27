@@ -1,13 +1,11 @@
 import importlib.util
-import os
 import subprocess
-import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
 
 
-REPO_ROOT = Path("/home/runner/work/p_versus_np/p_versus_np")
+REPO_ROOT = Path(__file__).resolve().parent.parent
 SCRIPT_PATH = REPO_ROOT / ".github" / "scripts" / "researcher.py"
 
 spec = importlib.util.spec_from_file_location("researcher", SCRIPT_PATH)
