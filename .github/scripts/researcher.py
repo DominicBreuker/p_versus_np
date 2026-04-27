@@ -64,14 +64,29 @@ def write_file(path: Path, content: str) -> None:
     path.write_text(content, encoding="utf-8")
 
 
+def is_safe_repo_relative_path(rel_path: str) -> bool:
+    """Return True when a repository-relative path resolves inside the repo root."""
+    try:
+        (REPO_ROOT / rel_path).resolve().relative_to(REPO_ROOT.resolve())
+        return True
+    except ValueError:
+        return False
+
+
 def ensure_local_git_exclude(entry: str) -> None:
     exclude_file = REPO_ROOT / ".git" / "info" / "exclude"
     existing = read_file(exclude_file)
-    if entry in existing:
+    existing_lines = set(existing.splitlines())
+    additions: list[str] = []
+    if "# Local researcher prompt file" not in existing_lines:
+        additions.append("# Local researcher prompt file")
+    if entry not in existing_lines:
+        additions.append(entry)
+    if not additions:
         return
     exclude_file.parent.mkdir(parents=True, exist_ok=True)
     with exclude_file.open("a", encoding="utf-8") as fh:
-        fh.write(f"\n# Local researcher prompt file\n{entry}\n")
+        fh.write("\n" + "\n".join(additions) + "\n")
 
 
 # ---------------------------------------------------------------------------
@@ -149,6 +164,9 @@ def split_changed_paths(
 
 
 def revert_path(rel_path: str) -> None:
+    if not is_safe_repo_relative_path(rel_path):
+        raise ValueError(f"Refusing to touch path outside the repository: {rel_path}")
+
     restore = run_git("restore", "--source=HEAD", "--staged", "--worktree", "--", rel_path, check=False)
     if restore.returncode == 0:
         return
@@ -251,6 +269,8 @@ def run_vibe(prompt_text: str) -> subprocess.CompletedProcess[str]:
     ensure_local_git_exclude(PROMPT_FILENAME)
     write_file(prompt_path, prompt_text)
 
+    # This mirrors the upstream mistral-action approach and relies on Vibe
+    # exposing a read_file tool inside programmatic sessions.
     bootstrap_prompt = (
         f"Your full task instructions are in the file `{PROMPT_FILENAME}` "
         f"in the current working directory. Read that file NOW with read_file, "

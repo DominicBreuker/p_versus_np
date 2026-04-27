@@ -50,6 +50,10 @@ class ChangedPathTests(unittest.TestCase):
         self.assertEqual(allowed, ["candidates/foo/Proof.lean"])
         self.assertEqual(blocked, ["README.md"])
 
+    def test_is_safe_repo_relative_path_rejects_traversal(self):
+        self.assertTrue(researcher.is_safe_repo_relative_path("candidates/foo/Proof.lean"))
+        self.assertFalse(researcher.is_safe_repo_relative_path("../outside.txt"))
+
 
 class VibeExecutionTests(unittest.TestCase):
     def test_run_vibe_writes_and_cleans_prompt_file(self):
