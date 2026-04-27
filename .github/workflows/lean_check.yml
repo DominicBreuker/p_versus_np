@@ -1,0 +1,61 @@
+name: Lean4 Proof Check
+
+on:
+  push:
+    paths:
+      - '**/*.lean'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+  pull_request:
+    paths:
+      - '**/*.lean'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+
+jobs:
+  check_lean:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install elan (Lean toolchain manager)
+        run: |
+          curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh \
+            -sSf | sh -s -- -y --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+
+      - name: Set up Lean toolchain
+        run: elan toolchain install "$(cat lean-toolchain)" --no-self-update
+
+      - name: Cache Lake packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.elan
+            .lake/packages
+          key: lean-${{ hashFiles('lean-toolchain', 'lakefile.lean') }}
+          restore-keys: lean-
+
+      - name: Download Mathlib build cache
+        run: lake exe cache get || true
+
+      - name: Build project (lib and lakefile)
+        run: lake build
+
+      - name: Check candidate proof files
+        run: |
+          set +e
+          FAILED=0
+          while IFS= read -r -d '' f; do
+            echo "Checking: $f"
+            lean "$f" 2>&1
+            if [ $? -ne 0 ]; then
+              echo "::error file=$f::Lean4 check failed"
+              FAILED=1
+            fi
+          done < <(find candidates -name "*.lean" -print0)
+          exit $FAILED
+

@@ -1,0 +1,45 @@
+name: Researcher
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'  # Every 30 minutes
+  workflow_dispatch:
+
+jobs:
+  run_researcher:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 10
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run Researcher Agent
+        id: researcher
+        env:
+          MISTRAL_VIBE_KEY: ${{ secrets.MISTRAL_VIBE_KEY }}
+        run: python .github/scripts/researcher.py
+
+      - name: Clean up trailing whitespace
+        run: |
+          find candidates -name "*.md" -exec sed -i 's/[[:space:]]*$//' {} \;
+          find candidates -name "*.lean" -exec sed -i 's/[[:space:]]*$//' {} \;
+
+      - name: Commit and push changes
+        run: |
+          git config --global user.name "Researcher"
+          git config --global user.email "researcher@p-vs-np.github"
+          git add .
+          git diff --quiet && git diff --staged --quiet || \
+            git commit -m "Researcher update: work on ${{ steps.researcher.outputs.idea_name || 'idea' }}"
+          git push

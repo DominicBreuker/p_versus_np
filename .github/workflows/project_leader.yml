@@ -1,0 +1,48 @@
+name: Project Leader
+
+on:
+  schedule:
+    - cron: '0 */8 * * *'  # Every 8 hours
+  workflow_dispatch:
+    inputs:
+      trigger_reason:
+        description: 'Why this Project Leader run is being triggered'
+        required: false
+        default: 'manual dispatch'
+        type: string
+
+jobs:
+  run_project_leader:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Create and assign Copilot Project Leader issue
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
+          REPOSITORY: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          TRIGGER_REASON: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.trigger_reason || 'scheduled run' }}
+        run: |
+          python .github/scripts/create_copilot_issue.py \
+            "${{ github.repository_owner }}" \
+            "${{ github.event.repository.name }}" \
+            .github/prompts/project_leader_issue.md \
+            --title "Project Leader run $(date -u +'%Y-%m-%d %H:%M UTC')" \
+            --var "repository=${REPOSITORY}" \
+            --var "trigger=${TRIGGER_REASON}" \
+            --var "timestamp=$(date -u +'%Y-%m-%d %H:%M:%S UTC')" \
+            --var "run_url=${RUN_URL}"
