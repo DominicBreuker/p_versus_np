@@ -1,0 +1,5 @@
+-- P vs NP Research Library
+-- Main entry point: documents and re-exports utility modules.
+--
+-- Usage in proof files:
+--   import PVsNp.Lib.Utils

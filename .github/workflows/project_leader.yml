@@ -1,0 +1,45 @@
+name: Project Leader
+
+on:
+  schedule:
+    - cron: '0 */8 * * *'  # Every 8 hours
+  workflow_dispatch:
+
+jobs:
+  run_project_leader:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 20
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run Project Leader Agent
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_MODEL: ${{ vars.OPENAI_MODEL || 'gpt-4o' }}
+        run: python .github/scripts/project_leader.py
+
+      - name: Clean up trailing whitespace
+        run: |
+          find candidates -name "*.md" -exec sed -i 's/[[:space:]]*$//' {} \;
+          find . -maxdepth 1 -name "*.md" -exec sed -i 's/[[:space:]]*$//' {} \;
+
+      - name: Commit and push changes
+        run: |
+          git config --global user.name "Project Leader"
+          git config --global user.email "project-leader@p-vs-np.github"
+          git add .
+          git diff --quiet && git diff --staged --quiet || \
+            git commit -m "Project Leader update: manage priorities and review progress"
+          git push
