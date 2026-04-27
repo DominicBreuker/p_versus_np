@@ -38,11 +38,20 @@ PROMPT_FILENAME = ".mistral-researcher-prompt.md"
 PRIORITY_ORDER: dict[str, int] = {"High": 0, "Medium": 1, "Low": 2}
 DEAD_STATUSES: set[str] = {"Dead End", "Archived"}
 ALLOWED_SHARED_FILES: set[str] = {"lib/utils.lean"}
-MISTRAL_API_KEY: str = os.environ.get("MISTRAL_VIBE_KEY") or os.environ.get("MISTRAL_API_KEY", "")
 MISTRAL_MODEL: str = os.environ.get("MISTRAL_MODEL", "").strip()
 MISTRAL_MAX_TURNS: str = os.environ.get("MISTRAL_MAX_TURNS", "12").strip()
 MISTRAL_MAX_PRICE: str = os.environ.get("MISTRAL_MAX_PRICE", "").strip()
 MISTRAL_TIMEOUT_SECONDS: int = int(os.environ.get("MISTRAL_TIMEOUT_SECONDS", "1800"))
+
+
+def get_mistral_api_key() -> str:
+    """Return the configured API key, preferring the researcher-specific variable."""
+    if "MISTRAL_VIBE_KEY" in os.environ:
+        return os.environ.get("MISTRAL_VIBE_KEY", "").strip()
+    return os.environ.get("MISTRAL_API_KEY", "").strip()
+
+
+MISTRAL_API_KEY: str = get_mistral_api_key()
 
 
 # ---------------------------------------------------------------------------
@@ -334,6 +343,13 @@ def main() -> None:
 
     if not MISTRAL_API_KEY:
         raise ValueError("Set MISTRAL_VIBE_KEY or MISTRAL_API_KEY before running the researcher.")
+
+    initial_changed_paths = get_changed_paths()
+    if initial_changed_paths:
+        print("Refusing to run researcher with a dirty working tree:", file=sys.stderr)
+        for rel_path in sorted(set(initial_changed_paths)):
+            print(f"  - {rel_path}", file=sys.stderr)
+        sys.exit(1)
 
     ideas = get_ideas()
     if not ideas:

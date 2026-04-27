@@ -44,7 +44,7 @@ Validation expectations:
 
 - If the Lean toolchain is available, run `lake build`.
 - If you touch a candidate `.lean` file and the Lean toolchain is available, also run:
-  `find candidates -name "*.lean" -print0 | while IFS= read -r -d '' f; do lean "$f"; done`
+  `find candidates -name "*.lean" -print0 | while IFS= read -r -d '' f; do if ! lean "$f"; then exit 1; fi; done`
 - If a validation command is unavailable, say that clearly in your final summary.
 
 Finish by printing a short summary that lists:

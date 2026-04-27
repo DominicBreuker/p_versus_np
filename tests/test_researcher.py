@@ -26,6 +26,12 @@ class ParseIdeasTests(unittest.TestCase):
         ideas = researcher.parse_ideas(content)
         self.assertEqual([idea["name"] for idea in ideas], ["high-idea", "medium-idea", "low-idea"])
 
+    def test_get_mistral_api_key_falls_back_only_when_vibe_key_is_absent(self):
+        with mock.patch.dict(researcher.os.environ, {"MISTRAL_API_KEY": "fallback"}, clear=True):
+            self.assertEqual(researcher.get_mistral_api_key(), "fallback")
+        with mock.patch.dict(researcher.os.environ, {"MISTRAL_VIBE_KEY": "", "MISTRAL_API_KEY": "fallback"}, clear=True):
+            self.assertEqual(researcher.get_mistral_api_key(), "")
+
 
 class ChangedPathTests(unittest.TestCase):
     def test_parse_changed_paths_handles_standard_and_renamed_paths(self):
