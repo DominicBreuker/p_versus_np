@@ -187,7 +187,7 @@ def main() -> None:
         append_github_output("issue_number", str(issue["number"]))
         append_github_output("issue_url", issue["html_url"])
         append_github_output("assignees", ",".join(assignees))
-    except Exception as exc:  # pragma: no cover - workflow-facing error path
+    except (requests.RequestException, FileNotFoundError, RuntimeError, ValueError) as exc:
         sys.exit(f"❌ Error: {exc}")
 
 
