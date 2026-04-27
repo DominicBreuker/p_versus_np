@@ -157,13 +157,12 @@ def get_changed_paths() -> list[str]:
 def split_changed_paths(
     changed_paths: list[str],
     allowed_paths: set[str],
-    prompt_filename: str = PROMPT_FILENAME,
 ) -> tuple[list[str], list[str]]:
     allowed: list[str] = []
     blocked: list[str] = []
     for rel_path in changed_paths:
         normalized = rel_path.strip()
-        if not normalized or normalized == prompt_filename:
+        if not normalized or normalized == PROMPT_FILENAME:
             continue
         if normalized in allowed_paths:
             allowed.append(normalized)
