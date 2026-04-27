@@ -12,7 +12,7 @@ the **P vs NP problem** using **Lean4** for formal proofs.
 | Agent | Runs | Model | Auth / Secret |
 |---|---|---|---|
 | Project Leader | Every 8 hours | GitHub Copilot coding agent (request strongest reasoning/math model in issue prompt) | `GH_PAT` |
-| Researcher | Every 30 minutes | Mistral Large (configurable) | `MISTRAL_VIBE_KEY` |
+| Researcher | Every 30 minutes | Mistral Vibe (configurable model) | `MISTRAL_VIBE_KEY` |
 
 ---
 
@@ -69,7 +69,7 @@ Go to **Settings → Secrets and variables → Actions → Variables** and optio
 
 | Variable name | Default | Description |
 |---|---|---|
-| `MISTRAL_MODEL` | `mistral-large-latest` | Mistral model for Researcher |
+| `MISTRAL_MODEL` | *(Vibe default)* | Optional Mistral Vibe model override for Researcher |
 
 ### 4. Enable GitHub Actions
 
@@ -142,4 +142,4 @@ Full prompt: [`.github/prompts/project_leader_issue.md`](.github/prompts/project
 > You are a researcher working on the "P vs NP" problem. You are an expert in Lean4 and formal
 > theorem proving. Your role is to extend Lean4 proofs and track progress in NOTES.md.
 
-Full prompt: [`.github/scripts/researcher.py`](.github/scripts/researcher.py)
+Prompt template: [`.github/prompts/researcher_vibe.md`](.github/prompts/researcher_vibe.md)
