@@ -28,7 +28,7 @@ jobs:
           echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
 
       - name: Set up Lean toolchain
-        run: elan toolchain install "$(cat lean-toolchain)" --no-self-update
+        run: elan toolchain install "$(cat lean-toolchain)"
 
       - name: Cache Lake packages
         uses: actions/cache@v4
@@ -58,4 +58,3 @@ jobs:
             fi
           done < <(find candidates -name "*.lean" -print0)
           exit $FAILED
-
