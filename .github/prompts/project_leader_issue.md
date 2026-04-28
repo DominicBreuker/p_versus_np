@@ -55,6 +55,17 @@ Before editing anything, inspect at least:
   - `candidates/<idea-name>/NOTES.md`
   - `candidates/<idea-name>/Proof.lean`
 
+## Lean tooling guidance
+
+- The environment should already have `lean`, `lake`, Mathlib cache, `rg`, and a `lean-lsp` MCP server available.
+- When reviewing or editing Lean files, prefer Lean MCP tools before full builds:
+  - `lean_diagnostic_messages` for fast per-file diagnostics
+  - `lean_goal` / `lean_term_goal` to inspect proof states
+  - `lean_local_search`, `lean_leansearch`, `lean_loogle`, and `lean_leanfinder` for theorem search
+  - `lean_multi_attempt` to compare tactic ideas
+  - `lean_verify` before claiming any theorem is complete or sound
+- Use `lake build` as a repository-wide checkpoint before finalizing.
+
 ## Workflow context
 
 - Repository: `{{ repository }}`

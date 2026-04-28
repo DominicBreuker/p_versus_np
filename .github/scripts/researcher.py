@@ -2,68 +2,57 @@
 """
 Researcher Agent for the P vs NP Research Project.
 
-Picks the highest-priority active idea from candidates/README.md,
-reads the idea's current state, calls the Mistral API to advance
-the proof, and writes the updated files back to the repository.
+This version is intentionally based on the working principles from
+`obledev/mistral-action`: it runs the real Mistral Vibe CLI inside the checked
+out repository, feeds it a prompt file, and lets the agent work directly in the
+workspace instead of calling the chat completions API directly.
 
 Required environment variable:
-    MISTRAL_VIBE_KEY  — Mistral API key (stored in GitHub secret)
+    MISTRAL_VIBE_KEY or MISTRAL_API_KEY  — Mistral API key
 
-Optional environment variable:
-    MISTRAL_MODEL     — Mistral model name (default: mistral-large-latest)
+Optional environment variables:
+    MISTRAL_MODEL            — Mistral model name
+    MISTRAL_MAX_TURNS        — Max Vibe turns (default: 12)
+    MISTRAL_MAX_PRICE        — Max Vibe price in dollars
+    MISTRAL_TIMEOUT_SECONDS  — Timeout for the Vibe run (default: 1800)
+    MISTRAL_VIBE_BIN         — Override path to the `vibe` executable
 """
 
-import json
+from __future__ import annotations
+
 import os
 import re
+import shutil
 import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-import requests
-
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
 
-MISTRAL_API_KEY: str = os.environ.get("MISTRAL_VIBE_KEY", "")
-MISTRAL_MODEL: str = os.environ.get("MISTRAL_MODEL", "mistral-large-latest")
-MISTRAL_API_URL: str = "https://api.mistral.ai/v1/chat/completions"
-
 REPO_ROOT: Path = Path(__file__).resolve().parent.parent.parent
+PROMPT_TEMPLATE_PATH: Path = REPO_ROOT / ".github" / "prompts" / "researcher_vibe.md"
+PROMPT_FILENAME = ".mistral-researcher-prompt.md"
+PRIORITY_ORDER: dict[str, int] = {"High": 0, "Medium": 1, "Low": 2}
+DEAD_STATUSES: set[str] = {"Dead End", "Archived"}
+ALLOWED_SHARED_FILES: set[str] = {"lib/utils.lean"}
+MISTRAL_MODEL: str = os.environ.get("MISTRAL_MODEL", "").strip()
+MISTRAL_MAX_TURNS: str = os.environ.get("MISTRAL_MAX_TURNS", "12").strip()
+MISTRAL_MAX_PRICE: str = os.environ.get("MISTRAL_MAX_PRICE", "").strip()
+MISTRAL_TIMEOUT_SECONDS: int = int(os.environ.get("MISTRAL_TIMEOUT_SECONDS", "1800"))
 
-SYSTEM_PROMPT: str = """You are a researcher working on the "P vs NP" problem. \
-You are an expert in Lean4 and formal theorem proving. Your role is to:
 
-1. **Task Selection:**
-   - You will be given the highest-priority idea to work on.
-   - Read the idea's README.md and NOTES.md to understand the current state.
+def get_mistral_api_key() -> str:
+    """Return the configured API key, preferring the researcher-specific variable."""
+    if "MISTRAL_VIBE_KEY" in os.environ:
+        return os.environ.get("MISTRAL_VIBE_KEY", "").strip()
+    return os.environ.get("MISTRAL_API_KEY", "").strip()
 
-2. **Proof Development:**
-   - Extend or write Lean4 code in the idea's Proof.lean.
-   - Use the lib/ folder for reusable code if recommended.
-   - Follow the hints and problem statement in the idea's README.md.
 
-3. **Progress Tracking:**
-   - Update the idea's NOTES.md with:
-     - Your progress (e.g., "Proved Lemma X", "Stuck at Step Y").
-     - Next steps for the next researcher.
-     - Any obstacles or questions.
+MISTRAL_API_KEY: str = get_mistral_api_key()
 
-4. **Library Code:**
-   - If instructed in the idea's README.md, factor out reusable code into \
-lib/utils.lean.
-
-**Rules:**
-- NEVER modify README.md files for ideas (only NOTES.md and Proof.lean).
-- Keep NOTES.md concise and structured. Prefer restructuring over appending.
-- Only submit working Lean4 proofs. Use `sorry` as a placeholder for incomplete proofs.
-- If you are stuck, mark the task as "Stalled" in NOTES.md and suggest alternatives.
-- Respond ONLY with a JSON array inside a ```json code block.
-  Each element must have "path" (string) and "content" (string) keys.
-  You MUST include both NOTES.md and Proof.lean in your response.
-"""
 
 # ---------------------------------------------------------------------------
 # File helpers
@@ -71,7 +60,7 @@ lib/utils.lean.
 
 
 def read_file(path: Path) -> str:
-    """Read a file, returning an empty string if it does not exist."""
+    """Read UTF-8 text from a file and return an empty string on failure."""
     try:
         return path.read_text(encoding="utf-8")
     except (FileNotFoundError, OSError):
@@ -79,18 +68,34 @@ def read_file(path: Path) -> str:
 
 
 def write_file(path: Path, content: str) -> None:
-    """Write content to a file, creating parent directories as needed."""
+    """Write UTF-8 text to a file, creating parent directories as needed."""
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
 
 
-def is_safe_path(base_dir: Path, candidate: Path) -> bool:
-    """Return True only if `candidate` is inside `base_dir` (prevents path traversal)."""
+def is_safe_repo_relative_path(rel_path: str) -> bool:
+    """Return True when a repository-relative path resolves inside the repo root."""
     try:
-        candidate.resolve().relative_to(base_dir.resolve())
+        (REPO_ROOT / rel_path).resolve().relative_to(REPO_ROOT.resolve())
         return True
     except ValueError:
         return False
+
+
+def ensure_local_git_exclude(entry: str) -> None:
+    exclude_file = REPO_ROOT / ".git" / "info" / "exclude"
+    existing = read_file(exclude_file)
+    existing_lines = set(existing.splitlines())
+    additions: list[str] = []
+    if "# Local researcher prompt file" not in existing_lines:
+        additions.append("# Local researcher prompt file")
+    if entry not in existing_lines:
+        additions.append(entry)
+    if not additions:
+        return
+    exclude_file.parent.mkdir(parents=True, exist_ok=True)
+    with exclude_file.open("a", encoding="utf-8") as fh:
+        fh.write("\n" + "\n".join(additions) + "\n")
 
 
 # ---------------------------------------------------------------------------
@@ -98,78 +103,125 @@ def is_safe_path(base_dir: Path, candidate: Path) -> bool:
 # ---------------------------------------------------------------------------
 
 
+def run_git(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["git", *args],
+        cwd=REPO_ROOT,
+        text=True,
+        capture_output=True,
+        check=check,
+    )
+
+
 def get_git_log(rel_path: str, n: int = 5) -> str:
-    """Return the last n commit messages touching rel_path."""
     try:
-        result = subprocess.run(
-            ["git", "log", f"-{n}", "--oneline", "--", rel_path],
-            capture_output=True,
-            text=True,
-            cwd=REPO_ROOT,
-        )
-        return result.stdout.strip()
+        return run_git("log", f"-{n}", "--oneline", "--", rel_path, check=False).stdout.strip()
     except Exception:
         return ""
 
 
 def was_recently_updated(idea_name: str, minutes: int = 25) -> bool:
-    """Return True if the idea folder was committed to within the last `minutes` minutes."""
     try:
-        result = subprocess.run(
-            [
-                "git",
-                "log",
-                f"--since={minutes} minutes ago",
-                "--oneline",
-                "--",
-                f"candidates/{idea_name}/",
-            ],
-            capture_output=True,
-            text=True,
-            cwd=REPO_ROOT,
+        result = run_git(
+            "log",
+            f"--since={minutes} minutes ago",
+            "--oneline",
+            "--",
+            f"candidates/{idea_name}/",
+            check=False,
         )
         return bool(result.stdout.strip())
     except Exception:
         return False
 
 
+def parse_changed_paths(status_output: str) -> list[str]:
+    paths: list[str] = []
+    for line in status_output.splitlines():
+        if len(line) < 4:
+            continue
+        path_part = line[3:]
+        if " -> " in path_part:
+            old_path, new_path = path_part.split(" -> ", 1)
+            paths.extend([old_path.strip(), new_path.strip()])
+        else:
+            paths.append(path_part.strip())
+    return paths
+
+
+def get_changed_paths() -> list[str]:
+    result = run_git("status", "--short", check=False)
+    return parse_changed_paths(result.stdout)
+
+
+def split_changed_paths(
+    changed_paths: list[str],
+    allowed_paths: set[str],
+) -> tuple[list[str], list[str]]:
+    allowed: list[str] = []
+    blocked: list[str] = []
+    for rel_path in changed_paths:
+        normalized = rel_path.strip()
+        if not normalized or normalized == PROMPT_FILENAME:
+            continue
+        if normalized in allowed_paths:
+            allowed.append(normalized)
+        else:
+            blocked.append(normalized)
+    return allowed, blocked
+
+
+def revert_path(rel_path: str) -> None:
+    if not is_safe_repo_relative_path(rel_path):
+        raise ValueError(f"Refusing to touch path outside the repository: {rel_path}")
+
+    restore = run_git("restore", "--source=HEAD", "--staged", "--worktree", "--", rel_path, check=False)
+    if restore.returncode == 0:
+        return
+
+    full_path = REPO_ROOT / rel_path
+    if full_path.is_dir():
+        shutil.rmtree(full_path)
+    elif full_path.exists():
+        full_path.unlink()
+
+
 # ---------------------------------------------------------------------------
 # Idea selection
 # ---------------------------------------------------------------------------
 
-PRIORITY_ORDER: dict[str, int] = {"High": 0, "Medium": 1, "Low": 2}
-DEAD_STATUSES: set[str] = {"Dead End", "Archived"}
 
-
-def get_ideas() -> list[dict]:
-    """Parse candidates/README.md and return ideas sorted by priority."""
-    content = read_file(REPO_ROOT / "candidates" / "README.md")
-    ideas: list[dict] = []
+def parse_ideas(content: str) -> list[dict[str, str]]:
+    ideas: list[dict[str, str]] = []
     for line in content.splitlines():
-        # Match markdown table rows: | idea-name | Priority | Status |
-        m = re.match(
+        match = re.match(
             r"\|\s*([^|]+?)\s*\|\s*(High|Medium|Low)\s*\|\s*([^|]+?)\s*\|",
             line,
         )
-        if not m:
+        if not match:
             continue
-        name, priority, status = m.group(1).strip(), m.group(2).strip(), m.group(3).strip()
-        if name.lower() in ("idea name", "---", "---------", "idea-name"):
+        name, priority, status = (
+            match.group(1).strip(),
+            match.group(2).strip(),
+            match.group(3).strip(),
+        )
+        if name.lower() in {"idea name", "---", "---------", "idea-name"}:
             continue
         ideas.append({"name": name, "priority": priority, "status": status})
-    ideas.sort(key=lambda x: PRIORITY_ORDER.get(x["priority"], 3))
+    ideas.sort(key=lambda item: PRIORITY_ORDER.get(item["priority"], 3))
     return ideas
 
 
-def pick_idea(ideas: list[dict]) -> dict | None:
-    """Pick the highest-priority idea that is not a dead end and not recently updated."""
-    # First pass: skip recently-updated ideas (locking mechanism)
+def get_ideas() -> list[dict[str, str]]:
+    return parse_ideas(read_file(REPO_ROOT / "candidates" / "README.md"))
+
+
+def pick_idea(ideas: list[dict[str, str]]) -> dict[str, str] | None:
     for idea in ideas:
         if idea["status"] in DEAD_STATUSES:
             continue
         if not was_recently_updated(idea["name"]):
             return idea
-    # Second pass: if all were recently updated, pick the first non-dead one
     for idea in ideas:
         if idea["status"] not in DEAD_STATUSES:
             return idea
@@ -177,63 +229,99 @@ def pick_idea(ideas: list[dict]) -> dict | None:
 
 
 # ---------------------------------------------------------------------------
-# Mistral API
+# Prompt construction
 # ---------------------------------------------------------------------------
 
 
-def call_mistral(messages: list[dict], max_tokens: int = 4096) -> str:
-    """Call the Mistral chat completions API and return the response text."""
-    if not MISTRAL_API_KEY:
-        raise ValueError("MISTRAL_VIBE_KEY environment variable is not set.")
-    headers = {
-        "Authorization": f"Bearer {MISTRAL_API_KEY}",
-        "Content-Type": "application/json",
+def allowed_paths_for_idea(idea_name: str) -> set[str]:
+    return {
+        f"candidates/{idea_name}/NOTES.md",
+        f"candidates/{idea_name}/Proof.lean",
+        *ALLOWED_SHARED_FILES,
     }
-    payload = {
-        "model": MISTRAL_MODEL,
-        "messages": messages,
-        "max_tokens": max_tokens,
-        "temperature": 0.7,
-    }
-    response = requests.post(MISTRAL_API_URL, headers=headers, json=payload, timeout=180)
-    response.raise_for_status()
-    return response.json()["choices"][0]["message"]["content"]
+
+
+def build_prompt(idea_name: str) -> str:
+    current_time = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+    git_log = get_git_log(f"candidates/{idea_name}/")
+    template = read_file(PROMPT_TEMPLATE_PATH)
+    if not template:
+        raise FileNotFoundError(f"Prompt template not found: {PROMPT_TEMPLATE_PATH}")
+
+    allowed_targets = "\n".join(f"- `{path}`" for path in sorted(allowed_paths_for_idea(idea_name)))
+    return template.format(
+        idea_name=idea_name,
+        current_time=current_time,
+        git_log=git_log or "(no recent commits)",
+        allowed_targets=allowed_targets,
+    )
 
 
 # ---------------------------------------------------------------------------
-# Response parsing
+# Vibe execution
 # ---------------------------------------------------------------------------
 
 
-def parse_file_updates(response_text: str) -> dict[str, str]:
-    """Extract file updates from LLM response (expected: ```json [...] ```)."""
-    # Try fenced code block first
-    m = re.search(r"```json\s*([\s\S]+?)\s*```", response_text)
-    if m:
+def find_vibe_executable() -> str:
+    configured = os.environ.get("MISTRAL_VIBE_BIN", "").strip()
+    if configured:
+        return configured
+    executable = shutil.which("vibe")
+    if not executable:
+        raise RuntimeError("The `vibe` executable was not found on PATH.")
+    return executable
+
+
+def run_vibe(prompt_text: str) -> subprocess.CompletedProcess[str]:
+    prompt_path = REPO_ROOT / PROMPT_FILENAME
+    ensure_local_git_exclude(PROMPT_FILENAME)
+    write_file(prompt_path, prompt_text)
+
+    # This mirrors the upstream mistral-action approach and relies on Vibe
+    # exposing a read_file tool inside programmatic sessions.
+    bootstrap_prompt = (
+        f"Your full task instructions are in the file `{PROMPT_FILENAME}` "
+        f"in the current working directory. Read that file NOW with read_file, "
+        f"then follow every instruction in it."
+    )
+
+    command = [
+        find_vibe_executable(),
+        "--prompt",
+        bootstrap_prompt,
+        "--agent",
+        "auto-approve",
+        "--workdir",
+        str(REPO_ROOT),
+    ]
+
+    if MISTRAL_MODEL:
+        command.extend(["--model", MISTRAL_MODEL])
+    if MISTRAL_MAX_TURNS:
+        command.extend(["--max-turns", MISTRAL_MAX_TURNS])
+    if MISTRAL_MAX_PRICE:
+        command.extend(["--max-price", MISTRAL_MAX_PRICE])
+
+    env = os.environ.copy()
+    env["MISTRAL_API_KEY"] = MISTRAL_API_KEY
+    env["CI"] = "true"
+    env["TERM"] = "dumb"
+
+    try:
+        return subprocess.run(
+            command,
+            cwd=REPO_ROOT,
+            env=env,
+            text=True,
+            capture_output=True,
+            timeout=MISTRAL_TIMEOUT_SECONDS,
+            check=False,
+        )
+    finally:
         try:
-            updates = json.loads(m.group(1))
-            if isinstance(updates, list):
-                return {
-                    item["path"]: item["content"]
-                    for item in updates
-                    if isinstance(item, dict) and "path" in item and "content" in item
-                }
-        except (json.JSONDecodeError, KeyError):
+            prompt_path.unlink()
+        except FileNotFoundError:
             pass
-    # Fallback: raw JSON array anywhere in the response
-    m = re.search(r"\[\s*\{[\s\S]+?\}\s*\]", response_text)
-    if m:
-        try:
-            updates = json.loads(m.group(0))
-            if isinstance(updates, list):
-                return {
-                    item["path"]: item["content"]
-                    for item in updates
-                    if isinstance(item, dict) and "path" in item and "content" in item
-                }
-        except (json.JSONDecodeError, KeyError):
-            pass
-    return {}
 
 
 # ---------------------------------------------------------------------------
@@ -241,8 +329,26 @@ def parse_file_updates(response_text: str) -> dict[str, str]:
 # ---------------------------------------------------------------------------
 
 
+def emit_github_output(name: str, value: str) -> None:
+    output_file = os.environ.get("GITHUB_OUTPUT", "")
+    if not output_file:
+        return
+    with open(output_file, "a", encoding="utf-8") as fh:
+        fh.write(f"{name}={value}\n")
+
+
 def main() -> None:
     os.chdir(REPO_ROOT)
+
+    if not MISTRAL_API_KEY:
+        raise ValueError("Set MISTRAL_VIBE_KEY or MISTRAL_API_KEY before running the researcher.")
+
+    initial_changed_paths = get_changed_paths()
+    if initial_changed_paths:
+        print("Refusing to run researcher with a dirty working tree:", file=sys.stderr)
+        for rel_path in sorted(set(initial_changed_paths)):
+            print(f"  - {rel_path}", file=sys.stderr)
+        sys.exit(1)
 
     ideas = get_ideas()
     if not ideas:
@@ -254,138 +360,46 @@ def main() -> None:
         print("No suitable idea found (all are dead ends or recently updated).")
         sys.exit(0)
 
-    idea_name: str = idea["name"]
-    idea_path: Path = REPO_ROOT / "candidates" / idea_name
+    idea_name = idea["name"]
+    allowed_paths = allowed_paths_for_idea(idea_name)
+    prompt = build_prompt(idea_name)
 
     print(f"Working on idea: {idea_name}  (Priority: {idea['priority']}, Status: {idea['status']})")
+    print("Running Mistral Vibe …")
+    result = run_vibe(prompt)
 
-    # Gather context
-    current_time = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
-    candidates_readme = read_file(REPO_ROOT / "candidates" / "README.md")
-    idea_readme = read_file(idea_path / "README.md")
-    idea_notes = read_file(idea_path / "NOTES.md")
-    proof_lean = read_file(idea_path / "Proof.lean")
-    lib_utils = read_file(REPO_ROOT / "lib" / "utils.lean")
-    git_log = get_git_log(f"candidates/{idea_name}/")
+    if result.stdout.strip():
+        print(result.stdout.strip())
+    if result.stderr.strip():
+        print(result.stderr.strip(), file=sys.stderr)
 
-    user_message = f"""Current time: {current_time}
-You are working on idea: **{idea_name}**
+    changed_paths = get_changed_paths()
+    allowed_changes, blocked_changes = split_changed_paths(changed_paths, allowed_paths)
 
-## candidates/README.md (priority list)
-{candidates_readme}
+    if blocked_changes:
+        print("Reverting unauthorized changes:")
+        for rel_path in sorted(set(blocked_changes)):
+            print(f"  - {rel_path}")
+            revert_path(rel_path)
+        changed_paths = get_changed_paths()
+        allowed_changes, blocked_changes = split_changed_paths(changed_paths, allowed_paths)
 
-## candidates/{idea_name}/README.md (problem statement and hints)
-{idea_readme}
-
-## candidates/{idea_name}/NOTES.md (current progress)
-{idea_notes}
-
-## candidates/{idea_name}/Proof.lean (current proof)
-{proof_lean}
-
-## lib/utils.lean (reusable utilities)
-{lib_utils}
-
-## Recent Git Log for this idea
-{git_log or "(no recent commits)"}
-
----
-
-Your task:
-1. Review the current state of the proof and notes.
-2. Extend or improve the Lean4 proof in candidates/{idea_name}/Proof.lean.
-3. Update candidates/{idea_name}/NOTES.md with your progress and next steps.
-4. If instructed to refactor code into lib/, update lib/utils.lean accordingly.
-
-Respond ONLY with a JSON array inside a ```json code block.
-Each element: {{"path": "...", "content": "..."}}
-You MUST include both NOTES.md and Proof.lean.
-Only include files you are actually updating (no unnecessary files).
-
-Allowed files:
-  - candidates/{idea_name}/NOTES.md
-  - candidates/{idea_name}/Proof.lean
-  - lib/utils.lean  (only if explicitly refactoring shared code)
-
-Rules:
-  - NEVER modify any README.md file.
-  - Use `sorry` as a placeholder for incomplete proof steps.
-  - Keep NOTES.md concise; restructure rather than append.
-  - If stuck, set Status to "Stalled" and suggest alternatives.
-
-Example format:
-```json
-[
-  {{
-    "path": "candidates/{idea_name}/NOTES.md",
-    "content": "# Progress Notes\\n\\n**Last Updated:** {current_time}\\n..."
-  }},
-  {{
-    "path": "candidates/{idea_name}/Proof.lean",
-    "content": "-- Updated Lean4 proof\\n..."
-  }}
-]
-```
-"""
-
-    messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": user_message},
-    ]
-
-    print("Calling Mistral API …")
-    response_text = call_mistral(messages)
-    print(f"Response received ({len(response_text)} chars).")
-
-    updates = parse_file_updates(response_text)
-    if not updates:
-        print("ERROR: No file updates could be parsed from the response.")
-        print("Response preview:\n", response_text[:800])
+    if blocked_changes:
+        print("ERROR: unauthorized changes remain after cleanup.", file=sys.stderr)
         sys.exit(1)
 
-    # Security: allowed paths for researcher
-    allowed_prefixes = [
-        REPO_ROOT / "candidates" / idea_name,
-        REPO_ROOT / "lib",
-    ]
-    allowed_suffixes_for_idea = {"NOTES.md", "Proof.lean"}
+    if result.returncode != 0:
+        print("Mistral Vibe failed.", file=sys.stderr)
+        sys.exit(result.returncode)
 
-    written = 0
-    for rel_path, content in updates.items():
-        full_path = (REPO_ROOT / rel_path).resolve()
+    if allowed_changes:
+        print("Allowed changes:")
+        for rel_path in sorted(set(allowed_changes)):
+            print(f"  - {rel_path}")
+    else:
+        print("Mistral Vibe completed without repository changes.")
 
-        # Verify the path is inside the repo
-        if not is_safe_path(REPO_ROOT, full_path):
-            print(f"SKIP (path traversal): {rel_path}")
-            continue
-
-        # Researcher must not touch README.md files
-        if Path(rel_path).name == "README.md":
-            print(f"SKIP (README.md is read-only for researchers): {rel_path}")
-            continue
-
-        # Verify path is under an allowed prefix
-        if not any(is_safe_path(prefix, full_path) for prefix in allowed_prefixes):
-            print(f"SKIP (not in allowed path): {rel_path}")
-            continue
-
-        # Within the idea folder, only NOTES.md and Proof.lean are writable
-        if is_safe_path(REPO_ROOT / "candidates" / idea_name, full_path):
-            if full_path.name not in allowed_suffixes_for_idea:
-                print(f"SKIP (only NOTES.md and Proof.lean allowed in idea folder): {rel_path}")
-                continue
-
-        print(f"Writing: {rel_path}")
-        write_file(full_path, content)
-        written += 1
-
-    print(f"Done. Wrote {written} file(s) for idea: {idea_name}")
-
-    # Emit output for the workflow commit message
-    github_output = os.environ.get("GITHUB_OUTPUT", "")
-    if github_output:
-        with open(github_output, "a", encoding="utf-8") as fh:
-            fh.write(f"idea_name={idea_name}\n")
+    emit_github_output("idea_name", idea_name)
 
 
 if __name__ == "__main__":

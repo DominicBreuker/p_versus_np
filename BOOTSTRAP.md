@@ -12,7 +12,7 @@ the **P vs NP problem** using **Lean4** for formal proofs.
 | Agent | Runs | Model | Auth / Secret |
 |---|---|---|---|
 | Project Leader | Every 8 hours | GitHub Copilot coding agent (request strongest reasoning/math model in issue prompt) | `GH_PAT` |
-| Researcher | Every 30 minutes | Mistral Large (configurable) | `MISTRAL_VIBE_KEY` |
+| Researcher | Every 30 minutes | Mistral Vibe (configurable model) | `MISTRAL_VIBE_KEY` |
 
 ---
 
@@ -27,6 +27,7 @@ the **P vs NP problem** using **Lean4** for formal proofs.
 │   │   ├── create_copilot_issue.py  # Creates & assigns Copilot issues
 │   │   └── researcher.py            # Researcher LLM agent
 │   └── workflows/
+│       ├── copilot-setup-steps.yml # Prepares Copilot cloud agent environment
 │       ├── project_leader.yml  # Creates and assigns a Copilot issue every 8 h
 │       ├── researcher.yml      # Runs researcher.py every 30 min
 │       └── lean_check.yml      # Verifies Lean4 proofs on every push
@@ -69,13 +70,23 @@ Go to **Settings → Secrets and variables → Actions → Variables** and optio
 
 | Variable name | Default | Description |
 |---|---|---|
-| `MISTRAL_MODEL` | `mistral-large-latest` | Mistral model for Researcher |
+| `MISTRAL_MODEL` | *(Vibe default)* | Optional Mistral Vibe model override for Researcher |
 
 ### 4. Enable GitHub Actions
 
 Go to **Settings → Actions → General** and ensure Actions are enabled.
 
-### 5. Trigger the first run
+### 5. Copilot cloud agent bootstrap
+
+The repository includes `.github/workflows/copilot-setup-steps.yml`, which preinstalls:
+
+- Lean / Lake plus cached `.lake` artifacts via `leanprover/lean-action`
+- `rg` for local theorem/source search
+- the `lean-lsp-mcp` server used by the Project Leader
+
+This workflow must exist on the default branch before Copilot cloud-agent sessions can benefit from it.
+
+### 6. Trigger the first run
 
 - Go to **Actions → Project Leader → Run workflow** to create and assign the first Copilot Project Leader issue.
 - After that, the scheduled workflows will run automatically.
@@ -142,4 +153,15 @@ Full prompt: [`.github/prompts/project_leader_issue.md`](.github/prompts/project
 > You are a researcher working on the "P vs NP" problem. You are an expert in Lean4 and formal
 > theorem proving. Your role is to extend Lean4 proofs and track progress in NOTES.md.
 
-Full prompt: [`.github/scripts/researcher.py`](.github/scripts/researcher.py)
+Prompt template: [`.github/prompts/researcher_vibe.md`](.github/prompts/researcher_vibe.md)
+
+---
+
+## Lean MCP support
+
+Both agent environments are configured to have access to the [`lean-lsp-mcp`](https://github.com/oOo0oOo/lean-lsp-mcp) server.
+
+- **Project Leader / Copilot cloud agent** uses the repository-scoped `.mcp.json` definition together with `copilot-setup-steps.yml`.
+- **Researcher / Mistral Vibe** writes a `~/.vibe/config.toml` entry during the workflow before invoking `vibe`.
+
+Use the Lean MCP tools for fast diagnostics (`lean_diagnostic_messages`), goal inspection (`lean_goal`), theorem search (`lean_local_search`, `lean_leansearch`, `lean_loogle`, `lean_leanfinder`), tactic comparison (`lean_multi_attempt`), and proof soundness checks (`lean_verify`) before relying on full `lake build` runs.
