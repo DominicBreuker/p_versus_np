@@ -32,6 +32,9 @@ jobs:
             sudo apt-get install -y ripgrep
           fi
 
+      - name: Run researcher unit tests
+        run: python -m unittest discover -s tests -v
+
       - name: Install Mistral Vibe
         run: |
           uv tool install --force --python 3.12 "mistral-vibe==2.8.1"
@@ -76,9 +79,6 @@ jobs:
           rg --version
           test -f lake-manifest.json
           uvx --from "lean-lsp-mcp==0.26.1" lean-lsp-mcp --help >/dev/null
-
-      - name: Run researcher unit tests
-        run: python -m unittest discover -s tests -v
 
       - name: Run Researcher Agent
         id: researcher
