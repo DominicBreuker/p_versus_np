@@ -84,6 +84,9 @@ The repository includes `.github/workflows/copilot-setup-steps.yml`, which prein
 - `rg` for local theorem/source search
 - the `lean-lsp-mcp` server used by the Project Leader
 
+For reproducibility, the repository also commits `lake-manifest.json` and pins
+`lean-toolchain` to the exact Lean release required by Mathlib.
+
 This workflow must exist on the default branch before Copilot cloud-agent sessions can benefit from it.
 
 ### 6. Trigger the first run
@@ -136,6 +139,9 @@ lake exe cache get
 lake build
 ```
 
+If you intentionally change `lakefile.lean` or `lean-toolchain`, regenerate
+`lake-manifest.json` with `lake update` and commit the updated manifest.
+
 ---
 
 ## Agent Prompts
@@ -165,3 +171,7 @@ Both agent environments are configured to have access to the [`lean-lsp-mcp`](ht
 - **Researcher / Mistral Vibe** writes a `~/.vibe/config.toml` entry during the workflow before invoking `vibe`.
 
 Use the Lean MCP tools for fast diagnostics (`lean_diagnostic_messages`), goal inspection (`lean_goal`), theorem search (`lean_local_search`, `lean_leansearch`, `lean_loogle`, `lean_leanfinder`), tactic comparison (`lean_multi_attempt`), and proof soundness checks (`lean_verify`) before relying on full `lake build` runs.
+
+The researcher workflow installs Mistral Vibe with Python 3.12 and validates the
+checked-in Lake manifest before launching the agent so that both agent environments
+start from the same Lean and dependency state.

@@ -4,11 +4,13 @@ on:
   push:
     paths:
       - '**/*.lean'
+      - 'lake-manifest.json'
       - 'lakefile.lean'
       - 'lean-toolchain'
   pull_request:
     paths:
       - '**/*.lean'
+      - 'lake-manifest.json'
       - 'lakefile.lean'
       - 'lean-toolchain'
 
@@ -19,7 +21,7 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install elan (Lean toolchain manager)
         run: |
@@ -36,7 +38,7 @@ jobs:
           path: |
             ~/.elan
             .lake/packages
-          key: lean-${{ hashFiles('lean-toolchain', 'lakefile.lean') }}
+          key: lean-${{ hashFiles('lean-toolchain', 'lakefile.lean', 'lake-manifest.json') }}
           restore-keys: lean-
 
       - name: Download Mathlib build cache

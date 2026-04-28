@@ -10,14 +10,14 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
-          python-version: '3.11'
+          python-version: '3.12'
 
       - name: Install uv
         run: |
@@ -32,9 +32,12 @@ jobs:
             sudo apt-get install -y ripgrep
           fi
 
+      - name: Run researcher unit tests
+        run: python -m unittest discover -s tests -v
+
       - name: Install Mistral Vibe
         run: |
-          python -m pip install --user "mistral-vibe==2.8.1"
+          uv tool install --force --python 3.12 "mistral-vibe==2.8.1"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Set up Lean toolchain, cache, and build artifacts
@@ -64,10 +67,12 @@ jobs:
 
       - name: Verify researcher tools
         run: |
+          python --version
           vibe --version
           lean --version
           lake --version
           rg --version
+          test -f lake-manifest.json
           uvx --from "lean-lsp-mcp==0.26.1" lean-lsp-mcp --help >/dev/null
 
       - name: Run Researcher Agent
