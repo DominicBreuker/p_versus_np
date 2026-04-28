@@ -28,6 +28,15 @@ Your job in this run:
 4. Update `candidates/{idea_name}/Proof.lean` when you can improve the formalization.
 5. Update `lib/utils.lean` only if shared code is genuinely needed.
 
+Lean tooling guidance:
+
+- A `lean-lsp` MCP server is preconfigured for this run.
+- Prefer `lean_diagnostic_messages` for fast file-level feedback before rerunning a full build.
+- Use `lean_goal` / `lean_term_goal` to inspect tactic and term proof states precisely.
+- Use `lean_local_search`, `lean_leansearch`, `lean_loogle`, and `lean_leanfinder` before inventing lemmas.
+- Use `lean_multi_attempt` when you have multiple plausible tactics.
+- Use `lean_verify` before claiming that a proof is complete or sound.
+
 Hard constraints:
 
 - You may edit only these paths:
