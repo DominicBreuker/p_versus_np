@@ -53,7 +53,8 @@ def IsPolynomial (p : ℕ → ℕ) : Prop :=
 Replace the `sorry` in `inP` with `IsPolynomial p`.
 
 ### Fix `inNP` witness encoding (Task 4)
-Use a combined bitstring of length `2 * n` (first `n` bits = input, second `n` bits = witness):
+Use a combined bitstring of length `2 * n` (first `n` bits = input, second `n` bits = witness).
+The `omega` tactic below is part of Lean4 core (available without extra imports):
 ```lean
 def inNP (L : Language) : Prop :=
   ∃ (V : Language), inP V ∧

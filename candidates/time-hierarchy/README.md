@@ -31,13 +31,19 @@ A formal Lean4 THT proof would be a landmark formalization achievement in itself
 Use an abstract model of computation to keep the formalization tractable:
 
 1. **Abstract machine model**: Rather than full Turing machines, use an abstract notion:
-   - A *decider* is a function `ℕ → List Bool → Bool` (computes a yes/no answer).
-   - A *timed decider* carries a step-count bound: `∀ w, steps(M, w) ≤ f(w.length)`.
-2. **DTIME class**: `DTIME f = {L | ∃ M, decides M L ∧ ∀ w, timeOf M w ≤ f w.length}`.
-3. **Universal simulation**: State (as axiom or prove for a concrete model) that a universal
-   machine can simulate any f(n)-time machine in O(f(n) log f(n)) steps.
-4. **Diagonalization**: Construct a language D that differs from every machine M_i on some input
-   while running in g(n) time; conclude D ∈ DTIME(g) \ DTIME(f).
+   - A *decider* is a function `List Bool → Bool` (computes a yes/no answer).
+   - A *timed decider* carries a step-count bound: `∀ w, timeOf M w ≤ f w.length`.
+2. **DTIME class**: `inDTIME f L = ∃ M, decides M L ∧ ∀ w, timeOf M w ≤ f w.length`.
+3. **Universal simulation**: State (as axiom) that a universal machine can simulate any
+   f(n)-time decider in f(n) * (f(n) + 1) steps (a quadratic overhead; the classical proof
+   achieves O(f(n) log f(n)) but the quadratic bound simplifies the formalization).
+4. **Diagonalization**: Construct a language D that differs from every decider M_i on some
+   input while running in g(n) steps; conclude D ∈ DTIME(g) \ DTIME(f).
+
+> **Implementation note:** `Proof.lean` uses the condition `∀ n, f n * (f n + 1) < g n`
+> (quadratic gap) rather than the classical `f(n) log f(n) = o(g(n))` to match the
+> quadratic universal simulation axiom. This is a deliberate simplification to keep the
+> axiom and proof condition consistent.
 
 ---
 
