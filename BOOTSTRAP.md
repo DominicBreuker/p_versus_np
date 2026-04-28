@@ -132,15 +132,15 @@ To check locally:
 # Install elan (Lean toolchain manager)
 curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh
 
-# Sync the committed dependency manifest
-lake update
-
 # Download prebuilt Mathlib cache (much faster than building from source)
 lake exe cache get
 
 # Build the project
 lake build
 ```
+
+If you intentionally change `lakefile.lean` or `lean-toolchain`, regenerate
+`lake-manifest.json` with `lake update` and commit the updated manifest.
 
 ---
 

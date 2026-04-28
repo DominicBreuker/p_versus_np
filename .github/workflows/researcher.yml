@@ -47,11 +47,6 @@ jobs:
           test: false
           lint: false
 
-      - name: Verify committed Lake manifest
-        run: |
-          lake update
-          git diff --exit-code -- lake-manifest.json
-
       - name: Prime Lean MCP server
         run: uvx --from "lean-lsp-mcp==0.26.1" lean-lsp-mcp --help >/dev/null
 
