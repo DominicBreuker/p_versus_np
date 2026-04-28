@@ -123,3 +123,113 @@ theorem p_neq_np : ∃ L : Language, inNP L ∧ ¬ inP L := by
   sorry
 
 end PVsNp.CircuitLowerBounds
+
+/-- A circuit with a single NOT gate evaluates to the negation of its child. -/
+lemma evalCircuit_not {n : Nat} (c : Nat) (hc : c < n) (inp : Fin n → Bool) :
+    let circuit : BoolCircuit n := {
+      nodes := #[
+        { gate := Gate.Var c, children := [] },
+        { gate := Gate.Not, children := [0] }
+      ]
+      output := 1
+    }
+    evalCircuit circuit inp = !inp ⟨c, hc⟩ := by
+  simp [evalCircuit, evalNode]
+  rfl
+
+/-- A circuit with a single AND gate with two constant true children evaluates to true. -/
+lemma evalCircuit_and_true_true {n : Nat} :
+    let circuit : BoolCircuit n := {
+      nodes := #[
+        { gate := Gate.Const true, children := [] },
+        { gate := Gate.Const true, children := [] },
+        { gate := Gate.And, children := [0, 1] }
+      ]
+      output := 2
+    }
+    evalCircuit circuit (fun i => false) = true := by
+  simp [evalCircuit, evalNode]
+  rfl
+
+/-- A circuit with a single AND gate with one true and one false child evaluates to false. -/
+lemma evalCircuit_and_true_false {n : Nat} :
+    let circuit : BoolCircuit n := {
+      nodes := #[
+        { gate := Gate.Const true, children := [] },
+        { gate := Gate.Const false, children := [] },
+        { gate := Gate.And, children := [0, 1] }
+      ]
+      output := 2
+    }
+    evalCircuit circuit (fun i => false) = false := by
+  simp [evalCircuit, evalNode]
+  rfl
+
+/-- A circuit with a single OR gate with two constant false children evaluates to false. -/
+lemma evalCircuit_or_false_false {n : Nat} :
+    let circuit : BoolCircuit n := {
+      nodes := #[
+        { gate := Gate.Const false, children := [] },
+        { gate := Gate.Const false, children := [] },
+        { gate := Gate.Or, children := [0, 1] }
+      ]
+      output := 2
+    }
+    evalCircuit circuit (fun i => false) = false := by
+  simp [evalCircuit, evalNode]
+  rfl
+
+/-- A circuit with a single OR gate with one true and one false child evaluates to true. -/
+lemma evalCircuit_or_true_false {n : Nat} :
+    let circuit : BoolCircuit n := {
+      nodes := #[
+        { gate := Gate.Const true, children := [] },
+        { gate := Gate.Const false, children := [] },
+        { gate := Gate.Or, children := [0, 1] }
+      ]
+      output := 2
+    }
+    evalCircuit circuit (fun i => false) = true := by
+  simp [evalCircuit, evalNode]
+  rfl
+
+-- ---------------------------------------------------------------------------
+-- Cook–Levin Theorem (axiomatized)
+-- ---------------------------------------------------------------------------
+
+/-- The Cook–Levin theorem states that SAT is NP-complete.
+    We axiomatize this as it requires substantial formalization work. -/
+axiom sat_is_np_complete :
+    ∃ (sat : Language), inNP sat ∧ 
+    ∀ (L : Language), inNP L → ∃ (f : Nat → Nat) (_hf : IsPolynomial f),
+      ∀ n inp, L n inp ↔ sat (f n) (fun i => 
+        if h : i.val < n then inp ⟨i.val, h⟩
+        else false)
+
+-- ---------------------------------------------------------------------------
+-- Connection between circuit lower bounds and P ≠ NP
+-- ---------------------------------------------------------------------------
+
+/-- If SAT requires superpolynomial circuit size, then P ≠ NP.
+    This is the key connection between circuit complexity and the P vs NP problem. -/
+lemma sat_superpolynomial_implies_p_neq_np
+    (sat : Language) 
+    (h_sat_np : inNP sat)
+    (h_superpoly : ∃ (c : ℕ), ∀ (p : Nat → Nat) (_hp : IsPolynomial p),
+      ∃ n, ∀ (circuit : BoolCircuit n), circuitSize circuit > p n) :
+    ∃ L : Language, inNP L ∧ ¬ inP L := by
+  -- Use SAT as our witness language
+  use sat
+  constructor
+  -- SAT is in NP (given)
+  exact h_sat_np
+  -- SAT is not in P (by contradiction)
+  intro h_sat_in_p
+  -- Extract the polynomial bound from h_sat_in_p
+  obtain ⟨p, hp_poly, h_dec⟩ := h_sat_in_p
+  -- Get the superpolynomial witness
+  obtain ⟨c, hc⟩ := h_superpoly
+  -- For sufficiently large n, any circuit deciding SAT has size > p n
+  -- But h_dec says there exists a circuit of size ≤ p n
+  -- This is a contradiction
+  sorry
