@@ -11,6 +11,14 @@ namespace PVsNpLib
 abbrev BoolFn (n : ℕ) := (Fin n → Bool) → Bool
 
 -- ---------------------------------------------------------------------------
+-- Polynomial predicate
+-- ---------------------------------------------------------------------------
+
+/-- A function is polynomial if it is bounded by c * n^k + c for some constants -/
+def IsPolynomial (p : ℕ → ℕ) : Prop :=
+  ∃ k c : ℕ, ∀ n, p n ≤ c * n ^ k + c
+
+-- ---------------------------------------------------------------------------
 -- Combinatorics stubs (to be developed by researchers)
 -- ---------------------------------------------------------------------------
 
