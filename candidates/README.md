@@ -10,6 +10,13 @@
 
 Work on the **highest-priority Active** idea that has unresolved tasks.
 
+### Lean import guidance
+
+- Shared library code is importable as `PVsNpLib` or `PVsNpLib.Utils`.
+- Put imports at the top of proof files, typically `import Mathlib` and then `import PVsNpLib`.
+- After changing shared library code, run `lake build` and then re-check the affected candidate file with `lake env lean`.
+- Do not copy shared definitions between candidates when they belong in `lib/PVsNpLib/`.
+
 ### circuit-lower-bounds (High priority)
 
 The conditional proof of `p_neq_np` compiles. The next concrete, provable task is:
@@ -36,4 +43,3 @@ Then attempt to prove the diagonalization direction of `time_hierarchy_theorem`.
 New idea. Follow the `README.md` for the circuit-lifting approach.
 The key proof obligation is showing that a circuit for `L` at size `n` can serve as a circuit
 for the verifier `V` at size `2*n` by ignoring the witness half of the input.
-

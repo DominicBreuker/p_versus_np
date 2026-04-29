@@ -108,12 +108,16 @@ jobs:
         run: python .github/scripts/researcher.py
 
       - name: Clean up trailing whitespace
+        if: always()
         run: |
           find candidates -name "*.md" -exec sed -i 's/[[:space:]]*$//' {} \;
           find candidates -name "*.lean" -exec sed -i 's/[[:space:]]*$//' {} \;
           find lib -name "*.lean" -exec sed -i 's/[[:space:]]*$//' {} \;
 
       - name: Validate Lean project
+        if: always()
+        id: validate
+        continue-on-error: true
         run: |
           set -euo pipefail
           lake build
@@ -124,10 +128,28 @@ jobs:
           done
 
       - name: Commit and push changes
+        if: always()
         run: |
           git config --global user.name "Researcher"
           git config --global user.email "researcher@p-vs-np.github"
           git add .
-          git diff --quiet && git diff --staged --quiet || \
-            git commit -m "Researcher update: work on ${{ steps.researcher.outputs.idea_name || 'idea' }}"
-          git push
+          if ! git diff --quiet || ! git diff --staged --quiet; then
+            if [ "${{ steps.researcher.outputs.run_outcome }}" = "success" ]; then
+              git commit -m "Researcher update: work on ${{ steps.researcher.outputs.idea_name || 'idea' }}"
+            else
+              git commit -m "Researcher update (interrupted): work on ${{ steps.researcher.outputs.idea_name || 'idea' }}"
+            fi
+            git push
+          fi
+
+      - name: Fail workflow if researcher or validation failed
+        if: always()
+        run: |
+          if [ "${{ steps.researcher.outcome }}" != "success" ]; then
+            echo "Researcher step failed."
+            exit 1
+          fi
+          if [ "${{ steps.validate.outcome }}" != "success" ]; then
+            echo "Lean validation failed."
+            exit 1
+          fi

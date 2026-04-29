@@ -133,16 +133,34 @@ def boolean_function_count (n : Nat) : Nat := 2 ^ (2 ^ n)
 private theorem circuit_count_lt_functions_at_n (n : Nat) (hn : n ≥ 4) :
     circuit_count_upper_bound n n < boolean_function_count n := by
   unfold circuit_count_upper_bound boolean_function_count
-  -- For n = 4: (5)^5 * 2^4 = 3125 * 16 = 50000 < 65536 = 2^16 = 2^(2^4)
-  -- For n = 5: (6)^6 * 2^5 = 46656 * 32 = 1493056 < 4294967296 = 2^32 = 2^(2^5)
-  -- The inequality holds because 2^(2^n) grows much faster than (n+1)^(n+1) * 2^n
-  -- For n ≥ 5, we use sorry as the full arithmetic requires multiple inequality chains
-  -- But we verify the base case n = 4 explicitly:
-  have : n ≥ 4 := hn
-  -- For now, we use sorry for the general case
-  -- The key insight: (s+1)^(s+1) * 2^s where s = n, and 2^(2^n)
-  -- For n ≥ 4, (n+1)^(n+1) < 2^(n * (n+1)) and n * (n+1) < n^2 + n < 2^n for n ≥ 4
-  sorry
+  have hcases : n = 4 ∨ n = 5 ∨ n = 6 ∨ n = 7 ∨ n = 8 ∨ n ≥ 9 := by
+    omega
+  cases hcases with
+  | inl h4 => subst h4; decide
+  | inr hrest =>
+      cases hrest with
+      | inl h5 => subst h5; decide
+      | inr hrest =>
+          cases hrest with
+          | inl h6 => subst h6; decide
+          | inr hrest =>
+              cases hrest with
+              | inl h7 => subst h7; decide
+              | inr hrest =>
+                  cases hrest with
+                  | inl h8 => subst h8; decide
+                  | inr hge9 =>
+                      -- Recovered from the failed 2026-04-29 researcher run:
+                      -- for n ≥ 9 the intended route is
+                      --   1. prove n + 1 < 2^n,
+                      --   2. lift to (n+1)^(n+1) < (2^n)^(n+1) = 2^(n*(n+1)),
+                      --   3. combine with 2^n to get 2^(n^2 + 2*n),
+                      --   4. prove n^2 + 2*n < 2^n,
+                      --   5. conclude 2^(n^2 + 2*n) < 2^(2^n).
+                      -- The small cases above were already verified directly and recovered from
+                      -- the timed-out workflow logs; the general arithmetic formalization remains.
+                      have : n ≥ 9 := hge9
+                      sorry
 
 /-- Shannon's counting argument: For any polynomial p, there exist Boolean functions
     on n inputs that cannot be computed by circuits of size ≤ p(n).
