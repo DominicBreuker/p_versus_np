@@ -19,7 +19,8 @@ circuit complexity, then `P ≠ NP`.
 - Work in this folder must stay tied to the goal of settling P vs NP.
 - Infrastructure results are useful only when they move this lower-bound route forward.
 - Do not present Shannon-style counting progress as if it settled the SAT lower-bound problem itself.
-- Keep the route barrier-aware: counting lemmas and asymptotic bounds are worthwhile here only insofar as they clarify what this route can and cannot prove about explicit NP languages.
+- Keep the route barrier-aware.
+- Counting lemmas and asymptotic bounds are worthwhile here only insofar as they clarify what this route can and cannot prove about explicit NP languages.
 
 ---
 

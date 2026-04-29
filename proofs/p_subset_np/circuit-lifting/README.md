@@ -36,7 +36,7 @@ using the circuit-model definitions already aligned with the main `p_versus_np` 
 | `poly_half` | ✓ proven |
 | `liftCircuit_eval` | ✗ sorry |
 | `verifier_iff` | ✗ sorry |
-| `p_subset_np` | ✗ sorry (currently blocked by the verifier-family size alignment) |
+| `p_subset_np` | ✗ sorry |
 
 ---
 
@@ -66,6 +66,7 @@ Reduce `((2 * n) / 2)` to `n`, then prove that the combined input restricted to 
 ### Task 7 — Finish `p_subset_np`
 
 Keep the final theorem specialized to the existing circuit model. Do not introduce a second verifier representation or extra abstraction layers unless they are needed to close the current proof.
+The current blocker is the verifier-family size alignment.
 
 ---
 
