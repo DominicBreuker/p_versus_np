@@ -40,7 +40,6 @@ jobs:
             "${{ github.event.repository.name }}" \
             .github/prompts/project_leader_issue.md \
             --title "Project Leader run $(date -u +'%Y-%m-%d %H:%M UTC')" \
-            --model gpt54 \
             --var "repository=${REPOSITORY}" \
             --var "trigger=${TRIGGER_REASON}" \
             --var "timestamp=$(date -u +'%Y-%m-%d %H:%M:%S UTC')" \
