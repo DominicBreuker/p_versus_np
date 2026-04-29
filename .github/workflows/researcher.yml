@@ -35,10 +35,35 @@ jobs:
       - name: Run researcher unit tests
         run: python -m unittest discover -s tests -v
 
-      - name: Install Mistral Vibe
+      - name: Configure Vibe home
         run: |
+          echo "VIBE_HOME=$RUNNER_TEMP/vibe-home" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/vibe-home"
+
+      - name: Require Mistral API key
+        env:
+          MISTRAL_VIBE_KEY: ${{ secrets.MISTRAL_VIBE_KEY }}
+        run: |
+          test -n "$MISTRAL_VIBE_KEY"
+
+      - name: Install real Mistral Vibe CLI
+        run: |
+          # CI must use the real `vibe` CLI. The repository mock is only for
+          # researcher.py development/tests where no live API key should be used.
           uv tool install --force --python 3.12 "mistral-vibe==2.8.1"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Generate explicit Vibe session ID
+        id: vibe_session
+        run: |
+          SESSION_ID="$(python - <<'PY'
+import uuid
+print(uuid.uuid4())
+PY
+)"
+          echo "session_id=$SESSION_ID" >> "$GITHUB_OUTPUT"
+          echo "MISTRAL_VIBE_SESSION_ID=$SESSION_ID" >> "$GITHUB_ENV"
+          echo "Using explicit Vibe session ID: $SESSION_ID"
 
       - name: Set up Lean toolchain, cache, and build artifacts
         uses: leanprover/lean-action@v1.5.0
@@ -52,8 +77,8 @@ jobs:
 
       - name: Configure Mistral Vibe MCP servers
         run: |
-          mkdir -p "$HOME/.vibe"
-          cat > "$HOME/.vibe/config.toml" <<'EOF'
+          mkdir -p "$VIBE_HOME"
+          cat > "$VIBE_HOME/config.toml" <<'EOF'
           [[mcp_servers]]
           name = "lean-lsp"
           transport = "stdio"
@@ -86,20 +111,17 @@ jobs:
         run: |
           find candidates -name "*.md" -exec sed -i 's/[[:space:]]*$//' {} \;
           find candidates -name "*.lean" -exec sed -i 's/[[:space:]]*$//' {} \;
-          sed -i 's/[[:space:]]*$//' lib/utils.lean
+          find lib -name "*.lean" -exec sed -i 's/[[:space:]]*$//' {} \;
 
       - name: Validate Lean project
         run: |
+          set -euo pipefail
           lake build
-          FAILED=0
-          while IFS= read -r -d '' f; do
-            echo "Checking: $f"
-            if ! lean "$f" 2>&1; then
-              echo "::error file=$f::Lean4 check failed"
-              FAILED=1
-            fi
-          done < <(find candidates -name "*.lean" -print0)
-          exit $FAILED
+          mapfile -d '' proofs < <(find candidates -name "*.lean" -print0 | sort -z)
+          for f in "${proofs[@]}"; do
+            echo "Checking executable Lean file: $f"
+            lake env lean "$f"
+          done
 
       - name: Commit and push changes
         run: |

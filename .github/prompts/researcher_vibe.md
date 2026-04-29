@@ -24,9 +24,9 @@ Your job in this run:
 
 1. Understand the current mathematical and Lean state for `{idea_name}`.
 2. Make the smallest useful forward step on the proof or supporting library code.
-3. Update `candidates/{idea_name}/NOTES.md` so it accurately reflects what you changed, what still blocks progress, and the next best step.
-4. Update `candidates/{idea_name}/Proof.lean` when you can improve the formalization.
-5. Update `lib/utils.lean` only if shared code is genuinely needed.
+3. Update files anywhere under `candidates/{idea_name}/` when that is useful for the current step.
+4. Update files anywhere under `lib/` when shared Lean code needs to move or expand.
+5. Keep `candidates/{idea_name}/NOTES.md` accurate about what you changed, what still blocks progress, and the next best step.
 
 Lean tooling guidance:
 
@@ -43,7 +43,7 @@ Hard constraints:
 {allowed_targets}
 - Never modify any `README.md` file.
 - Never modify workflows, scripts, prompts, `OVERVIEW.md`, `BOOTSTRAP.md`, or any other repository file.
-- Do not create, rename, delete, or move repository files unless one of the allowed targets truly requires it.
+- Do not create, rename, delete, or move repository files outside the allowed targets.
 - Prefer working Lean code.
 - `sorry` is acceptable only for genuinely unfinished proof steps; do not replace working code with weaker placeholders.
 - Keep `NOTES.md` concise and structured.
