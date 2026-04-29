@@ -71,8 +71,12 @@ def IsTimeConstructible (f : Nat → Nat) : Prop :=
 -- Universal simulation (key axiom)
 -- ---------------------------------------------------------------------------
 
-/-- Pairing: encode a natural number index i with a word w -/
-noncomputable def encode (i : Nat) (w : List Bool) : List Bool := sorry
+/-- Pairing: encode a natural number index i with a word w.
+    Represents (i, w) as i false-bits, a true separator, then w.
+    Length: encode i w has length i + 1 + w.length.
+    Injective: encode i v = encode j w → i = j ∧ v = w (by counting leading false-bits). -/
+def encode (i : Nat) (w : List Bool) : List Bool :=
+  List.replicate i false ++ [true] ++ w
 
 /-- The universal simulator -/
 noncomputable def universal : Decider := sorry

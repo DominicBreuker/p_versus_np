@@ -1,6 +1,6 @@
 # P vs NP: Collaborative LLM Research
 
-**Status:** 2 active ideas — 0 proofs complete — last reviewed 2026-04-28
+**Status:** 3 active ideas — 0 unconditional proofs complete — last reviewed 2026-04-29
 
 ---
 
@@ -17,8 +17,9 @@ See [`OVERVIEW.md`](OVERVIEW.md) for the current project state and [`BOOTSTRAP.m
 
 | Idea | Priority | Status |
 |------|----------|--------|
-| [circuit-lower-bounds](candidates/circuit-lower-bounds/) | High | Active — needs `evalCircuit` fix |
-| [time-hierarchy](candidates/time-hierarchy/) | High | Active — new; warm-up `DTIME_mono` ready |
+| [circuit-lower-bounds](candidates/circuit-lower-bounds/) | High | Active — conditional P ≠ NP proof exists; Shannon counting argument needs completion |
+| [time-hierarchy](candidates/time-hierarchy/) | High | Active — monotonicity proven; diagonalization still sorried |
+| [p-subset-np](candidates/p-subset-np/) | Medium | New — prove P ⊆ NP formally in the circuit model |
 
 ---
 
