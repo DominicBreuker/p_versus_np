@@ -91,13 +91,9 @@ lemma evalNode_lift_eq {n : Nat} (vals : Array Bool) (node : CircuitNode)
 
 **Step 2 — accumulate over the array:**
 Prove by induction on `c.nodes` that the entire `foldl` accumulation is equal.
-The key Lean4/Mathlib lemma:
-```lean
-Array.foldl_congr : (∀ i, f acc a[i] = g acc a[i]) → a.foldl f init = a.foldl g init
--- (exact name may vary; look for Array.foldl with pointwise congruence)
-```
-
-Alternatively, prove by induction using `Array.foldl_push` (unfolding one element at a time):
+There may be a Mathlib congruence lemma for `Array.foldl`; search with
+`lean_loogle` for `Array.foldl` congruence or pointwise equality results.
+If no direct lemma is found, prove by induction using `Array.foldl_push` (unfolding one element at a time):
 ```lean
 lemma foldl_eq_of_eval_eq {n : Nat} (nodes : Array CircuitNode)
     (inp : Fin (2 * n) → Bool) :

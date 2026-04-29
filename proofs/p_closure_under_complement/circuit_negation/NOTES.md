@@ -18,7 +18,8 @@
 
 ## Motivation
 
-This is the most immediately achievable sorry-free theorem in the repository after `inDTIME_mono`.
+This is the most immediately achievable sorry-free theorem in the repository beyond the
+already-proven `inDTIME_mono` and `inDTIME_congr` (in the THT track).
 The circuit model already has all the components needed:
 - `BoolCircuit`, `evalCircuit`, `inP` are defined.
 - Adding a NOT gate and showing it flips the output is elementary.
