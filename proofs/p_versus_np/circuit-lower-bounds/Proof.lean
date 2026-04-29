@@ -123,6 +123,78 @@ def circuit_count_upper_bound (_n s : Nat) : Nat := (s + 1) ^ (s + 1) * 2 ^ s
 
 /-- The number of distinct Boolean functions on n inputs is 2^(2^n). -/
 def boolean_function_count (n : Nat) : Nat := 2 ^ (2 ^ n)
+-- Arithmetic helper lemmas for the counting argument
+
+/-- For n ≥ 1, n + 1 ≤ 2^n. -/
+private theorem n_plus_one_le_two_pow_n (n : Nat) (hn : n ≥ 1) : n + 1 ≤ 2 ^ n := by
+  induction n with
+  | zero => omega
+  | succ n ih =>
+    cases n with
+    | zero => simp
+    | succ n =>
+      -- For n+2, we need (n+2) + 1 ≤ 2^(n+2)
+      -- i.e., n + 3 ≤ 4 * 2^n
+      -- From IH: n + 2 ≤ 2^(n+1) = 2 * 2^n
+      -- So n + 3 ≤ 2 * 2^n + 1 ≤ 2 * 2^n + 2 * 2^n = 4 * 2^n = 2^(n+2)
+      have ih' : n + 2 ≤ 2 ^ (n + 1) := by
+        have : n + 1 ≥ 1 := by omega
+        exact ih this
+      calc n + 2 + 1 ≤ 2 ^ (n + 1) + 1 := by omega
+        _ ≤ 2 ^ (n + 1) + 2 ^ (n + 1) := by
+          have : 1 ≤ 2 ^ (n + 1) := by
+            have : n + 1 ≥ 1 := by omega
+            exact Nat.one_le_pow (n + 1) 2 (by norm_num)
+          omega
+        _ = 2 * 2 ^ (n + 1) := by ring
+        _ = 2 ^ (n + 2) := by rw [Nat.pow_succ]; ring
+
+/-- For n ≥ 1, (n + 1)^(n + 1) ≤ 2^(n * (n + 1)). -/
+private theorem n_plus_one_pow_le_two_pow_n_times_n_plus_one (n : Nat) (hn : n ≥ 1) :
+    (n + 1) ^ (n + 1) ≤ 2 ^ (n * (n + 1)) := by
+  have h := n_plus_one_le_two_pow_n n hn
+  calc (n + 1) ^ (n + 1) ≤ (2 ^ n) ^ (n + 1) := Nat.pow_le_pow_left h (n + 1)
+    _ = 2 ^ (n * (n + 1)) := by rw [← Nat.pow_mul]
+
+/-- For n ≥ 9, n^2 + 2*n < 2^n. -/
+private theorem n_squared_plus_two_n_lt_two_pow_n (n : Nat) (hn : n ≥ 9) :
+    n ^ 2 + 2 * n < 2 ^ n := by
+  -- Base case: n = 9
+  have base9 : 9 ^ 2 + 2 * 9 < 2 ^ 9 := by norm_num
+  -- Inductive step
+  suffices ∀ k ≥ 9, k ^ 2 + 2 * k < 2 ^ k by exact this n hn
+  intro k hk
+  induction k, hk using Nat.le_induction with
+  | base => exact base9
+  | succ k hk ih =>
+    -- IH: k^2 + 2*k < 2^k
+    -- Goal: (k+1)^2 + 2*(k+1) < 2^(k+1)
+    calc (k + 1) ^ 2 + 2 * (k + 1)
+        = k^2 + 2*k + 1 + 2*k + 2 := by ring
+      _ = k^2 + 2*k + (2*k + 3) := by ring
+      _ < 2^k + (2*k + 3) := by omega
+      _ ≤ 2^k + 2^k := by
+          have : 2 * k + 3 ≤ 2 ^ k := by
+            -- For k ≥ 9, 2*k + 3 ≤ 2^k
+            have base : 2 * 9 + 3 ≤ 2 ^ 9 := by norm_num
+            have step : ∀ m ≥ 9, 2 * m + 3 ≤ 2 ^ m → 2 * (m + 1) + 3 ≤ 2 ^ (m + 1) := by
+              intro m hm h
+              calc 2 * (m + 1) + 3 = 2 * m + 2 + 3 := by ring
+                _ ≤ 2 ^ m + 2 := by omega
+                _ ≤ 2 ^ m + 2 ^ m := by
+                    have : 2 ≤ 2 ^ m := by
+                      have : m ≥ 1 := by omega
+                      have : 1 ≤ m := by omega
+                      calc 2 = 2 ^ 1 := by norm_num
+                        _ ≤ 2 ^ m := Nat.pow_le_pow_right (by norm_num) this
+                    omega
+                _ = 2 * 2 ^ m := by ring
+                _ = 2 ^ (m + 1) := by rw [Nat.pow_succ]; ring
+            exact Nat.le_induction base step k hk
+          omega
+      _ = 2 * 2^k := by ring
+      _ = 2 ^ (k + 1) := by rw [Nat.pow_succ]; ring
+
 /-- Key arithmetic lemma: for n ≥ 4, circuit_count_upper_bound n n < boolean_function_count n.
     This establishes the counting argument for the identity polynomial, demonstrating the technique.
     The full Shannon argument generalizes this to any polynomial p. -/
@@ -146,17 +218,27 @@ private theorem circuit_count_lt_functions_at_n (n : Nat) (hn : n ≥ 4) :
                   cases hrest with
                   | inl h8 => subst h8; decide
                   | inr hge9 =>
-                      -- Recovered from the failed 2026-04-29 researcher run:
-                      -- for n ≥ 9 the intended route is
-                      --   1. prove n + 1 < 2^n,
-                      --   2. lift to (n+1)^(n+1) < (2^n)^(n+1) = 2^(n*(n+1)),
-                      --   3. combine with 2^n to get 2^(n^2 + 2*n),
-                      --   4. prove n^2 + 2*n < 2^n,
-                      --   5. conclude 2^(n^2 + 2*n) < 2^(2^n).
-                      -- The small cases above were already verified directly and recovered from
-                      -- the timed-out workflow logs; the general arithmetic formalization remains.
                       have : n ≥ 9 := hge9
-                      sorry
+                      -- Step 1: n + 1 ≤ 2^n for n ≥ 1
+                      have h1 : n + 1 ≤ 2 ^ n := n_plus_one_le_two_pow_n n (by omega)
+                      -- Step 2: (n+1)^(n+1) ≤ 2^(n*(n+1))
+                      have h2 : (n + 1) ^ (n + 1) ≤ 2 ^ (n * (n + 1)) :=
+                        n_plus_one_pow_le_two_pow_n_times_n_plus_one n (by omega)
+                      -- Step 3: n^2 + 2*n < 2^n for n ≥ 9
+                      have h3 : n ^ 2 + 2 * n < 2 ^ n :=
+                        n_squared_plus_two_n_lt_two_pow_n n (by omega)
+                      -- Combine: (n+1)^(n+1) * 2^n ≤ 2^(n*(n+1)) * 2^n = 2^(n^2 + n + n) = 2^(n^2 + 2*n)
+                      calc (n + 1) ^ (n + 1) * 2 ^ n
+                          ≤ 2 ^ (n * (n + 1)) * 2 ^ n := by
+                            apply Nat.mul_le_mul_right
+                            exact h2
+                        _ = 2 ^ (n * (n + 1) + n) := by rw [← Nat.pow_add]
+                        _ = 2 ^ (n ^ 2 + n + n) := by ring_nf
+                        _ = 2 ^ (n ^ 2 + 2 * n) := by ring_nf
+                        _ < 2 ^ (2 ^ n) := by
+                            apply Nat.pow_lt_pow_right
+                            · norm_num
+                            · exact h3
 
 /-- Shannon's counting argument: For any polynomial p, there exist Boolean functions
     on n inputs that cannot be computed by circuits of size ≤ p(n).
@@ -180,15 +262,40 @@ theorem shannon_counting_argument :
   have hn_large : n ≥ k + c_poly + 5 := by omega
   have hn_ge9 : n ≥ 9 := by omega
   -- From h_bound: p n ≤ c_poly * n^k + c_poly
+  have h_p_bound : p n ≤ c_poly * n ^ k + c_poly := h_bound n
   -- For n ≥ k + c_poly + 5, we have c_poly * n^k + c_poly < 2^n
   -- This is because exponential grows faster than polynomial
-  -- For now, we use the fact that circuit_count_lt_functions_at_n holds for n ≥ 4
-  have h_count : circuit_count_upper_bound n n < boolean_function_count n :=
-    circuit_count_lt_functions_at_n n (by omega)
-  -- We need to show circuit_count_upper_bound n (p n) < boolean_function_count n
-  -- Since p n ≤ c_poly * n^k + c_poly and for large n, c_poly * n^k + c_poly ≤ n (when n is large enough)
-  -- Actually, we need p n ≤ n for the counting to work directly
-  -- For now, we use sorry as we need to formalize that p n ≤ n for large n
+  -- We'll show that p n < 2^n for large n, which implies circuit_count_upper_bound n (p n) < boolean_function_count n
+  -- For the Shannon counting argument, we use the fact that for large n,
+  -- the number of circuits of size ≤ p n is less than the number of Boolean functions.
+  --
+  -- Key observation: For any polynomial p n = c * n^k + c, eventually p n < 2^n / n.
+  -- Then (p n + 1)^(p n + 1) * 2^(p n) < (2^n / n + 1)^(2^n / n + 1) * 2^(2^n / n)
+  --                                    < (2^n)^(2^n / n + 1) * 2^(2^n / n)
+  --                                    = 2^(n * (2^n / n + 1)) * 2^(2^n / n)
+  --                                    = 2^(2^n + n) * 2^(2^n / n)
+  --                                    = 2^(2^n + n + 2^n / n)
+  -- And we need 2^n + n + 2^n / n < 2^n, which is false.
+  --
+  -- The issue is that our circuit count bound is too loose for large p n.
+  -- Let's use a different approach: note that circuit_count_upper_bound n s is defined
+  -- as (s + 1)^(s + 1) * 2^s, which for s = p n where p is polynomial, gives
+  -- (p n + 1)^(p n + 1) * 2^(p n).
+  --
+  -- For p n = c * n^k + c, we have:
+  -- (p n + 1)^(p n + 1) * 2^(p n) ≤ (2 * c * n^k)^(2 * c * n^k) * 2^(2 * c * n^k)  (for n ≥ 1)
+  --                                = 2^(2 * c * n^k * log2(2 * c * n^k)) * 2^(2 * c * n^k)
+  --                                = 2^(2 * c * n^k * (1 + log2(c) + k log2(n)) + 2 * c * n^k)
+  --
+  -- We need this exponent to be < 2^n, i.e.,
+  -- 2 * c * n^k * (1 + log2(c) + k log2(n)) + 2 * c * n^k < 2^n
+  --
+  -- For large n, the dominant term on the left is 2 * c * k * n^k * log2(n),
+  -- which is o(2^n). So eventually this holds.
+  --
+  -- However, formalizing this in Lean requires working with logarithms and
+  -- asymptotic analysis, which is complex. For now, we keep this as sorry
+  -- and note that this is the remaining work for Task 7.
   sorry
 
 -- ---------------------------------------------------------------------------
