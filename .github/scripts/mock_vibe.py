@@ -101,6 +101,10 @@ def append_jsonl(path: Path, records: list[dict[str, object]]) -> None:
             fh.write(json.dumps(record, ensure_ascii=False) + "\n")
 
 
+def make_user_message(prompt: str) -> dict[str, object]:
+    return {"role": "user", "content": prompt}
+
+
 def list_valid_sessions() -> list[Path]:
     session_root = get_session_log_dir()
     if not session_root.exists():
@@ -147,7 +151,7 @@ def create_session_dir(session_id: str) -> Path:
 
 
 def update_session(session_dir: Path, session_id: str, prompt: str, messages: list[dict[str, object]]) -> None:
-    append_jsonl(session_dir / SESSION_MESSAGES_FILENAME, [{"role": "user", "content": prompt}, *messages])
+    append_jsonl(session_dir / SESSION_MESSAGES_FILENAME, [make_user_message(prompt), *messages])
     metadata_path = session_dir / SESSION_METADATA_FILENAME
     metadata = read_json_file(metadata_path)
     metadata["session_id"] = session_id
@@ -259,6 +263,7 @@ def main() -> int:
         return 0
 
     workdir = (args.workdir or Path.cwd()).resolve()
+    # The real CLI also switches to `--workdir` before running.
     os.chdir(workdir)
 
     bootstrap_prompt = args.prompt if args.prompt is not None else (args.initial_prompt or "")

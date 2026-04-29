@@ -32,7 +32,6 @@ import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from uuid import uuid4
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -368,8 +367,12 @@ def is_mock_vibe_executable(executable: str) -> bool:
 
 
 def resolve_session_id() -> str:
+    # CI sets an explicit session ID so the second Vibe pass can resume it.
+    # The fallback is for local development/testing runs of researcher.py.
     if MISTRAL_VIBE_SESSION_ID:
         return MISTRAL_VIBE_SESSION_ID
+    from uuid import uuid4
+
     return str(uuid4())
 
 
@@ -439,7 +442,9 @@ def bind_latest_session_to_explicit_id(session_id: str) -> Path:
     # Upstream Vibe exposes `--resume SESSION_ID` but does not expose a
     # corresponding "start a new session with this exact ID" CLI flag.
     # We therefore bind the just-written session log to the chosen explicit ID
-    # before launching the second pass with `--resume`.
+    # before launching the second pass with `--resume`. If rebinding fails
+    # (for example because the latest log is missing or the target already
+    # exists), we raise RuntimeError and stop before the resume pass.
     session_dir = find_latest_vibe_session_dir()
     if session_dir is None:
         raise RuntimeError("Could not find the latest Vibe session log to bind an explicit session ID.")
