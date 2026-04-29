@@ -19,6 +19,10 @@ sys.modules[spec.name] = researcher
 spec.loader.exec_module(researcher)
 
 
+def tearDownModule() -> None:
+    sys.modules.pop(spec.name, None)
+
+
 class ParseIdeasTests(unittest.TestCase):
     def test_parse_ideas_sorts_by_priority(self):
         content = """

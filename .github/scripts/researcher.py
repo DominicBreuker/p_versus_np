@@ -391,16 +391,20 @@ def format_vibe_output_line(line: str) -> str:
 
     match = VIBE_TAG_PATTERN.fullmatch(stripped)
     if match:
-        return f"[vibe {match.group('tag')}] {match.group('message')}"
+        formatted = f"[vibe {match.group('tag')}] {match.group('message')}"
+        return formatted
 
     try:
         payload = json.loads(stripped)
     except json.JSONDecodeError:
-        return stripped
+        formatted = stripped
+    else:
+        if isinstance(payload, dict):
+            formatted = format_streaming_message(payload)
+        else:
+            formatted = stripped
 
-    if isinstance(payload, dict):
-        return format_streaming_message(payload)
-    return stripped
+    return formatted
 
 
 def run_vibe(prompt_text: str) -> VibeRunResult:
@@ -462,6 +466,8 @@ def run_vibe(prompt_text: str) -> VibeRunResult:
             try:
                 for raw_line in process.stdout:
                     output_queue.put(raw_line)
+            except Exception as exc:
+                output_queue.put(f"<vibe_warning>Output reader failed: {exc}</vibe_warning>\n")
             finally:
                 process.stdout.close()
                 output_queue.put(None)
