@@ -2,7 +2,7 @@
 
 **Priority:** 90
 
-**Status:** Active — conditional P ≠ NP proof compiled; Shannon counting argument is the key open task
+**Status:** Active — conditional P ≠ NP proof compiled; Shannon counting argument has two remaining `sorry` placeholders
 
 ---
 
@@ -31,7 +31,7 @@ circuit complexity, then P ≠ NP.
 - [x] Task 6: Axiomatize Cook–Levin theorem (`sat_is_np_complete`)
 - [x] Task 7: Prove `sat_superpolynomial_implies_p_neq_np` (no sorry — contradiction proof)
 - [x] Task 8: State and prove `p_neq_np` (conditional on the two axioms below)
-- [ ] Task 9: Prove `circuit_count_lt_functions_at_n` — remove sorry in counting base case
+- [ ] Task 9: Prove `circuit_count_lt_functions_at_n` — remove sorry in the `n ≥ 9` branch
 - [ ] Task 10: Complete `shannon_counting_argument` — remove both sorry placeholders
 
 ---
@@ -39,7 +39,7 @@ circuit complexity, then P ≠ NP.
 ## Key Axioms (current proof relies on these)
 
 1. **`sat_is_np_complete`** — Cook–Levin theorem. Classically provable; formal proof is
-   laborious but not an open problem.  
+   laborious but not an open problem.
 2. **`sat_has_superpoly_lower_bound`** — SAT requires superpolynomial-size circuits.
    **This is the P vs NP problem itself.** Do not claim it is proven.
 
@@ -51,35 +51,44 @@ That assumption is exactly what remains to be resolved.
 
 ## Immediate Next Steps
 
-### Task 9 — Prove `circuit_count_lt_functions_at_n`
+### Task 9 — Prove `circuit_count_lt_functions_at_n` for n ≥ 9
 
-Goal: `(n + 1)^(n + 1) * 2^n < 2^(2^n)` for `n ≥ 4`.
+Goal: `(n + 1)^(n + 1) * 2^n < 2^(2^n)` for `n ≥ 9` (small cases n=4..8 already use `decide`).
 
-Strategy:
-1. Prove the auxiliary inequality `n * (n + 1) < 2^n` for `n ≥ 4` by induction.
-2. Use it to bound `(n + 1)^(n + 1) ≤ 2^(n * (n + 1)) < 2^(2^n)`.
-3. Multiply by `2^n` (still less than `2^(2^n)`).
+**Recommended three-step proof route:**
+
+**Step 1 — auxiliary lemma A:** `n + 1 ≤ 2^n` for `n ≥ 1`, by induction.
+
+**Step 2 — auxiliary lemma B:** `(n + 1)^(n + 1) ≤ 2^(n * (n + 1))` using lemma A and
+`Nat.pow_le_pow_left`.
+
+**Step 3 — auxiliary lemma C:** `n^2 + 2*n < 2^n` for `n ≥ 9`, by induction.
+- Base `n = 9`: `81 + 18 = 99 < 512 = 2^9`. Use `norm_num` or `decide`.
+- Inductive step: `(n+1)^2 + 2*(n+1) = n^2 + 2n + 2n + 3`. Use `n ≤ 2^n - 1` (from A)
+  and the inductive hypothesis to close with `omega` or `linarith`.
+
+**Final assembly:**
+```lean
+-- (n+1)^(n+1) * 2^n ≤ 2^(n*(n+1)) * 2^n = 2^(n^2 + 2*n + n) ≤ 2^(n^2 + 2*n + n)
+-- But n^2 + 2*n < 2^n (lemma C), so 2^(n^2 + 2*n + n) < 2^(2^n + n) ≤ 2^(2^n + 2^n) = 2^(2^(n+1))
+-- More directly: n^2 + 2*n < 2^n, so n*(n+1) + n = n^2 + 2*n < 2^n ≤ 2^n * 2^n = 2^(2*n) ≤ 2^(2^n)
+```
 
 Useful Mathlib lemmas:
 ```lean
--- Nat.pow_lt_pow_right : 1 < b → n < m → b^n < b^m
--- Nat.mul_lt_mul_right : 0 < k → m < n → m * k < n * k
--- Nat.lt_of_le_of_lt, Nat.add_lt_add_left, Nat.lt_irrefl
+Nat.pow_le_pow_left  -- a ≤ b → a^n ≤ b^n
+Nat.pow_lt_pow_right -- 1 < b → n < m → b^n < b^m
+Nat.pow_add          -- b^(m+n) = b^m * b^n
 ```
 
-Concrete Lean4 proof sketch:
-```lean
--- Step 1: n * (n+1) < 2^n for n ≥ 4 (induction)
--- Step 2: (n+1)^(n+1) ≤ 2^(n*(n+1)) because n+1 ≤ 2^n
--- Step 3: 2^(n*(n+1)) * 2^n = 2^(n*(n+1) + n) ≤ 2^(2^n + n) < 2^(2^n + 2^n) = 2^(2^(n+1))
-```
+Use `omega` for linear arithmetic and `nlinarith` or `linarith` for combining inequalities.
 
 ### Task 10 — Complete `shannon_counting_argument`
 
-Once Task 9 is done, use the pigeonhole principle to show that with fewer circuits than functions,
-some function escapes all circuits of bounded size.
-
-Relevant Mathlib: `Finset.exists_ne_map_eq_of_card_lt_of_maps_to` (pigeonhole).
+Once Task 9 is done, the path for a general polynomial `p` with `p n ≤ c * n^k + c` is:
+1. Show that for large enough `n₀`, `p n ≤ n^(k+1)` for all `n ≥ n₀`.
+2. Extend `circuit_count_lt_functions_at_n` to `circuit_count_upper_bound n (n^(k+1)) < boolean_function_count n`.
+3. Use `Finset.exists_ne_map_eq_of_card_lt_of_maps_to` (Mathlib pigeonhole) to conclude.
 
 ---
 
@@ -89,7 +98,7 @@ Relevant Mathlib: `Finset.exists_ne_map_eq_of_card_lt_of_maps_to` (pigeonhole).
   the Shannon argument (which gives *existential* lower bounds) with proving the SAT lower bound.
 - The Shannon argument shows most functions need large circuits; getting from "most" to "SAT specifically"
   requires the NP-completeness of SAT (Cook–Levin), which is already axiomatized.
-- Factor out `IsPolynomial` into `lib/utils.lean` once Lake configuration supports it.
+- `omega` handles linear arithmetic; use `nlinarith` or `Nat.pow_lt_pow_right` for exponential bounds.
 
 ---
 

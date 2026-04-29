@@ -2,9 +2,10 @@
 
 | Problem | Approach | Priority | Status |
 |---------|----------|----------|--------|
-| [p_versus_np](p_versus_np/) | [circuit-lower-bounds](p_versus_np/circuit-lower-bounds/) | 90 | Active — conditional P ≠ NP proof exists; Shannon counting argument remains open |
-| [p_subset_np](p_subset_np/) | [circuit-lifting](p_subset_np/circuit-lifting/) | 80 | Active — foundational theorem with a promising formal proof plan |
-| [deterministic_time_hierarchy_theorem](deterministic_time_hierarchy_theorem/) | [diagonalization](deterministic_time_hierarchy_theorem/diagonalization/) | 70 | Active — monotonicity proven; diagonalization still blocked |
+| [p_versus_np](p_versus_np/) | [circuit-lower-bounds](p_versus_np/circuit-lower-bounds/) | 90 | Active — conditional P ≠ NP proof compiled; two `sorry` remain in Shannon counting argument |
+| [p_subset_np](p_subset_np/) | [circuit-lifting](p_subset_np/circuit-lifting/) | 85 | Active — `liftCircuit` and `poly_half` proven; `liftCircuit_eval` and `verifier_iff` have sorry |
+| [deterministic_time_hierarchy_theorem](deterministic_time_hierarchy_theorem/) | [diagonalization](deterministic_time_hierarchy_theorem/diagonalization/) | 70 | Active — monotonicity proven; diagonal language construction pending |
+| [p_closure_under_complement](p_closure_under_complement/) | [circuit_negation](p_closure_under_complement/circuit_negation/) | 50 | New — stub with sorry; target is a completely sorry-free proof |
 
 ## Guidance for Researchers
 
