@@ -1,13 +1,9 @@
+import Mathlib
+import PVsNpLib
+
 -- P vs NP via Circuit Complexity Lower Bounds
--- Idea: If NP-complete problems require superpolynomial circuits, then P ≠ NP.
--- Status: Fixed evalCircuit, added IsPolynomial, fixed inNP witness encoding.
-
-namespace PVsNpLib
-
-/- A function is polynomial if it is bounded by c * n^k + c for some constants -/
-def IsPolynomial (p : Nat -> Nat) : Prop := ∃ k c : Nat, ∀ n, p n ≤ c * n ^ k + c
-
-end PVsNpLib
+-- Primary repository track: formalize a circuit-lower-bound route to P ≠ NP.
+-- Status: the reduction is conditional; the lower-bound work remains open.
 
 open Fin
 open PVsNpLib

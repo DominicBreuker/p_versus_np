@@ -1,24 +1,21 @@
--- P ⊆ NP — Formal proof in the circuit complexity model
+import Mathlib
+import PVsNpLib
+
+-- P ⊆ NP — supporting formalization in the circuit complexity model used by the
+-- main P vs NP track.
 -- Goal: Every language in P is also in NP.
--- Status: Stub — main theorem stated; verifier_iff and poly_half need sorry removal.
+-- Status: Stub — the remaining work is ordinary Lean proof engineering.
 --
 -- The proof strategy is:
 --   1. Given L ∈ P (polynomial circuit family {c_n}), define the verifier V at size 2*n
 --      as liftCircuit(c_n) — same gate array, but typed for 2*n inputs.
 --   2. V ∈ P: liftCircuit preserves circuit size; the polynomial bound is q(m) = p(m/2) + 1.
 --   3. Witness direction: V(2*n)(inp ++ w) = L(n)(inp) for any w, because V ignores the
---      second half of its input.  The witness w can be anything (e.g., all false).
+--      second half of its input. The witness w can be anything (e.g., all false).
 
 -- ---------------------------------------------------------------------------
--- Re-use definitions from the circuit-lower-bounds namespace
+-- Re-use definitions from the shared library and the local circuit model
 -- ---------------------------------------------------------------------------
-
-namespace PVsNpLib
-
-/- A function is polynomial if it is bounded by c * n^k + c for some constants -/
-def IsPolynomial (p : Nat -> Nat) : Prop := ∃ k c : Nat, ∀ n, p n ≤ c * n ^ k + c
-
-end PVsNpLib
 
 open PVsNpLib
 

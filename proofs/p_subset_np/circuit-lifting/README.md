@@ -1,35 +1,28 @@
 # Approach: Circuit Lifting for P ⊆ NP
 
-**Priority:** 85
+**Priority:** 60
 
-**Status:** Active — `liftCircuit` and `poly_half` proven; two key `sorry` placeholders remain in `liftCircuit_eval` and `verifier_iff`
+**Status:** Active — supporting track with ordinary Lean proof obligations remaining
+
+**Relationship to the repository goal:** This track supports `proofs/p_versus_np/circuit-lower-bounds` by proving the easy inclusion `P ⊆ NP` inside the same circuit model.
 
 ---
 
 ## Problem Statement
 
-Formally prove **P ⊆ NP** in the circuit complexity model already established in
-`proofs/p_versus_np/circuit-lower-bounds/Proof.lean`.
-
-Concretely: prove the Lean4 theorem
+Formally prove
 
 ```lean
 theorem p_subset_np {L : Language} (hL : inP L) : inNP L
 ```
 
-using the definitions of `inP`, `inNP`, `BoolCircuit`, and `evalCircuit` already in place.
+using the circuit-model definitions already aligned with the main `p_versus_np` track.
 
-This is a foundational result — every polynomial-time problem is trivially verifiable
-(use the same circuit as the verifier; the witness is irrelevant).
+## Why This Track Still Exists
 
----
-
-## Why This Matters
-
-- It is **provable with no sorry** (no open-problem axioms required).
-- It complements the conditional `p_neq_np` proof in circuit-lower-bounds:
-  together they give P ⊆ NP (this idea) and P ≠ NP (circuit-lower-bounds, conditional).
-- A sorry-free P ⊆ NP is the first *genuine* theorem in this formalization.
+- It strengthens the exact formal framework used by the main P vs NP route.
+- It is standard mathematics / proof engineering, not an unrelated open problem.
+- It gives a concrete way to exercise imports from both `Mathlib` and `PVsNpLib` in a proof file.
 
 ---
 
@@ -39,22 +32,22 @@ This is a foundational result — every polynomial-time problem is trivially ver
 |---|---|
 | `liftCircuit` | ✓ defined |
 | `liftCircuit_size` | ✓ proven |
-| `poly_half` | ✓ proven (sorry-free) |
+| `poly_half` | ✓ proven |
 | `liftCircuit_eval` | ✗ sorry |
 | `verifier_iff` | ✗ sorry |
-| `p_subset_np` | ✗ sorry (P-membership branch) |
+| `p_subset_np` | ✗ sorry |
 
 ---
 
 ## Tasks
 
-- [x] Task 1: Copy/re-export definitions (Language, inP, inNP, BoolCircuit, evalCircuit)
+- [x] Task 1: Reuse the circuit-model definitions needed for this track
 - [x] Task 2: Define `liftCircuit`
-- [x] Task 3 (partial): `liftCircuit_size` proven; `liftCircuit_eval` still has sorry
-- [x] Task 4: `poly_half` proven sorry-free
-- [ ] Task 5: Prove `liftCircuit_eval` — see proof strategy below
-- [ ] Task 6: Prove `verifier_iff` — see proof strategy below
-- [ ] Task 7: Complete `p_subset_np` using Tasks 5 and 6
+- [x] Task 3: Prove `liftCircuit_size`
+- [x] Task 4: Prove `poly_half`
+- [ ] Task 5: Prove `liftCircuit_eval`
+- [ ] Task 6: Prove `verifier_iff`
+- [ ] Task 7: Complete `p_subset_np`
 
 ---
 
@@ -62,80 +55,17 @@ This is a foundational result — every polynomial-time problem is trivially ver
 
 ### Task 5 — Prove `liftCircuit_eval`
 
-**Key insight:** `evalNode inp vals node` for a `Gate.Var i` node with `i < n` in a
-`BoolCircuit n` and in the lifted `BoolCircuit (2*n)` both reduce to `inp ⟨i, _⟩`.
-The proof h differs in type, but `Fin.ext` collapses the difference.
-
-**Step 1 — node-level helper:**
-```lean
-lemma evalNode_lift_eq {n : Nat} (vals : Array Bool) (node : CircuitNode)
-    (inp : Fin (2 * n) → Bool) :
-    evalNode inp vals node =
-    evalNode (fun i => inp ⟨i.val, by have := i.isLt; omega⟩) vals node := by
-  simp only [evalNode]
-  split
-  · rfl  -- Const: no input access
-  · rename_i i
-    simp only
-    split_ifs with h1 h2
-    · congr 1; ext; rfl   -- same Nat value, Fin.ext
-    · -- h2 : i < 2*n but not i < n, impossible since h1 : i < n
-      exact absurd h1 (by omega)
-    · -- h1 : ¬ i < n, h2 : i < 2*n — but inner function also needs i < n
-      simp
-    · rfl
-  · rfl  -- Not: reads vals, not inp
-  · rfl  -- And: reads vals
-  · rfl  -- Or: reads vals
-```
-
-**Step 2 — accumulate over the array:**
-Prove by induction on `c.nodes` that the entire `foldl` accumulation is equal.
-There may be a Mathlib congruence lemma for `Array.foldl`; search with
-`lean_loogle` for `Array.foldl` congruence or pointwise equality results.
-If no direct lemma is found, prove by induction using `Array.foldl_push` (unfolding one element at a time):
-```lean
-lemma foldl_eq_of_eval_eq {n : Nat} (nodes : Array CircuitNode)
-    (inp : Fin (2 * n) → Bool) :
-    nodes.foldl (fun acc nd => acc.push (evalNode inp acc nd)) #[] =
-    nodes.foldl (fun acc nd => acc.push
-      (evalNode (fun i => inp ⟨i.val, by have := i.isLt; omega⟩) acc nd)) #[] := by
-  induction nodes using Array.induction_on with
-  | empty => simp
-  | push a x ih => simp [Array.foldl_push, ih, evalNode_lift_eq]
-```
-
-Then `liftCircuit_eval` follows from `foldl_eq_of_eval_eq` and `Array.getD_congr`.
+Show that the lifted circuit reads only the first `n` bits of a `Fin (2*n) → Bool` input.
+The key work is dependent-type bookkeeping around `Fin.ext` and an induction over the shared node array.
 
 ### Task 6 — Prove `verifier_iff`
 
-**Key insight:** `(2 * n) / 2 = n` (Lean4: `Nat.mul_div_cancel_left n 2` or `omega`).
-Once that is established, the `Fin ((2*n)/2)` type becomes `Fin n`, and the combined
-input's first-n slice is exactly `inp`.
-
-```lean
-theorem verifier_iff (L : Language) (n : Nat) (inp : Fin n → Bool) (w : Fin n → Bool) :
-    L ((2 * n) / 2) (...) ↔ L n inp := by
-  -- Step 1: show (2 * n) / 2 = n
-  have hn2 : 2 * n / 2 = n := Nat.mul_div_cancel_left n (by norm_num)
-  -- Step 2: rewrite L's first argument
-  rw [hn2]
-  -- Step 3: show the Fin-indexed function is propositionally equal to inp
-  -- For i : Fin n, combined ⟨i.val, _⟩ = if i.val < n then inp ⟨i.val, _⟩ else ...
-  --                                      = inp ⟨i.val, i.isLt⟩  (since i.val < n always)
-  --                                      = inp i  (by Fin.ext)
-  congr 1
-  funext i
-  simp [i.isLt]
-  congr 1; ext; rfl
-```
+Reduce `((2 * n) / 2)` to `n`, then prove that the combined input restricted to its first half is propositionally equal to `inp`.
 
 ---
 
 ## Hints
 
-- `BoolCircuit n` has `n` as a phantom type; `liftCircuit` is essentially a type coercion.
-- The bound `p(m/2)` is polynomial in `m`; `poly_half` is already proven.
-- Lean4's `omega` handles `i < n → i < 2 * n` and `2 * n / 2 = n`.
-- The witness `w` in the NP existential can be *anything* — use `fun _ => false` as a dummy.
-- For array induction, look for `Array.induction_on` or `Array.rec`.
+- Use `import Mathlib` explicitly for arithmetic and tactic support.
+- Use `import PVsNpLib` for the shared `IsPolynomial` definition.
+- The witness in the NP statement can be ignored; the verifier only needs the first half of the combined input.

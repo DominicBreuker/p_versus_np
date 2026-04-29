@@ -6,6 +6,10 @@ Current problem: `{problem_name}`
 Current approach: `{approach_name}`
 Current workspace: `{target_path}`
 
+This repository exists for one purpose only: solve the P vs NP problem in Lean4.
+Your assigned target is either the main P vs NP proof itself or a documented supporting subproblem that materially advances that main goal.
+Do not drift into unrelated complexity-theory work.
+
 Start by reading these files from the repository so you understand the project and the current state before changing anything:
 
 - `AGENTS.md`
@@ -27,11 +31,11 @@ Recent git log for this target:
 
 Your job in this run:
 
-1. Understand the current mathematical and Lean state for `{target_label}`.
+1. Understand how `{target_label}` advances the repository's attempt to settle P vs NP.
 2. Make the smallest useful forward step on the proof or supporting library code.
 3. Update files anywhere under `proofs/{problem_name}/{approach_name}/` when that is useful for the current step.
 4. Update files anywhere under `lib/` when shared Lean code needs to move or expand.
-5. Keep `proofs/{problem_name}/{approach_name}/NOTES.md` accurate about what you changed, what still blocks progress, and the next best step.
+5. Update `proofs/{problem_name}/{approach_name}/NOTES.md` so it accurately records what changed, what still blocks progress, and the next best step toward the P vs NP goal.
 
 Lean tooling guidance:
 

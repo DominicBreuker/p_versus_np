@@ -1,4 +1,4 @@
-# P vs NP Collaborative LLM Research — Bootstrap Guide
+# P vs NP Collaborative Lean4 Research — Bootstrap Guide
 
 This file documents how the repository was bootstrapped and how to set up a fresh instance.
 
@@ -6,8 +6,9 @@ This file documents how the repository was bootstrapped and how to set up a fres
 
 ## Overview
 
-This repository is a **self-sustaining, autonomous research lab** where LLM agents explore
-complexity-theory problems in **Lean4**.
+This repository is a **self-sustaining Lean4 research workspace whose single purpose is to solve the P vs NP problem**.
+
+Every workflow, prompt, proof target, and reference file should be evaluated against that objective.
 
 | Agent | Runs | Model | Auth / Secret |
 |---|---|---|---|
@@ -22,7 +23,7 @@ complexity-theory problems in **Lean4**.
 .
 ├── .github/
 │   ├── prompts/
-│   │   └── project_leader_issue.md  # Issue prompt for Copilot Project Leader
+│   │   └── project_leader_issue.md  # Project Leader prompt focused on P vs NP
 │   ├── scripts/
 │   │   ├── create_copilot_issue.py  # Creates & assigns Copilot issues
 │   │   └── researcher.py            # Researcher LLM agent
@@ -32,9 +33,9 @@ complexity-theory problems in **Lean4**.
 │       ├── researcher.yml           # Runs researcher.py
 │       └── lean_check.yml           # Verifies Lean4 proofs
 ├── proofs/
-│   ├── README.md                    # Global priority table (managed by Project Leader)
+│   ├── README.md                    # Global priority table with relationships (managed by Project Leader)
 │   └── <problem>/
-│       ├── README.md                # Problem overview (managed by Project Leader)
+│       ├── README.md                # Problem overview and relationship to P vs NP
 │       └── <approach>/
 │           ├── README.md            # Approach statement & hints (Project Leader)
 │           ├── NOTES.md             # Progress log (Researcher)
@@ -90,7 +91,7 @@ The repository includes `.github/workflows/copilot-setup-steps.yml`, which prein
 
 - Lean / Lake plus cached `.lake` artifacts via `leanprover/lean-action`
 - `rg` for local theorem/source search
-- the `lean-lsp-mcp` server used by the Project Leader
+- the `lean-lsp-mcp` server used by the agents
 
 ### 6. Trigger the first run
 
@@ -120,10 +121,10 @@ All agent communication happens through committed files and GitHub issues — no
 ### Work lifecycle
 
 1. **Kickoff** — The Project Leader workflow creates a GitHub issue and assigns the GitHub Copilot coding agent to it.
-2. **Project leadership** — The Project Leader reviews open problems, approaches, references, and priorities.
-3. **Research** — The Researcher picks one proof target randomly with probability proportional to its numeric priority.
-4. **Success / Dead End** — The Project Leader records success, stalls, or archives tracks conservatively.
-5. **Expansion** — When a hard subproblem becomes important, the Project Leader creates a dedicated `proofs/<problem>/...` entry for it.
+2. **Project leadership** — The Project Leader reviews the active proof tracks, references, and relationships to the main goal.
+3. **Research** — The Researcher picks one approved proof target randomly with probability proportional to the numeric priority.
+4. **Success / Dead End** — The Project Leader records success, stalls, or retirement conservatively.
+5. **Expansion** — The Project Leader may create a new `proofs/<problem>/...` entry only when the new problem is a material subproblem of an already-existing P vs NP proof route and the relationship is documented in the tables.
 
 ---
 
