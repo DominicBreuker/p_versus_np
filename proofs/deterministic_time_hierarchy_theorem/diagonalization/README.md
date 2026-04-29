@@ -2,7 +2,7 @@
 
 **Priority:** 70
 
-**Status:** Active — monotonicity proven; diagonalization blocked on encoding and universal simulator
+**Status:** Active — monotonicity proven; diagonalization blocked on diagonal language construction
 
 ---
 
@@ -45,9 +45,9 @@ Use an abstract model of computation to keep the formalization tractable:
 - [x] Task 2: Define `inDTIME f`
 - [x] Task 3: Prove `inDTIME_mono` (monotonicity — no sorry)
 - [x] Task 4: Prove `inDTIME_congr` (bound equality → class equality — no sorry)
-- [ ] Task 5: Define `encode : Nat → List Bool → List Bool` concretely (remove sorry)
-- [ ] Task 6: Define `universal : Decider` concretely (remove sorry)
-- [ ] Task 7: Construct the diagonalizing language D
+- [x] Task 5: Define `encode : Nat → List Bool → List Bool` concretely (uses `PVsNpLib.unaryPair`)
+- [x] Task 6: Prove `encode_length` and `index_lt_encode_length`
+- [ ] Task 7: Construct the diagonal language D — see proof strategy below
 - [ ] Task 8: Prove D ∈ DTIME(g) using the universal simulation axiom
 - [ ] Task 9: Prove D ∉ DTIME(f) by contradiction (diagonalization)
 - [ ] Task 10: Conclude `DTIME_strictSubset f g` (complete `time_hierarchy_theorem`)
@@ -57,49 +57,55 @@ Use an abstract model of computation to keep the formalization tractable:
 
 ## Immediate Next Steps
 
-### Task 5 — Concrete `encode`
+### Task 7 — Diagonal Language D
 
-Replace the `sorry` in `encode` with a concrete pairing:
-
-```lean
-def encode (i : Nat) (w : List Bool) : List Bool :=
-  List.replicate i false ++ [true] ++ w
-```
-
-This represents index `i` as a run of `i` false-bits followed by a `true` separator, then the
-word `w`. No sorry needed for the definition itself.
-
-### Task 6 — Universal simulator (axiom is fine for now)
-
-The `universal` decider can remain a `noncomputable def` with `sorry` for now, since it is backed
-by the `universal_simulation` axiom. Focus on the diagonalization proof structure instead.
-
-### Task 7–9 — Diagonalization sketch
-
-Define D using the universal simulator:
+Define D as the language that universal *rejects* within the g-step budget:
 
 ```lean
-noncomputable def diagLang (f : Nat → Nat) : Lang :=
-  fun w => universal w = false ∧ timeOf universal w ≤ f w.length
+noncomputable def diagLang (g : Nat → Nat) : Lang :=
+  fun w => universal w = false ∧ timeOf universal w ≤ g w.length
 ```
 
-Or more precisely, using the Gödel-numbering interpretation:
+Here `w` encodes both an index `i` and a sub-word `v` via `encode i v`.
+The idea: D contains `w` iff the universal simulator *rejects* `w` within `g(|w|)` steps.
+
+### Task 8 — D ∈ DTIME(g)
+
+Use the `universal` decider directly:
+- `universal` decides `diagLang g` by definition (it accepts iff D(w) = true).
+- The time bound comes from the `universal_simulation` axiom: `timeOf universal (encode i v) ≤ f v.length * (f v.length + 1) < g (encode i v).length`.
+- Use `encode_length` to convert the length bound.
+
 ```lean
--- D w = "the i-th machine does NOT accept w in f(|w|) steps"
--- where i is encoded in w itself (first few bits as unary)
+-- D ∈ DTIME(g) by taking M = universal:
+-- decides universal (diagLang g) is by definition
+-- timeOf universal w ≤ g w.length: need to relate universal's run time to g
+-- Use universal_simulation: for the right i, timeOf universal (encode i v) ≤ f |v| * (f |v| + 1) < g |encode i v|
 ```
 
-The key steps:
-1. Show `diagLang g` ∈ `inDTIME g`: universal runs within the g-step budget.
-2. Show `diagLang g` ∉ `inDTIME f`: if some M_j decided D within f steps, then on the
-   encoded input `encode j v`, M_j and universal disagree — contradiction.
+### Task 9 — D ∉ DTIME(f) (the diagonal contradiction)
+
+Assume for contradiction that some M decides D in time f.
+By `universal_simulation`, there exists index j such that `universal (encode j v) = M v` for all v.
+Take v = encode j v itself (or any fixed v):
+- If `M (encode j v) = true`, then D contains `encode j v`, so `universal (encode j v) = false`. But `M v = universal (encode j v) = false`. Contradiction.
+- If `M (encode j v) = false`, symmetric contradiction.
+
+```lean
+-- formal sketch:
+obtain ⟨j, hj_sim, hj_time⟩ := universal_simulation M f hM
+-- hj_sim : ∀ v, universal (encode j v) = M v ∧ timeOf universal (encode j v) ≤ ...
+-- Let v₀ be any word; consider w₀ = encode j v₀
+-- Case split on M w₀
+```
 
 ---
 
 ## Hints
 
-- For the diagonalization, use `universal_simulation` to get the index `i` such that
-  `universal (encode i v) = M v` for all v.
-- Use `Set.ssubset_iff_subset_ne` for strict inclusion.
-- For `IsLittleO`, use Mathlib's `Asymptotics.IsLittleO` or define a concrete version.
-- See Sipser *Introduction to the Theory of Computation* §9.1 for the classical proof.
+- `encode` is already defined using `PVsNpLib.unaryPair`; do not redefine it.
+- `universal` is noncomputable with `sorry`; this is fine — the axiom bridges the gap.
+- For `decides universal (diagLang g)`: show `∀ w, universal w = true ↔ diagLang g w`
+  by unfolding `diagLang` and using the definition of `universal`.
+- The `Bool.eq_false_iff_ne_true` and `Bool.not_eq_true` lemmas are useful.
+- For diagonalization, `Bool.dichotomy` (every Bool is true or false) drives the case split.

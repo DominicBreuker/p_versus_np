@@ -1,6 +1,6 @@
 # P vs NP: Collaborative LLM Research
 
-**Status:** 3 active proof tracks — 0 unconditional proofs complete — last reviewed 2026-04-29
+**Status:** 4 active proof tracks — 3 sorry-free lemmas — 1 conditional proof — last reviewed 2026-04-29
 
 ---
 
@@ -17,9 +17,10 @@ See [`OVERVIEW.md`](OVERVIEW.md) for the current project state, [`BOOTSTRAP.md`]
 
 | Problem | Approach | Priority | Status |
 |---------|----------|----------|--------|
-| [p_versus_np](proofs/p_versus_np/) | [circuit-lower-bounds](proofs/p_versus_np/circuit-lower-bounds/) | 90 | Active — conditional P ≠ NP proof exists; Shannon counting argument remains open |
-| [p_subset_np](proofs/p_subset_np/) | [circuit-lifting](proofs/p_subset_np/circuit-lifting/) | 80 | Active — foundational theorem with a promising formal proof plan |
-| [deterministic_time_hierarchy_theorem](proofs/deterministic_time_hierarchy_theorem/) | [diagonalization](proofs/deterministic_time_hierarchy_theorem/diagonalization/) | 70 | Active — monotonicity proven; diagonalization still blocked |
+| [p_versus_np](proofs/p_versus_np/) | [circuit-lower-bounds](proofs/p_versus_np/circuit-lower-bounds/) | 90 | Active — conditional P ≠ NP proof compiled; Shannon counting argument has two sorry |
+| [p_subset_np](proofs/p_subset_np/) | [circuit-lifting](proofs/p_subset_np/circuit-lifting/) | 85 | Active — `liftCircuit` and `poly_half` proven; `liftCircuit_eval` and `verifier_iff` sorry |
+| [deterministic_time_hierarchy_theorem](proofs/deterministic_time_hierarchy_theorem/) | [diagonalization](proofs/deterministic_time_hierarchy_theorem/diagonalization/) | 70 | Active — monotonicity proven; diagonal language construction pending |
+| [p_closure_under_complement](proofs/p_closure_under_complement/) | [circuit_negation](proofs/p_closure_under_complement/circuit_negation/) | 50 | New — sorry-free proof is the near-term target |
 
 ---
 
