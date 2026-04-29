@@ -9,7 +9,9 @@ abbrev BoolFn (n : Nat) := (Fin n → Bool) → Bool
 def IsPolynomial (p : Nat → Nat) : Prop :=
   ∃ k c : Nat, ∀ n, p n ≤ c * n ^ k + c
 
-/-- Encode `(i, w)` as `i` false bits, then a true separator, then `w`. -/
+/-- Encode `(i, w)` as `i` leading `false` bits, then a single `true` separator, then `w`.
+
+This is the shared unary-pairing encoding used by candidate proofs such as time hierarchy. -/
 def unaryPair (i : Nat) (w : List Bool) : List Bool :=
   List.replicate i false ++ true :: w
 

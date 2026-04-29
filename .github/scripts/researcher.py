@@ -490,7 +490,7 @@ def append_failure_note(idea_name: str, message: str) -> None:
     notes_path = REPO_ROOT / "candidates" / idea_name / "NOTES.md"
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     bullet = (
-        f"- {timestamp} — Researcher workflow hit a technical interruption: {message} "
+        f"- {timestamp} — Researcher workflow hit a technical interruption: {message}. "
         "Partial work from this run was preserved; review the current proof state before continuing."
     )
     content = read_file(notes_path).rstrip()
