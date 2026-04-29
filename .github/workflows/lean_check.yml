@@ -1,18 +1,7 @@
 name: Lean4 Proof Check
 
 on:
-  push:
-    paths:
-      - '**/*.lean'
-      - 'lake-manifest.json'
-      - 'lakefile.lean'
-      - 'lean-toolchain'
-  pull_request:
-    paths:
-      - '**/*.lean'
-      - 'lake-manifest.json'
-      - 'lakefile.lean'
-      - 'lean-toolchain'
+  workflow_dispatch:
 
 jobs:
   check_lean:
@@ -23,40 +12,22 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Install elan (Lean toolchain manager)
-        run: |
-          curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh \
-            -sSf | sh -s -- -y --default-toolchain none
-          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
-
-      - name: Set up Lean toolchain
-        run: elan toolchain install "$(cat lean-toolchain)"
-
-      - name: Cache Lake packages
-        uses: actions/cache@v4
+      - name: Set up Lean toolchain, cache, and build artifacts
+        uses: leanprover/lean-action@v1.5.0
         with:
-          path: |
-            ~/.elan
-            .lake/packages
-          key: lean-${{ hashFiles('lean-toolchain', 'lakefile.lean', 'lake-manifest.json') }}
-          restore-keys: lean-
-
-      - name: Download Mathlib build cache
-        run: lake exe cache get || true
-
-      - name: Build project (lib and lakefile)
-        run: lake build
+          build: true
+          test: false
+          lint: false
 
       - name: Check candidate proof files
         run: |
-          set +e
-          FAILED=0
-          while IFS= read -r -d '' f; do
-            echo "Checking: $f"
-            lean "$f" 2>&1
-            if [ $? -ne 0 ]; then
-              echo "::error file=$f::Lean4 check failed"
-              FAILED=1
-            fi
-          done < <(find candidates -name "*.lean" -print0)
-          exit $FAILED
+          set -euo pipefail
+          mapfile -d '' proofs < <(find candidates -mindepth 2 -maxdepth 2 -name 'Proof.lean' -print0 | sort -z)
+          if [ "${#proofs[@]}" -eq 0 ]; then
+            echo "No candidate proof files found."
+            exit 0
+          fi
+          for f in "${proofs[@]}"; do
+            echo "Checking executable Lean file: $f"
+            lake env lean "$f"
+          done

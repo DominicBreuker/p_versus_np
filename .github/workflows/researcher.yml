@@ -35,9 +35,10 @@ jobs:
       - name: Run researcher unit tests
         run: python -m unittest discover -s tests -v
 
-      - name: Install Mistral Vibe
+      - name: Install mock Mistral Vibe CLI
         run: |
-          uv tool install --force --python 3.12 "mistral-vibe==2.8.1"
+          mkdir -p "$HOME/.local/bin"
+          ln -sf "$GITHUB_WORKSPACE/.github/scripts/mock_vibe.py" "$HOME/.local/bin/vibe"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Set up Lean toolchain, cache, and build artifacts
@@ -78,28 +79,25 @@ jobs:
       - name: Run Researcher Agent
         id: researcher
         env:
-          MISTRAL_VIBE_KEY: ${{ secrets.MISTRAL_VIBE_KEY }}
           MISTRAL_MODEL: ${{ vars.MISTRAL_MODEL }}
+          MISTRAL_VIBE_BIN: ${{ github.workspace }}/.github/scripts/mock_vibe.py
         run: python .github/scripts/researcher.py
 
       - name: Clean up trailing whitespace
         run: |
           find candidates -name "*.md" -exec sed -i 's/[[:space:]]*$//' {} \;
           find candidates -name "*.lean" -exec sed -i 's/[[:space:]]*$//' {} \;
-          sed -i 's/[[:space:]]*$//' lib/utils.lean
+          find lib -name "*.lean" -exec sed -i 's/[[:space:]]*$//' {} \;
 
       - name: Validate Lean project
         run: |
+          set -euo pipefail
           lake build
-          FAILED=0
-          while IFS= read -r -d '' f; do
-            echo "Checking: $f"
-            if ! lean "$f" 2>&1; then
-              echo "::error file=$f::Lean4 check failed"
-              FAILED=1
-            fi
-          done < <(find candidates -name "*.lean" -print0)
-          exit $FAILED
+          mapfile -d '' proofs < <(find candidates -name "*.lean" -print0 | sort -z)
+          for f in "${proofs[@]}"; do
+            echo "Checking executable Lean file: $f"
+            lake env lean "$f"
+          done
 
       - name: Commit and push changes
         run: |

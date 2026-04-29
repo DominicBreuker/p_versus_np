@@ -20,11 +20,16 @@ Optional environment variables:
 
 from __future__ import annotations
 
+import json
 import os
+import queue
 import re
 import shutil
 import subprocess
 import sys
+import threading
+import time
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -34,10 +39,11 @@ from pathlib import Path
 
 REPO_ROOT: Path = Path(__file__).resolve().parent.parent.parent
 PROMPT_TEMPLATE_PATH: Path = REPO_ROOT / ".github" / "prompts" / "researcher_vibe.md"
+MOCK_VIBE_PATH: Path = REPO_ROOT / ".github" / "scripts" / "mock_vibe.py"
 PROMPT_FILENAME = ".mistral-researcher-prompt.md"
 PRIORITY_ORDER: dict[str, int] = {"High": 0, "Medium": 1, "Low": 2}
 DEAD_STATUSES: set[str] = {"Dead End", "Archived"}
-ALLOWED_SHARED_FILES: set[str] = {"lib/utils.lean"}
+VIBE_TAG_PATTERN = re.compile(r"^<(?P<tag>[a-z_]+)>(?P<message>.*)</(?P=tag)>$")
 MISTRAL_MODEL: str = os.environ.get("MISTRAL_MODEL", "").strip()
 MISTRAL_MAX_TURNS: str = os.environ.get("MISTRAL_MAX_TURNS", "12").strip()
 MISTRAL_MAX_PRICE: str = os.environ.get("MISTRAL_MAX_PRICE", "").strip()
@@ -71,6 +77,20 @@ def write_file(path: Path, content: str) -> None:
     """Write UTF-8 text to a file, creating parent directories as needed."""
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
+
+
+def read_text_excerpt(path: Path, limit: int = 4000) -> str:
+    """Return a UTF-8 text excerpt for logging discarded edits."""
+    try:
+        content = path.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        return f"(binary file, {path.stat().st_size} bytes)"
+    except OSError as exc:
+        return f"(unable to read file: {exc})"
+
+    if len(content) <= limit:
+        return content
+    return content[:limit] + "\n… (truncated) …"
 
 
 def is_safe_repo_relative_path(rel_path: str) -> bool:
@@ -154,9 +174,14 @@ def get_changed_paths() -> list[str]:
     return parse_changed_paths(result.stdout)
 
 
+def get_new_changed_paths(initial_paths: list[str], current_paths: list[str]) -> list[str]:
+    initial = set(initial_paths)
+    return [path for path in current_paths if path not in initial]
+
+
 def split_changed_paths(
     changed_paths: list[str],
-    allowed_paths: set[str],
+    allowed_rules: set[str],
 ) -> tuple[list[str], list[str]]:
     allowed: list[str] = []
     blocked: list[str] = []
@@ -164,11 +189,25 @@ def split_changed_paths(
         normalized = rel_path.strip()
         if not normalized or normalized == PROMPT_FILENAME:
             continue
-        if normalized in allowed_paths:
+        if is_path_allowed(normalized, allowed_rules):
             allowed.append(normalized)
         else:
             blocked.append(normalized)
     return allowed, blocked
+
+
+def is_path_allowed(rel_path: str, allowed_rules: set[str]) -> bool:
+    for rule in allowed_rules:
+        normalized_rule = rule.strip()
+        if not normalized_rule:
+            continue
+        if normalized_rule.endswith("/"):
+            prefix = normalized_rule
+            if rel_path.startswith(prefix):
+                return True
+        elif rel_path == normalized_rule:
+            return True
+    return False
 
 
 def revert_path(rel_path: str) -> None:
@@ -186,6 +225,34 @@ def revert_path(rel_path: str) -> None:
         full_path.unlink()
 
 
+def describe_discarded_edit(rel_path: str) -> str:
+    header = f"--- discarded edit: {rel_path} ---"
+    footer = f"--- end discarded edit: {rel_path} ---"
+    diff = run_git("--no-pager", "diff", "--no-ext-diff", "--binary", "--", rel_path, check=False).stdout.strip()
+    if diff:
+        return f"{header}\n{diff}\n{footer}"
+
+    full_path = REPO_ROOT / rel_path
+    if full_path.is_file():
+        content = read_text_excerpt(full_path)
+        return f"{header}\n{content}\n{footer}"
+
+    if full_path.is_dir():
+        parts = [header]
+        files = sorted(path for path in full_path.rglob("*") if path.is_file())
+        if not files:
+            parts.append("(empty directory)")
+        for path in files[:20]:
+            parts.append(f"# {path.relative_to(REPO_ROOT)}")
+            parts.append(read_text_excerpt(path))
+        if len(files) > 20:
+            parts.append(f"… ({len(files) - 20} additional files omitted) …")
+        parts.append(footer)
+        return "\n".join(parts)
+
+    return f"{header}\n(path already removed)\n{footer}"
+
+
 # ---------------------------------------------------------------------------
 # Idea selection
 # ---------------------------------------------------------------------------
@@ -201,7 +268,7 @@ def parse_ideas(content: str) -> list[dict[str, str]]:
         if not match:
             continue
         name, priority, status = (
-            match.group(1).strip(),
+            strip_markdown_link(match.group(1).strip()),
             match.group(2).strip(),
             match.group(3).strip(),
         )
@@ -210,6 +277,13 @@ def parse_ideas(content: str) -> list[dict[str, str]]:
         ideas.append({"name": name, "priority": priority, "status": status})
     ideas.sort(key=lambda item: PRIORITY_ORDER.get(item["priority"], 3))
     return ideas
+
+
+def strip_markdown_link(value: str) -> str:
+    match = re.fullmatch(r"\[([^\]]+)\]\([^)]+\)", value)
+    if match:
+        return match.group(1).strip()
+    return value
 
 
 def get_ideas() -> list[dict[str, str]]:
@@ -235,9 +309,8 @@ def pick_idea(ideas: list[dict[str, str]]) -> dict[str, str] | None:
 
 def allowed_paths_for_idea(idea_name: str) -> set[str]:
     return {
-        f"candidates/{idea_name}/NOTES.md",
-        f"candidates/{idea_name}/Proof.lean",
-        *ALLOWED_SHARED_FILES,
+        f"candidates/{idea_name}/",
+        "lib/",
     }
 
 
@@ -248,7 +321,7 @@ def build_prompt(idea_name: str) -> str:
     if not template:
         raise FileNotFoundError(f"Prompt template not found: {PROMPT_TEMPLATE_PATH}")
 
-    allowed_targets = "\n".join(f"- `{path}`" for path in sorted(allowed_paths_for_idea(idea_name)))
+    allowed_targets = "\n".join(f"- `{path}**`" if path.endswith("/") else f"- `{path}`" for path in sorted(allowed_paths_for_idea(idea_name)))
     return template.format(
         idea_name=idea_name,
         current_time=current_time,
@@ -266,13 +339,69 @@ def find_vibe_executable() -> str:
     configured = os.environ.get("MISTRAL_VIBE_BIN", "").strip()
     if configured:
         return configured
+    if MOCK_VIBE_PATH.is_file():
+        return str(MOCK_VIBE_PATH)
     executable = shutil.which("vibe")
     if not executable:
         raise RuntimeError("The `vibe` executable was not found on PATH.")
     return executable
 
 
-def run_vibe(prompt_text: str) -> subprocess.CompletedProcess[str]:
+@dataclass
+class VibeRunResult:
+    returncode: int
+    stdout: str
+    timed_out: bool = False
+
+
+def format_streaming_message(payload: dict[str, object]) -> str:
+    role = str(payload.get("role") or "assistant")
+    tool_calls = payload.get("tool_calls") or []
+    content = str(payload.get("content") or "").strip()
+    reasoning = str(payload.get("reasoning_content") or "").strip()
+
+    parts: list[str] = []
+    if reasoning:
+        parts.append(f"reasoning: {reasoning}")
+    if isinstance(tool_calls, list) and tool_calls:
+        tool_names: list[str] = []
+        for item in tool_calls:
+            if isinstance(item, dict):
+                function = item.get("function") or {}
+                if isinstance(function, dict):
+                    name = function.get("name")
+                    if name:
+                        tool_names.append(str(name))
+        if tool_names:
+            parts.append(f"tool calls: {', '.join(tool_names)}")
+    if content:
+        parts.append(content)
+
+    if not parts:
+        return f"[vibe {role}] {json.dumps(payload, ensure_ascii=False)}"
+    return f"[vibe {role}] " + " | ".join(parts)
+
+
+def format_vibe_output_line(line: str) -> str:
+    stripped = line.strip()
+    if not stripped:
+        return ""
+
+    match = VIBE_TAG_PATTERN.fullmatch(stripped)
+    if match:
+        return f"[vibe {match.group('tag')}] {match.group('message')}"
+
+    try:
+        payload = json.loads(stripped)
+    except json.JSONDecodeError:
+        return stripped
+
+    if isinstance(payload, dict):
+        return format_streaming_message(payload)
+    return stripped
+
+
+def run_vibe(prompt_text: str) -> VibeRunResult:
     prompt_path = REPO_ROOT / PROMPT_FILENAME
     ensure_local_git_exclude(PROMPT_FILENAME)
     write_file(prompt_path, prompt_text)
@@ -293,6 +422,9 @@ def run_vibe(prompt_text: str) -> subprocess.CompletedProcess[str]:
         "auto-approve",
         "--workdir",
         str(REPO_ROOT),
+        "--trust",
+        "--output",
+        "streaming",
     ]
 
     if MISTRAL_MODEL:
@@ -303,19 +435,63 @@ def run_vibe(prompt_text: str) -> subprocess.CompletedProcess[str]:
         command.extend(["--max-price", MISTRAL_MAX_PRICE])
 
     env = os.environ.copy()
-    env["MISTRAL_API_KEY"] = MISTRAL_API_KEY
+    if MISTRAL_API_KEY:
+        env["MISTRAL_API_KEY"] = MISTRAL_API_KEY
     env["CI"] = "true"
     env["TERM"] = "dumb"
 
     try:
-        return subprocess.run(
+        process = subprocess.Popen(
             command,
             cwd=REPO_ROOT,
             env=env,
             text=True,
-            capture_output=True,
-            timeout=MISTRAL_TIMEOUT_SECONDS,
-            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            bufsize=1,
+        )
+        if process.stdout is None:
+            raise RuntimeError("Failed to capture Vibe output stream.")
+
+        output_lines: list[str] = []
+        output_queue: queue.Queue[str | None] = queue.Queue()
+
+        def reader() -> None:
+            try:
+                for raw_line in process.stdout:
+                    output_queue.put(raw_line)
+            finally:
+                process.stdout.close()
+                output_queue.put(None)
+
+        reader_thread = threading.Thread(target=reader, daemon=True)
+        reader_thread.start()
+
+        timed_out = False
+        deadline = time.monotonic() + MISTRAL_TIMEOUT_SECONDS
+        while True:
+            try:
+                raw_line = output_queue.get(timeout=0.2)
+            except queue.Empty:
+                if process.poll() is None and time.monotonic() > deadline:
+                    timed_out = True
+                    process.kill()
+                continue
+
+            if raw_line is None:
+                break
+
+            output_lines.append(raw_line)
+            formatted = format_vibe_output_line(raw_line)
+            if formatted:
+                print(formatted, flush=True)
+
+        returncode = process.wait()
+
+        return VibeRunResult(
+            returncode=returncode,
+            stdout="".join(output_lines),
+            timed_out=timed_out,
         )
     finally:
         try:
@@ -340,15 +516,11 @@ def emit_github_output(name: str, value: str) -> None:
 def main() -> None:
     os.chdir(REPO_ROOT)
 
-    if not MISTRAL_API_KEY:
-        raise ValueError("Set MISTRAL_VIBE_KEY or MISTRAL_API_KEY before running the researcher.")
-
     initial_changed_paths = get_changed_paths()
     if initial_changed_paths:
-        print("Refusing to run researcher with a dirty working tree:", file=sys.stderr)
+        print("Starting with existing repository changes; only new changes from this run will be filtered.")
         for rel_path in sorted(set(initial_changed_paths)):
-            print(f"  - {rel_path}", file=sys.stderr)
-        sys.exit(1)
+            print(f"  - {rel_path}")
 
     ideas = get_ideas()
     if not ideas:
@@ -368,25 +540,29 @@ def main() -> None:
     print("Running Mistral Vibe …")
     result = run_vibe(prompt)
 
-    if result.stdout.strip():
-        print(result.stdout.strip())
-    if result.stderr.strip():
-        print(result.stderr.strip(), file=sys.stderr)
-
     changed_paths = get_changed_paths()
-    allowed_changes, blocked_changes = split_changed_paths(changed_paths, allowed_paths)
+    new_changed_paths = get_new_changed_paths(initial_changed_paths, changed_paths)
+    allowed_changes, blocked_changes = split_changed_paths(new_changed_paths, allowed_paths)
 
     if blocked_changes:
-        print("Reverting unauthorized changes:")
+        print("Discarding blocked changes:")
         for rel_path in sorted(set(blocked_changes)):
-            print(f"  - {rel_path}")
+            print(describe_discarded_edit(rel_path))
             revert_path(rel_path)
         changed_paths = get_changed_paths()
-        allowed_changes, blocked_changes = split_changed_paths(changed_paths, allowed_paths)
+        new_changed_paths = get_new_changed_paths(initial_changed_paths, changed_paths)
+        allowed_changes, blocked_changes = split_changed_paths(new_changed_paths, allowed_paths)
 
     if blocked_changes:
-        print("ERROR: unauthorized changes remain after cleanup.", file=sys.stderr)
+        print("ERROR: blocked changes remain after cleanup.", file=sys.stderr)
         sys.exit(1)
+
+    if result.timed_out:
+        print(
+            f"Mistral Vibe timed out after {MISTRAL_TIMEOUT_SECONDS} seconds.",
+            file=sys.stderr,
+        )
+        sys.exit(124)
 
     if result.returncode != 0:
         print("Mistral Vibe failed.", file=sys.stderr)

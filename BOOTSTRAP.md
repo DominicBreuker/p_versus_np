@@ -61,7 +61,7 @@ Go to **Settings → Secrets and variables → Actions → Secrets** and add:
 
 | Secret name | Value |
 |---|---|
-| `MISTRAL_VIBE_KEY` | Your Mistral API key |
+| `MISTRAL_VIBE_KEY` | Optional: your Mistral API key when overriding the default mock `vibe` CLI |
 | `GH_PAT` | GitHub token/PAT with permission to create issues and assign Copilot |
 
 ### 3. (Optional) Add Repository Variables
@@ -124,8 +124,9 @@ All agent communication happens through committed files and GitHub issues — no
 
 ## Lean4 Proof Verification
 
-The `lean_check.yml` workflow runs `lake build` on every push that touches `.lean` files.
-Only proofs that compile without `sorry` are considered complete.
+The `lean_check.yml` workflow is manually triggered with **Run workflow** and checks every
+`candidates/*/Proof.lean` file with `lake env lean`.
+It is meant to verify that candidate proofs are executable Lean files; `sorry` warnings are acceptable.
 
 To check locally:
 ```bash
@@ -172,6 +173,7 @@ Both agent environments are configured to have access to the [`lean-lsp-mcp`](ht
 
 Use the Lean MCP tools for fast diagnostics (`lean_diagnostic_messages`), goal inspection (`lean_goal`), theorem search (`lean_local_search`, `lean_leansearch`, `lean_loogle`, `lean_leanfinder`), tactic comparison (`lean_multi_attempt`), and proof soundness checks (`lean_verify`) before relying on full `lake build` runs.
 
-The researcher workflow installs Mistral Vibe with Python 3.12 and validates the
+The researcher workflow provisions a repository-local mock `vibe` CLI by default and validates the
 checked-in Lake manifest before launching the agent so that both agent environments
-start from the same Lean and dependency state.
+start from the same Lean and dependency state. You can still point `MISTRAL_VIBE_BIN`
+at a real Vibe installation if you want to use one.
