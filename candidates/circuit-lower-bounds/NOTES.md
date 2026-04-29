@@ -1,6 +1,6 @@
 # Progress Notes
 
-**Last Updated:** 2026-04-29 13:45 UTC
+**Last Updated:** 2026-04-29 17:32 UTC
 
 **Major Milestone: P ≠ NP theorem now fully proven (conditional on SAT superpolynomial lower bound axiom)!**
 
@@ -27,7 +27,7 @@
 - `evalCircuit`, `inP`, and `inNP` are implemented as per README guidance.
 - **Re-added sanity lemmas** for `evalCircuit` with corrected syntax (using helper constructors `constCircuit` and `varCircuit` instead of invalid `let` bindings in type signatures). All three lemmas proven with `simp`.
 - **Formalized Shannon counting argument**: Added `circuit_count_upper_bound`, `boolean_function_count`, and `shannon_counting_argument` theorem (currently with `sorry`), which aims to prove that for any polynomial p, there exist Boolean functions on n inputs that cannot be computed by polynomial-size circuits.
-- **Added helper lemma `circuit_count_lt_functions_at_n`**: Proves the base case (identity polynomial) to demonstrate the counting technique. Currently with `sorry` pending full arithmetic formalization.
+- **Recovered part of the failed 2026-04-29 researcher run from workflow logs**: the interrupted run had already split `circuit_count_lt_functions_at_n` into direct `decide` checks for small `n` plus a structured `n ≥ 9` proof sketch. The direct `n = 4,5,6,7,8` cases and the recovered proof outline are now back in `Proof.lean`.
 - Cook–Levin theorem axiomatized as `sat_is_np_complete`
 - Completed `sat_superpolynomial_implies_p_neq_np` proof: proves that if SAT requires superpolynomial circuits, then there exists a language in NP not in P. Proof uses contradiction.
 
@@ -37,7 +37,11 @@ The main theorem `p_neq_np` is now **fully proven** using `sat_superpolynomial_i
 
 1. **Complete `shannon_counting_argument` proof**: Need to show that for any polynomial p, there exists n₀ such that for all n ≥ n₀, the number of circuits of size ≤ p n is strictly less than 2^(2^n). This requires Mathlib lemmas about exponential growth dominating polynomial growth.
 2. **Potential improvement**: Replace `sat_has_superpoly_lower_bound` axiom with a proof (though this would resolve P vs NP, which is believed to be hard)
-3. **Cleanup**: Consolidate duplicate `IsPolynomial` definition between `lib/utils.lean` and `Proof.lean` (requires fixing Lake configuration)
+3. **Lift the recovered sketch into reusable lemmas**: prove `n + 1 < 2^n` and `n^2 + 2*n < 2^n` as standalone results so `circuit_count_lt_functions_at_n` can be completed cleanly.
+
+## Technical Interruptions
+
+- 2026-04-29 16:08 UTC — Researcher workflow timed out inside Mistral Vibe during work on `circuit_count_lt_functions_at_n`. Partial work from that failed run was recovered from the workflow logs and restored. Review the recovered `n ≥ 9` proof sketch before continuing.
 
 ## Blocks / Questions
 

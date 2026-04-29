@@ -1,3 +1,6 @@
+import Mathlib
+import PVsNpLib
+
 -- Time Hierarchy Theorem — Lean4 formalization stub
 -- Goal: Prove DTIME(f(n)) ⊊ DTIME(g(n)) for appropriate f, g.
 -- Status: Initial stub — core definitions present; proofs use `sorry` as placeholders.
@@ -76,7 +79,16 @@ def IsTimeConstructible (f : Nat → Nat) : Prop :=
     Length: encode i w has length i + 1 + w.length.
     Injective: encode i v = encode j w → i = j ∧ v = w (by counting leading false-bits). -/
 def encode (i : Nat) (w : List Bool) : List Bool :=
-  List.replicate i false ++ [true] ++ w
+  PVsNpLib.unaryPair i w
+
+theorem encode_length (i : Nat) (w : List Bool) :
+    (encode i w).length = i + 1 + w.length := by
+  simp [encode, PVsNpLib.unaryPair_length]
+
+theorem index_lt_encode_length (i : Nat) (w : List Bool) :
+    i < (encode i w).length := by
+  rw [encode_length]
+  omega
 
 /-- The universal simulator -/
 noncomputable def universal : Decider := sorry
@@ -109,4 +121,3 @@ theorem time_hierarchy_theorem (f g : Nat → Nat)
     sorry
 
 end PVsNp.TimeHierarchy
-

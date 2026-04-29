@@ -12,7 +12,8 @@ Start by reading these files from the repository so you understand the project a
 - `candidates/{idea_name}/README.md`
 - `candidates/{idea_name}/NOTES.md`
 - `candidates/{idea_name}/Proof.lean`
-- `lib/utils.lean`
+- `lib/PVsNpLib.lean`
+- `lib/PVsNpLib/Utils.lean`
 
 Recent git log for this idea:
 
@@ -31,6 +32,9 @@ Your job in this run:
 Lean tooling guidance:
 
 - A `lean-lsp` MCP server is preconfigured for this run.
+- Shared library modules are importable with `import PVsNpLib` or `import PVsNpLib.Utils`.
+- Shared library source lives under `lib/PVsNpLib/`; do not try to import raw file paths such as `lib/utils.lean`.
+- Use `import Mathlib` when you need Mathlib lemmas, tactics, or namespaces in a proof file.
 - Prefer `lean_diagnostic_messages` for fast file-level feedback before rerunning a full build.
 - Use `lean_goal` / `lean_term_goal` to inspect tactic and term proof states precisely.
 - Use `lean_local_search`, `lean_leansearch`, `lean_loogle`, and `lean_leanfinder` before inventing lemmas.

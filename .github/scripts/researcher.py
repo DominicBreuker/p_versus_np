@@ -486,6 +486,51 @@ class VibeRunResult:
     timed_out: bool = False
 
 
+def append_failure_note(idea_name: str, message: str) -> None:
+    notes_path = REPO_ROOT / "candidates" / idea_name / "NOTES.md"
+    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    bullet = (
+        f"- {timestamp} — Researcher workflow hit a technical interruption: {message} "
+        "Partial work from this run was preserved; review the current proof state before continuing."
+    )
+    content = read_file(notes_path).rstrip()
+    if "## Technical Interruptions" in content:
+        updated = content + "\n" + bullet + "\n"
+    elif content:
+        updated = content + "\n\n## Technical Interruptions\n\n" + bullet + "\n"
+    else:
+        updated = "# Progress Notes\n\n## Technical Interruptions\n\n" + bullet + "\n"
+    write_file(notes_path, updated)
+
+
+def finalize_changes(
+    initial_changed_paths: list[str],
+    allowed_paths: set[str],
+    idea_name: str,
+    failure_message: str | None = None,
+) -> tuple[list[str], list[str]]:
+    changed_paths = get_changed_paths()
+    new_changed_paths = get_new_changed_paths(initial_changed_paths, changed_paths)
+    allowed_changes, blocked_changes = split_changed_paths(new_changed_paths, allowed_paths)
+
+    if blocked_changes:
+        print("Discarding blocked changes:")
+        for rel_path in sorted(set(blocked_changes)):
+            print(describe_discarded_edit(rel_path))
+            revert_path(rel_path)
+        changed_paths = get_changed_paths()
+        new_changed_paths = get_new_changed_paths(initial_changed_paths, changed_paths)
+        allowed_changes, blocked_changes = split_changed_paths(new_changed_paths, allowed_paths)
+
+    if failure_message:
+        append_failure_note(idea_name, failure_message)
+        changed_paths = get_changed_paths()
+        new_changed_paths = get_new_changed_paths(initial_changed_paths, changed_paths)
+        allowed_changes, blocked_changes = split_changed_paths(new_changed_paths, allowed_paths)
+
+    return allowed_changes, blocked_changes
+
+
 def format_vibe_streaming_message(payload: dict[str, object]) -> str:
     role = str(payload.get("role") or "assistant")
     tool_calls = payload.get("tool_calls") or []
@@ -692,6 +737,8 @@ def main() -> None:
     allowed_paths = allowed_paths_for_idea(idea_name)
     prompt = build_prompt(idea_name)
     session_id = resolve_session_id()
+    failure_message: str | None = None
+    exit_code = 0
 
     print(f"Working on idea: {idea_name}  (Priority: {idea['priority']}, Status: {idea['status']})")
     if using_mock_vibe:
@@ -700,56 +747,48 @@ def main() -> None:
         print("Using real Mistral Vibe CLI.")
     print(f"Using Vibe session ID: {session_id}")
 
-    print("Running Mistral Vibe (pass 1/2) …")
-    first_result = run_vibe(prompt, vibe_executable=vibe_executable, bootstrap_from_file=True)
-    if first_result.timed_out:
-        print(
-            f"Mistral Vibe timed out after {MISTRAL_TIMEOUT_SECONDS} seconds.",
-            file=sys.stderr,
-        )
-        sys.exit(124)
-    if first_result.returncode != 0:
-        print("Mistral Vibe failed during the first pass.", file=sys.stderr)
-        sys.exit(first_result.returncode)
+    try:
+        print("Running Mistral Vibe (pass 1/2) …")
+        first_result = run_vibe(prompt, vibe_executable=vibe_executable, bootstrap_from_file=True)
+        if first_result.timed_out:
+            failure_message = f"Mistral Vibe timed out during pass 1/2 after {MISTRAL_TIMEOUT_SECONDS} seconds."
+            exit_code = 124
+        elif first_result.returncode != 0:
+            failure_message = f"Mistral Vibe failed during pass 1/2 with exit code {first_result.returncode}."
+            exit_code = first_result.returncode
+        else:
+            bound_session_dir = bind_latest_session_to_explicit_id(session_id)
+            print(f"Bound latest Vibe session log to explicit session ID in {bound_session_dir}")
 
-    bound_session_dir = bind_latest_session_to_explicit_id(session_id)
-    print(f"Bound latest Vibe session log to explicit session ID in {bound_session_dir}")
+            print("Running Mistral Vibe (pass 2/2, resume) …")
+            result = run_vibe(
+                build_resume_prompt(idea_name),
+                vibe_executable=vibe_executable,
+                resume_session_id=session_id,
+                bootstrap_from_file=False,
+            )
+            if result.timed_out:
+                failure_message = f"Mistral Vibe timed out during pass 2/2 after {MISTRAL_TIMEOUT_SECONDS} seconds."
+                exit_code = 124
+            elif result.returncode != 0:
+                failure_message = f"Mistral Vibe failed during pass 2/2 with exit code {result.returncode}."
+                exit_code = result.returncode
+    except Exception as exc:
+        failure_message = f"{type(exc).__name__}: {exc}"
+        exit_code = 1
 
-    print("Running Mistral Vibe (pass 2/2, resume) …")
-    result = run_vibe(
-        build_resume_prompt(idea_name),
-        vibe_executable=vibe_executable,
-        resume_session_id=session_id,
-        bootstrap_from_file=False,
+    allowed_changes, blocked_changes = finalize_changes(
+        initial_changed_paths,
+        allowed_paths,
+        idea_name,
+        failure_message=failure_message,
     )
-
-    changed_paths = get_changed_paths()
-    new_changed_paths = get_new_changed_paths(initial_changed_paths, changed_paths)
-    allowed_changes, blocked_changes = split_changed_paths(new_changed_paths, allowed_paths)
-
-    if blocked_changes:
-        print("Discarding blocked changes:")
-        for rel_path in sorted(set(blocked_changes)):
-            print(describe_discarded_edit(rel_path))
-            revert_path(rel_path)
-        changed_paths = get_changed_paths()
-        new_changed_paths = get_new_changed_paths(initial_changed_paths, changed_paths)
-        allowed_changes, blocked_changes = split_changed_paths(new_changed_paths, allowed_paths)
 
     if blocked_changes:
         print("ERROR: blocked changes remain after cleanup.", file=sys.stderr)
-        sys.exit(1)
-
-    if result.timed_out:
-        print(
-            f"Mistral Vibe timed out after {MISTRAL_TIMEOUT_SECONDS} seconds.",
-            file=sys.stderr,
-        )
-        sys.exit(124)
-
-    if result.returncode != 0:
-        print("Mistral Vibe failed.", file=sys.stderr)
-        sys.exit(result.returncode)
+        exit_code = 1
+        if failure_message is None:
+            failure_message = "blocked changes remained after cleanup"
 
     if allowed_changes:
         print("Allowed changes:")
@@ -760,6 +799,12 @@ def main() -> None:
 
     emit_github_output("idea_name", idea_name)
     emit_github_output("vibe_session_id", session_id)
+    emit_github_output("run_outcome", "success" if failure_message is None and exit_code == 0 else "failure")
+    emit_github_output("failure_message", failure_message or "")
+
+    if failure_message is not None:
+        print(failure_message, file=sys.stderr)
+        sys.exit(exit_code)
 
 
 if __name__ == "__main__":

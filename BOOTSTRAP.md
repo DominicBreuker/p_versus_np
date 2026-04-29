@@ -38,8 +38,11 @@ the **P vs NP problem** using **Lean4** for formal proofs.
 │       ├── NOTES.md            # Progress log (Researcher)
 │       └── Proof.lean          # Lean4 proof (Researcher)
 ├── lib/
-│   ├── __init__.lean           # Library entry point
-│   └── utils.lean              # Reusable Lean4 definitions
+│   ├── PVsNpLib.lean           # Importable shared library entry point
+│   ├── PVsNpLib/
+│   │   └── Utils.lean          # Reusable Lean4 definitions/helpers
+│   ├── __init__.lean           # Legacy note file
+│   └── utils.lean              # Legacy compatibility shim
 ├── lean-toolchain              # Lean4 toolchain version
 ├── lakefile.lean               # Lake build configuration
 ├── README.md                   # Project status (auto-updated)
@@ -139,6 +142,21 @@ lake exe cache get
 # Build the project
 lake build
 ```
+
+Shared library code is imported from proof files with:
+
+```lean
+import Mathlib
+import PVsNpLib
+```
+
+or, for a narrower import:
+
+```lean
+import PVsNpLib.Utils
+```
+
+Do not try to import raw file paths under `lib/`; Lake only resolves module names.
 
 If you intentionally change `lakefile.lean` or `lean-toolchain`, regenerate
 `lake-manifest.json` with `lake update` and commit the updated manifest.

@@ -134,6 +134,18 @@ class VibeExecutionTests(unittest.TestCase):
                 self.assertEqual(second.returncode, 0)
                 self.assertIn("Resuming mock Vibe session", output.getvalue())
 
+    def test_append_failure_note_creates_technical_interruptions_section(self):
+        notes_path = REPO_ROOT / "candidates" / "circuit-lower-bounds" / "NOTES.md"
+        original = notes_path.read_text(encoding="utf-8")
+        try:
+            notes_path.write_text("# Progress Notes\n", encoding="utf-8")
+            researcher.append_failure_note("circuit-lower-bounds", "mock timeout")
+            updated = notes_path.read_text(encoding="utf-8")
+            self.assertIn("## Technical Interruptions", updated)
+            self.assertIn("mock timeout", updated)
+        finally:
+            notes_path.write_text(original, encoding="utf-8")
+
 
 if __name__ == "__main__":
     unittest.main()
