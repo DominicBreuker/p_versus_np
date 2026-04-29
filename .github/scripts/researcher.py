@@ -426,6 +426,13 @@ def find_latest_vibe_session_dir() -> Path | None:
     return candidates[0][1]
 
 
+def with_replaced_session_short_id(session_dir: Path, short_id: str) -> Path:
+    renamed = re.sub(r"_[^_]+$", f"_{short_id}", session_dir.name)
+    if renamed == session_dir.name:
+        renamed = f"{session_dir.name}_{short_id}"
+    return session_dir.with_name(renamed)
+
+
 def bind_latest_session_to_explicit_id(session_id: str) -> Path:
     # Upstream Vibe exposes `--resume SESSION_ID` but does not expose a
     # corresponding "start a new session with this exact ID" CLI flag.
@@ -439,7 +446,7 @@ def bind_latest_session_to_explicit_id(session_id: str) -> Path:
     metadata = read_json_file(metadata_path)
     metadata["session_id"] = session_id
 
-    target_dir = session_dir.with_name(f"{session_dir.name.rsplit('_', 1)[0]}_{session_id[:8]}")
+    target_dir = with_replaced_session_short_id(session_dir, session_id[:8])
     if target_dir != session_dir:
         if target_dir.exists():
             raise RuntimeError(f"Target Vibe session directory already exists: {target_dir}")

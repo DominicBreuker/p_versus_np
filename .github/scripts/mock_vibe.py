@@ -13,9 +13,9 @@ import json
 import os
 from pathlib import Path
 import re
-import secrets
 import sys
 import time
+from uuid import uuid4
 
 
 VERSION = "2.8.1-mock"
@@ -58,9 +58,7 @@ def get_session_log_dir() -> Path:
 
 
 def generate_session_id() -> str:
-    head = secrets.token_hex(10)
-    tail = secrets.token_hex(6)
-    return f"{head[:8]}-{head[8:12]}-{head[12:16]}-{head[16:20]}-{tail}"
+    return str(uuid4())
 
 
 def extract_prompt_path(workdir: Path, bootstrap_prompt: str) -> Path | None:
