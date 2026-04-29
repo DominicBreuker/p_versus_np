@@ -49,7 +49,7 @@ SESSION_MESSAGES_FILENAME = "messages.jsonl"
 # `<vibe_stop_event>Turn limit reached</vibe_stop_event>`.
 VIBE_TAG_PATTERN = re.compile(r"^<(?P<tag>[a-z_]+)>(?P<message>.*)</(?P=tag)>$")
 MISTRAL_MODEL: str = os.environ.get("MISTRAL_MODEL", "").strip()
-MISTRAL_MAX_TURNS: str = os.environ.get("MISTRAL_MAX_TURNS", "12").strip()
+MISTRAL_MAX_TURNS: str = os.environ.get("MISTRAL_MAX_TURNS", "").strip()
 MISTRAL_MAX_PRICE: str = os.environ.get("MISTRAL_MAX_PRICE", "").strip()
 MISTRAL_TIMEOUT_SECONDS: int = int(os.environ.get("MISTRAL_TIMEOUT_SECONDS", "1800"))
 MISTRAL_VIBE_SESSION_ID: str = os.environ.get("MISTRAL_VIBE_SESSION_ID", "").strip()
