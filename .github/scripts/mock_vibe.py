@@ -198,6 +198,13 @@ def resolve_session(args: argparse.Namespace) -> tuple[str, Path, bool]:
         if session_dir is None:
             raise FileNotFoundError(f"Session '{args.resume}' not found")
         return args.resume, session_dir, True
+    if args.resume is True:
+        sessions = list_valid_sessions()
+        if not sessions:
+            raise FileNotFoundError("No previous session found")
+        session_dir = sessions[0]
+        metadata = read_json_file(session_dir / SESSION_METADATA_FILENAME)
+        return str(metadata["session_id"]), session_dir, True
     if args.continue_session:
         sessions = list_valid_sessions()
         if not sessions:

@@ -88,7 +88,7 @@ def write_file(path: Path, content: str) -> None:
 def read_text_excerpt(path: Path, limit: int = 4000) -> str:
     """Return text/log info for discarded edits.
 
-    Returns UTF-8 file content truncated to `limit` characters when possible,
+    Returns UTF-8 file content truncated to at most `limit` characters when possible,
     a binary-file marker for non-text files, or an explanatory error string.
     """
     try:
@@ -427,8 +427,10 @@ def find_latest_vibe_session_dir() -> Path | None:
 
 
 def with_replaced_session_short_id(session_dir: Path, short_id: str) -> Path:
-    renamed = re.sub(r"_[^_]+$", f"_{short_id}", session_dir.name)
-    if renamed == session_dir.name:
+    prefix, separator, _tail = session_dir.name.rpartition("_")
+    if separator:
+        renamed = f"{prefix}_{short_id}"
+    else:
         renamed = f"{session_dir.name}_{short_id}"
     return session_dir.with_name(renamed)
 
