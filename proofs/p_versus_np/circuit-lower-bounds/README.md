@@ -52,10 +52,10 @@ Treat it as progress on the route, not as a solved proof of P vs NP.
 Goal: `(n + 1)^(n + 1) * 2^n < 2^(2^n)` for `n ≥ 9`.
 
 Recommended route:
-1. Prove `n + 1 ≤ 2^n` for `n ≥ 1`.
-2. Lift that bound to `(n + 1)^(n + 1) ≤ 2^(n * (n + 1))`.
-3. Prove `n^2 + 2*n < 2^n` for `n ≥ 9`.
-4. Combine the exponent bounds to conclude the target inequality.
+- Step A: Prove `n + 1 ≤ 2^n` for `n ≥ 1`.
+- Step B: Lift that bound to `(n + 1)^(n + 1) ≤ 2^(n * (n + 1))`.
+- Step C: Prove `n^2 + 2*n < 2^n` for `n ≥ 9`.
+- Step D: Combine the exponent bounds to conclude the target inequality.
 
 ### Task 7 — Complete `shannon_counting_argument`
 

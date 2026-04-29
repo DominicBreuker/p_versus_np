@@ -39,6 +39,18 @@ class ParseTargetsTests(unittest.TestCase):
             [("problem-a", "approach-a"), ("problem-b", "approach-b"), ("problem-c", "approach-c")],
         )
 
+    def test_parse_targets_ignores_malformed_and_header_rows(self):
+        content = """
+Problem | Approach | Priority | Status | Relationships
+| Problem | Approach | Priority | Status | Relationships |
+|---------|----------|----------|--------|---------------|
+| [problem-a](problem-a/) | [approach-a](problem-a/approach-a/) | 100 | Active | Main proof track |
+"""
+        targets = researcher.parse_targets(content)
+        self.assertEqual(len(targets), 1)
+        self.assertEqual(targets[0]["problem"], "problem-a")
+        self.assertEqual(targets[0]["relationships"], "Main proof track")
+
     def test_get_mistral_api_key_precedence(self):
         with mock.patch.dict(researcher.os.environ, {"MISTRAL_API_KEY": "fallback"}, clear=True):
             self.assertEqual(researcher.get_mistral_api_key(), "fallback")
