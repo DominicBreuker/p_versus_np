@@ -174,17 +174,25 @@ theorem shannon_counting_argument :
   intros p hp
   obtain ⟨k, c_poly, h_bound⟩ := hp
   -- For large enough n, p n < 2^n (exponential grows faster than any polynomial)
-  -- We use n₀ = k + c_poly + 5 to ensure both p n < 2^n and the counting inequality holds
-  refine' ⟨k + c_poly + 5, ?_⟩
+  -- We use n₀ = max (k + c_poly + 5) 9 to ensure both p n < 2^n and n ≥ 9
+  refine' ⟨max (k + c_poly + 5) 9, ?_⟩
   intro n hn
-  -- Since n ≥ k + c_poly + 5, we have n ≥ 5, so circuit_count_lt_functions_at_n applies
   -- We need to show: ∃ f, ∀ c with circuitSize c ≤ p n, ∃ inp, evalCircuit c inp ≠ f inp
   -- By counting: there are 2^(2^n) Boolean functions and at most
   -- circuit_count_upper_bound n (p n) circuits of size ≤ p n
-  -- Since p n ≤ c_poly * n^k + c_poly and n ≥ k + c_poly + 5, we have p n < 2^n
-  -- Therefore circuit_count_upper_bound n (p n) < circuit_count_upper_bound n n < 2^(2^n)
-  -- So some function is not computed
-  -- For now, we use sorry as the pigeonhole principle formalization requires more infrastructure
+  -- We use n₀ = max (k + c_poly + 5) 9, so n ≥ k + c_poly + 5 and n ≥ 9
+  have hn_large : n ≥ k + c_poly + 5 := by omega
+  have hn_ge9 : n ≥ 9 := by omega
+  -- From h_bound: p n ≤ c_poly * n^k + c_poly
+  -- For n ≥ k + c_poly + 5, we have c_poly * n^k + c_poly < 2^n
+  -- This is because exponential grows faster than polynomial
+  -- For now, we use the fact that circuit_count_lt_functions_at_n holds for n ≥ 4
+  have h_count : circuit_count_upper_bound n n < boolean_function_count n :=
+    circuit_count_lt_functions_at_n n (by omega)
+  -- We need to show circuit_count_upper_bound n (p n) < boolean_function_count n
+  -- Since p n ≤ c_poly * n^k + c_poly and for large n, c_poly * n^k + c_poly ≤ n (when n is large enough)
+  -- Actually, we need p n ≤ n for the counting to work directly
+  -- For now, we use sorry as we need to formalize that p n ≤ n for large n
   sorry
 
 -- ---------------------------------------------------------------------------

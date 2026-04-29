@@ -1,6 +1,6 @@
 # Progress Notes
 
-**Last Updated:** 2026-04-29 17:32 UTC
+**Last Updated:** 2026-04-29 19:50 UTC
 
 **Major Milestone: P ≠ NP theorem now fully proven (conditional on SAT superpolynomial lower bound axiom)!**
 
@@ -20,14 +20,15 @@
 - [x] Task 8: Prove superpolynomial lower bound connection (sat_superpolynomial_implies_p_neq_np)
 - [x] Task 9: Connect lower bounds to P ≠ NP
 - [x] Task 10: Formalize Shannon counting argument (shannon_counting_argument theorem statement with sorry)
-- [x] Task 11: Add helper lemma `circuit_count_lt_functions_at_n` for base case of counting argument
+- [ ] Task 11: Complete `circuit_count_lt_functions_at_n` for n ≥ 9 — BLOCKED: `decide` tactic hits recursion limits for large exponents
+- [ ] Task 12: Complete `shannon_counting_argument` proof — BLOCKED: needs formalization of polynomial vs exponential growth
 
 ## Current Work
 
 - `evalCircuit`, `inP`, and `inNP` are implemented as per README guidance.
 - **Re-added sanity lemmas** for `evalCircuit` with corrected syntax (using helper constructors `constCircuit` and `varCircuit` instead of invalid `let` bindings in type signatures). All three lemmas proven with `simp`.
 - **Formalized Shannon counting argument**: Added `circuit_count_upper_bound`, `boolean_function_count`, and `shannon_counting_argument` theorem (currently with `sorry`), which aims to prove that for any polynomial p, there exist Boolean functions on n inputs that cannot be computed by polynomial-size circuits.
-- **Recovered part of the failed 2026-04-29 researcher run from workflow logs**: the interrupted run had already split `circuit_count_lt_functions_at_n` into direct `decide` checks for small `n` plus a structured `n ≥ 9` proof sketch. The direct `n = 4,5,6,7,8` cases and the recovered proof outline are now back in `Proof.lean`.
+- **Updated `shannon_counting_argument`**: Enhanced proof structure with `n₀ = max (k + c_poly + 5) 9` to ensure both `p n < 2^n` and `n ≥ 9`. Added intermediate lemmas (`hn_large`, `hn_ge9`, `h_count`) with clear comments explaining the proof strategy and remaining gaps.
 - Cook–Levin theorem axiomatized as `sat_is_np_complete`
 - Completed `sat_superpolynomial_implies_p_neq_np` proof: proves that if SAT requires superpolynomial circuits, then there exists a language in NP not in P. Proof uses contradiction.
 
@@ -35,13 +36,21 @@ The main theorem `p_neq_np` is now **fully proven** using `sat_superpolynomial_i
 
 ## Next Steps
 
-1. **Complete `shannon_counting_argument` proof**: Need to show that for any polynomial p, there exists n₀ such that for all n ≥ n₀, the number of circuits of size ≤ p n is strictly less than 2^(2^n). This requires Mathlib lemmas about exponential growth dominating polynomial growth.
-2. **Potential improvement**: Replace `sat_has_superpoly_lower_bound` axiom with a proof (though this would resolve P vs NP, which is believed to be hard)
-3. **Lift the recovered sketch into reusable lemmas**: prove `n + 1 < 2^n` and `n^2 + 2*n < 2^n` as standalone results so `circuit_count_lt_functions_at_n` can be completed cleanly.
+1. **Complete `circuit_count_lt_functions_at_n` for n ≥ 9**: The `decide` tactic hits recursion limits for exponents like 2^512. Need to either:
+   - Increase recursion depth limits locally (tried but still hits limits)
+   - Prove auxiliary lemmas (`n + 1 ≤ 2^n`, `n^2 + 2n < 2^n` for n ≥ 9) using induction without computing huge exponents
+   - Use a different proof strategy that avoids computing 2^(2^n) directly
 
-## Technical Interruptions
+2. **Complete `shannon_counting_argument` proof**: Need to show that for any polynomial p, there exists n₀ such that for all n ≥ n₀, `circuit_count_upper_bound n (p n) < boolean_function_count n`. This requires:
+   - Formalizing that for large n, p n ≤ n (or similar bound)
+   - Using the pigeonhole principle from Mathlib (`Finset.exists_ne_map_eq_of_card_lt_of_maps_to`)
 
-- 2026-04-29 16:08 UTC — Researcher workflow timed out inside Mistral Vibe during work on `circuit_count_lt_functions_at_n`. Partial work from that failed run was recovered from the workflow logs and restored. Review the recovered `n ≥ 9` proof sketch before continuing.
+3. **Potential improvement**: Replace `sat_has_superpoly_lower_bound` axiom with a proof (though this would resolve P vs NP, which is believed to be hard)
+
+## Technical Issues
+
+- **`decide` tactic limitations**: The `decide` tactic hits maximum recursion depth when evaluating expressions like `2 ^ (2 ^ 9)` (which is 2^512). This blocks direct verification of the inequality for n ≥ 9.
+- **Missing Mathlib imports**: The Proof.lean file doesn't directly import Mathlib, relying on transitive imports through PVsNpLib.Utils. Some Mathlib lemmas (like `le_of_max_le_left`) are not available without explicit imports.
 
 ## Blocks / Questions
 
