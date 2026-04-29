@@ -57,10 +57,10 @@ jobs:
         id: vibe_session
         run: |
           SESSION_ID="$(python - <<'PY'
-import uuid
-print(uuid.uuid4())
-PY
-)"
+          import uuid
+          print(uuid.uuid4())
+          PY
+          )"
           echo "session_id=$SESSION_ID" >> "$GITHUB_OUTPUT"
           echo "MISTRAL_VIBE_SESSION_ID=$SESSION_ID" >> "$GITHUB_ENV"
           echo "Using explicit Vibe session ID: $SESSION_ID"
