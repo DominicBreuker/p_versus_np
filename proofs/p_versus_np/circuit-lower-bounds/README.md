@@ -1,6 +1,6 @@
-# Idea: Circuit Complexity Lower Bounds
+# Approach: Circuit Complexity Lower Bounds
 
-**Priority:** High
+**Priority:** 90
 
 **Status:** Active — conditional P ≠ NP proof compiled; Shannon counting argument is the key open task
 
@@ -98,4 +98,3 @@ Relevant Mathlib: `Finset.exists_ne_map_eq_of_card_lt_of_maps_to` (pigeonhole).
 Reusable definitions live in `lib/utils.lean`. Currently available:
 - `IsPolynomial` predicate
 - `BoolFn` type alias
-

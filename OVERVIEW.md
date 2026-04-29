@@ -1,72 +1,50 @@
 # Project Overview
 
-**Last Updated:** 2026-04-29 (Project Leader run)
+**Last Updated:** 2026-04-29 (workflow migration to problem/approach proof layout)
 
 ---
 
 ## Goal
 
-Formally prove or disprove **P = NP** using Lean4.
+Build a structured Lean4 research workspace for major complexity-theory problems, with `P versus NP` as the flagship target.
 
-## Current Ideas
+## Current Proof Tracks
 
-| Idea | Priority | Status |
-|------|----------|--------|
-| [circuit-lower-bounds](candidates/circuit-lower-bounds/) | High | Active — conditional P ≠ NP proof; Shannon counting argument incomplete |
-| [time-hierarchy](candidates/time-hierarchy/) | High | Active — monotonicity proven; diagonalization stalled |
-| [p-subset-np](candidates/p-subset-np/) | Medium | New — prove P ⊆ NP in the circuit model |
+| Problem | Approach | Priority | Status |
+|---------|----------|----------|--------|
+| [p_versus_np](proofs/p_versus_np/) | [circuit-lower-bounds](proofs/p_versus_np/circuit-lower-bounds/) | 90 | Active — conditional P ≠ NP proof exists; Shannon counting argument remains open |
+| [p_subset_np](proofs/p_subset_np/) | [circuit-lifting](proofs/p_subset_np/circuit-lifting/) | 80 | Active — proof stub exists for a likely achievable foundational theorem |
+| [deterministic_time_hierarchy_theorem](proofs/deterministic_time_hierarchy_theorem/) | [diagonalization](proofs/deterministic_time_hierarchy_theorem/diagonalization/) | 70 | Active — monotonicity proven; diagonalization remains blocked |
 
 ## Progress Summary
 
-- **Active Ideas:** 3
-- **Stalled Ideas:** 0
-- **Dead Ends:** 0
-- **Unconditional Proofs Completed:** 0
-- **Conditional Proofs:** 1 (`p_neq_np` in circuit-lower-bounds, uses two axioms)
+- **Active proof tracks:** 3
+- **Stalled proof tracks:** 0
+- **Dead ends:** 0
+- **Unconditional proofs completed:** 0
+- **Conditional proofs:** 1 (`p_neq_np` in `proofs/p_versus_np/circuit-lower-bounds`, still assumes open lower-bound axioms)
 
 ## Assessment (2026-04-29)
 
-### circuit-lower-bounds
+### p_versus_np / circuit-lower-bounds
 
-**Significant researcher progress since 2026-04-28:**
+- The conditional `p_neq_np` proof compiles.
+- The blocking subproblem is the Shannon counting argument.
+- This is exactly the kind of difficult derived problem that may deserve its own future `proofs/<problem>/...` folder if it becomes a sustained research target.
 
-- `evalCircuit` is fully implemented (foldl over topological node array).
-- `IsPolynomial` defined; `inP` and `inNP` are correct.
-- Sanity lemmas `eval_const_true`, `eval_const_false`, `eval_var_zero` compile.
-- Cook–Levin theorem axiomatized as `sat_is_np_complete`.
-- `sat_superpolynomial_implies_p_neq_np` **proven** (contradiction from polynomial circuit family vs. superpolynomial lower bound).
-- `p_neq_np` **stated and proven** using two axioms:
-  1. `sat_is_np_complete` — Cook–Levin (standard result, formalizable but laborious).
-  2. `sat_has_superpoly_lower_bound` — the *core open problem* (cannot be proven without resolving P vs NP).
-- `shannon_counting_argument` stated but uses `sorry`; `circuit_count_lt_functions_at_n` also uses `sorry`.
+### p_subset_np / circuit-lifting
 
-**Assessment:** The conditional proof structure is logically sound and well-organized. The key open task is completing the Shannon counting argument (`circuit_count_lt_functions_at_n`), which would give a concrete intermediate result (not a resolution of P vs NP, but a provable lower bound fact).
+- The target is a concrete theorem rather than an open problem.
+- The main open work is the `liftCircuit_eval` lemma and the resulting verifier proof.
+- This is a strong candidate for the next sorry-free theorem in the repository.
 
-**Caution:** `p_neq_np` is not a genuine proof of P ≠ NP — it assumes the answer as an axiom. Do not overstate this.
+### deterministic_time_hierarchy_theorem / diagonalization
 
-### time-hierarchy
+- `inDTIME_mono` and `inDTIME_congr` are proven.
+- The remaining work is concentrated in encoding, universal simulation packaging, and the diagonal contradiction.
 
-- `inDTIME_mono` and `inDTIME_congr` **proven** (no sorry).
-- `time_hierarchy_theorem` stated with sorry for the diagonalization direction.
-- The monotonicity direction uses a clean one-liner proof.
-- Diagonalization is blocked by: encoding function (`encode`), universal simulator (`universal`), and the diagonal language construction.
+## Workflow Notes
 
-**Assessment:** Moving slowly. The monotone direction is done. The hard part (diagonalization) needs:
-1. A concrete `encode : Nat → List Bool → List Bool` (e.g., unary length prefix + word).
-2. A proof that the universal simulator runs within the time budget.
-3. A language D defined as `D w = (universal (encode i w) = false)` for appropriate i.
-
-### p-subset-np (new, 2026-04-29)
-
-- New idea: formally prove P ⊆ NP in the circuit complexity model.
-- Uses the existing `inP`/`inNP`/`BoolCircuit` infrastructure from circuit-lower-bounds.
-- Should be achievable without any open-problem axioms.
-- A clean proof of P ⊆ NP is a foundational building block.
-
-## Next Steps
-
-- **circuit-lower-bounds researchers:** Focus on `circuit_count_lt_functions_at_n` — prove `(n+1)^(n+1) * 2^n < 2^(2^n)` for n ≥ 4 using Mathlib's `Nat.pow_lt_pow_right` or similar lemmas.
-- **time-hierarchy researchers:** Define `encode` concretely and try to prove `inDTIME_mono` for the strict inclusion direction.
-- **p-subset-np researchers:** Prove `p_subset_np` following the circuit lifting approach in the README.
-- **Project Leader (next run):** Re-assess; promote p-subset-np if P ⊆ NP is proven; demote time-hierarchy if still stalled.
-
+- The Project Leader now maintains `proofs/README.md`, each `proofs/<problem>/README.md`, and `references/README.md`.
+- Researchers operate only inside one `proofs/<problem>/<approach>/` target per run.
+- Researcher target selection is randomized with probability proportional to the numeric priority recorded in `proofs/README.md`.

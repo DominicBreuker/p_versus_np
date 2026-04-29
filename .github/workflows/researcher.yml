@@ -110,8 +110,8 @@ jobs:
       - name: Clean up trailing whitespace
         if: always()
         run: |
-          find candidates -name "*.md" -exec sed -i 's/[[:space:]]*$//' {} \;
-          find candidates -name "*.lean" -exec sed -i 's/[[:space:]]*$//' {} \;
+          find proofs -name "*.md" -exec sed -i 's/[[:space:]]*$//' {} \;
+          find proofs -name "*.lean" -exec sed -i 's/[[:space:]]*$//' {} \;
           find lib -name "*.lean" -exec sed -i 's/[[:space:]]*$//' {} \;
 
       - name: Validate Lean project
@@ -121,8 +121,8 @@ jobs:
         run: |
           set -euo pipefail
           lake build
-          mapfile -d '' proofs < <(find candidates -name "*.lean" -print0 | sort -z)
-          for f in "${proofs[@]}"; do
+          mapfile -d '' proof_files < <(find proofs -name "*.lean" -print0 | sort -z)
+          for f in "${proof_files[@]}"; do
             echo "Checking executable Lean file: $f"
             lake env lean "$f"
           done
@@ -135,9 +135,9 @@ jobs:
           git add .
           if ! git diff --quiet || ! git diff --staged --quiet; then
             if [ "${{ steps.researcher.outputs.run_outcome }}" = "success" ]; then
-              git commit -m "Researcher update: work on ${{ steps.researcher.outputs.idea_name || 'idea' }}"
+              git commit -m "Researcher update: work on ${{ steps.researcher.outputs.target_label || 'proof target' }}"
             else
-              git commit -m "Researcher update (interrupted): work on ${{ steps.researcher.outputs.idea_name || 'idea' }}"
+              git commit -m "Researcher update (interrupted): work on ${{ steps.researcher.outputs.target_label || 'proof target' }}"
             fi
             git push
           fi

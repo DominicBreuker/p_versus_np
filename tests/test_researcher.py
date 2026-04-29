@@ -24,17 +24,20 @@ def tearDownModule() -> None:
     sys.modules.pop(spec.name, None)
 
 
-class ParseIdeasTests(unittest.TestCase):
-    def test_parse_ideas_sorts_by_priority(self):
+class ParseTargetsTests(unittest.TestCase):
+    def test_parse_targets_sorts_by_descending_numeric_priority(self):
         content = """
-| Idea Name | Priority | Status |
-|-----------|----------|--------|
-| medium-idea | Medium | Active |
-| [high-idea](high-idea/) | High | Active |
-| low-idea | Low | Archived |
+| Problem | Approach | Priority | Status |
+|---------|----------|----------|--------|
+| [problem-b](problem-b/) | [approach-b](problem-b/approach-b/) | 25 | Active |
+| [problem-a](problem-a/) | [approach-a](problem-a/approach-a/) | 100 | Active |
+| [problem-c](problem-c/) | [approach-c](problem-c/approach-c/) | 10 | Archived |
 """
-        ideas = researcher.parse_ideas(content)
-        self.assertEqual([idea["name"] for idea in ideas], ["high-idea", "medium-idea", "low-idea"])
+        targets = researcher.parse_targets(content)
+        self.assertEqual(
+            [(target["problem"], target["approach"]) for target in targets],
+            [("problem-a", "approach-a"), ("problem-b", "approach-b"), ("problem-c", "approach-c")],
+        )
 
     def test_get_mistral_api_key_precedence(self):
         with mock.patch.dict(researcher.os.environ, {"MISTRAL_API_KEY": "fallback"}, clear=True):
@@ -42,16 +45,26 @@ class ParseIdeasTests(unittest.TestCase):
         with mock.patch.dict(researcher.os.environ, {"MISTRAL_VIBE_KEY": "", "MISTRAL_API_KEY": "fallback"}, clear=True):
             self.assertEqual(researcher.get_mistral_api_key(), "")
 
+    def test_pick_target_uses_priority_weights(self):
+        targets = [
+            {"problem": "p1", "approach": "a1", "priority": "90", "priority_value": 90.0, "status": "Active"},
+            {"problem": "p2", "approach": "a2", "priority": "10", "priority_value": 10.0, "status": "Active"},
+        ]
+        with mock.patch.object(researcher.random, "choices", return_value=[targets[0]]) as choices:
+            chosen = researcher.pick_target(targets)
+        self.assertEqual(chosen, targets[0])
+        choices.assert_called_once_with(targets, weights=[90.0, 10.0], k=1)
+
 
 class ChangedPathTests(unittest.TestCase):
     def test_parse_changed_paths_handles_standard_and_renamed_paths(self):
-        status_output = " M candidates/foo/Proof.lean\nR  candidates/foo/Old.lean -> candidates/foo/New.lean\n?? lib/utils.lean\n"
+        status_output = " M proofs/problem/foo/Proof.lean\nR  proofs/problem/foo/Old.lean -> proofs/problem/foo/New.lean\n?? lib/utils.lean\n"
         self.assertEqual(
             researcher.parse_changed_paths(status_output),
             [
-                "candidates/foo/Proof.lean",
-                "candidates/foo/Old.lean",
-                "candidates/foo/New.lean",
+                "proofs/problem/foo/Proof.lean",
+                "proofs/problem/foo/Old.lean",
+                "proofs/problem/foo/New.lean",
                 "lib/utils.lean",
             ],
         )
@@ -59,22 +72,22 @@ class ChangedPathTests(unittest.TestCase):
     def test_split_changed_paths_filters_prompt_file(self):
         changed = [
             researcher.PROMPT_FILENAME,
-            "candidates/foo/Proof.lean",
+            "proofs/problem/foo/Proof.lean",
             "README.md",
             "lib/utils.lean",
         ]
-        allowed, blocked = researcher.split_changed_paths(changed, {"candidates/foo/", "lib/"})
-        self.assertEqual(allowed, ["candidates/foo/Proof.lean", "lib/utils.lean"])
+        allowed, blocked = researcher.split_changed_paths(changed, {"proofs/problem/foo/", "lib/"})
+        self.assertEqual(allowed, ["proofs/problem/foo/Proof.lean", "lib/utils.lean"])
         self.assertEqual(blocked, ["README.md"])
 
     def test_is_safe_repo_relative_path_rejects_traversal(self):
-        self.assertTrue(researcher.is_safe_repo_relative_path("candidates/foo/Proof.lean"))
+        self.assertTrue(researcher.is_safe_repo_relative_path("proofs/problem/foo/Proof.lean"))
         self.assertFalse(researcher.is_safe_repo_relative_path("../outside.txt"))
 
     def test_get_new_changed_paths_only_returns_new_entries(self):
         initial = ["README.md", "lib/utils.lean"]
-        current = ["README.md", "lib/utils.lean", "candidates/foo/Proof.lean"]
-        self.assertEqual(researcher.get_new_changed_paths(initial, current), ["candidates/foo/Proof.lean"])
+        current = ["README.md", "lib/utils.lean", "proofs/problem/foo/Proof.lean"]
+        self.assertEqual(researcher.get_new_changed_paths(initial, current), ["proofs/problem/foo/Proof.lean"])
 
 
 class VibeExecutionTests(unittest.TestCase):
@@ -135,11 +148,11 @@ class VibeExecutionTests(unittest.TestCase):
                 self.assertIn("Resuming mock Vibe session", output.getvalue())
 
     def test_append_failure_note_creates_technical_interruptions_section(self):
-        notes_path = REPO_ROOT / "candidates" / "circuit-lower-bounds" / "NOTES.md"
+        notes_path = REPO_ROOT / "proofs" / "p_versus_np" / "circuit-lower-bounds" / "NOTES.md"
         original = notes_path.read_text(encoding="utf-8")
         try:
             notes_path.write_text("# Progress Notes\n", encoding="utf-8")
-            researcher.append_failure_note("circuit-lower-bounds", "mock timeout")
+            researcher.append_failure_note("p_versus_np", "circuit-lower-bounds", "mock timeout")
             updated = notes_path.read_text(encoding="utf-8")
             self.assertIn("## Technical Interruptions", updated)
             self.assertIn("mock timeout", updated)
