@@ -565,7 +565,6 @@ def run_vibe(
         "auto-approve",
         "--workdir",
         str(REPO_ROOT),
-        "--trust",
         "--output",
         "streaming",
     ]
