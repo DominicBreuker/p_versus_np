@@ -197,22 +197,23 @@ def apply_mock_edits(workdir: Path) -> None:
 
 
 def resolve_session(args: argparse.Namespace) -> tuple[str, Path, bool]:
+    session_log_dir = get_session_log_dir()
     if isinstance(args.resume, str):
         session_dir = find_session_dir_by_id(args.resume)
         if session_dir is None:
-            raise FileNotFoundError(f"Session '{args.resume}' not found")
+            raise FileNotFoundError(f"Session '{args.resume}' not found in {session_log_dir}")
         return args.resume, session_dir, True
     if args.resume is True:
         sessions = list_valid_sessions()
         if not sessions:
-            raise FileNotFoundError("No previous session found")
+            raise FileNotFoundError(f"No previous session found in {session_log_dir}")
         session_dir = sessions[0]
         metadata = read_json_file(session_dir / SESSION_METADATA_FILENAME)
         return str(metadata["session_id"]), session_dir, True
     if args.continue_session:
         sessions = list_valid_sessions()
         if not sessions:
-            raise FileNotFoundError("No previous session found")
+            raise FileNotFoundError(f"No previous session found in {session_log_dir}")
         session_dir = sessions[0]
         metadata = read_json_file(session_dir / SESSION_METADATA_FILENAME)
         return str(metadata["session_id"]), session_dir, True

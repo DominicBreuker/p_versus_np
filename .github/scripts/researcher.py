@@ -355,7 +355,10 @@ def find_vibe_executable() -> str:
         return configured
     executable = shutil.which("vibe")
     if not executable:
-        raise RuntimeError("The `vibe` executable was not found on PATH.")
+        raise RuntimeError(
+            "The `vibe` executable was not found on PATH. Install the real Mistral Vibe CLI "
+            "or set MISTRAL_VIBE_BIN explicitly (for example to the repository mock during local tests)."
+        )
     return executable
 
 
@@ -447,7 +450,11 @@ def bind_latest_session_to_explicit_id(session_id: str) -> Path:
     # exists), we raise RuntimeError and stop before the resume pass.
     session_dir = find_latest_vibe_session_dir()
     if session_dir is None:
-        raise RuntimeError("Could not find the latest Vibe session log to bind an explicit session ID.")
+        raise RuntimeError(
+            "Could not find the latest Vibe session log to bind an explicit session ID. "
+            "Ensure the first Vibe pass completed successfully and wrote a session log to "
+            f"{get_vibe_session_log_dir()}."
+        )
 
     metadata_path = session_dir / SESSION_METADATA_FILENAME
     metadata = read_json_file(metadata_path)
