@@ -2,8 +2,8 @@
 
 | Problem | Approach | Priority | Status | Relationships |
 |---------|----------|----------|--------|---------------|
-| [p_versus_np](p_versus_np/) | [circuit-lower-bounds](p_versus_np/circuit-lower-bounds/) | 90 | Active — main proof route; current work is still infrastructure for a lower-bound argument, not a resolution of P vs NP | Main proof track |
-| [p_subset_np](p_subset_np/) | [circuit-lifting](p_subset_np/circuit-lifting/) | 60 | Active — supporting formalization task in the same circuit model; remaining work is standard Lean proof engineering | Supports `p_versus_np/circuit-lower-bounds` by formalizing the easy inclusion `P ⊆ NP` |
+| [p_versus_np](p_versus_np/) | [circuit-lower-bounds](p_versus_np/circuit-lower-bounds/) | 90 | Active — direct but still highly incomplete route to `P ≠ NP`; present Lean progress is a conditional reduction plus partial counting infrastructure | Direct attack on `P ≠ NP`; the support track exists only to finish reusable circuit-model infrastructure |
+| [p_subset_np](p_subset_np/) | [circuit-lifting](p_subset_np/circuit-lifting/) | 60 | Active — necessary support track; remaining work is standard verifier-lifting formalization in the same circuit model | Supports `p_versus_np/circuit-lower-bounds` by proving the easy inclusion `P ⊆ NP` and avoiding duplicate bookkeeping in the main route |
 
 ## Guidance for Researchers
 
@@ -17,6 +17,7 @@ Every kept target must either be the main P vs NP proof or a documented material
 - Maintain the `Relationships` column; it is required documentation, not optional commentary.
 - Create a new `proofs/<problem>/` folder only when solving that problem would be a material step forward for an already-existing P vs NP proof approach.
 - Create a new `proofs/<problem>/<approach>/` folder only when that approach clearly advances the associated problem.
+- If the current active tracks still have concrete next lemmas, prefer tightening guidance over adding another route.
 - Remove or retire proof tracks that no longer have a clear relationship to solving P vs NP.
 - Keep `proofs/<problem>/README.md` current for each active problem.
 - Review `references/README.md` and any relevant reference documents on each run.

@@ -2,7 +2,7 @@
 
 **Priority:** 60
 
-**Status:** Active — supporting track with ordinary Lean proof obligations remaining
+**Status:** Active — supporting track with ordinary Lean proof obligations remaining; this should be finished, not expanded
 
 **Relationship to the repository goal:** This track supports `proofs/p_versus_np/circuit-lower-bounds` by proving the easy inclusion `P ⊆ NP` inside the same circuit model.
 
@@ -23,6 +23,7 @@ using the circuit-model definitions already aligned with the main `p_versus_np` 
 - It strengthens the exact formal framework used by the main P vs NP route.
 - It is standard mathematics / proof engineering, not an unrelated open problem.
 - It gives a concrete way to exercise imports from both `Mathlib` and `PVsNpLib` in a proof file.
+- It should not grow into a second complexity-theory program once `p_subset_np` is finished.
 
 ---
 
@@ -35,7 +36,7 @@ using the circuit-model definitions already aligned with the main `p_versus_np` 
 | `poly_half` | ✓ proven |
 | `liftCircuit_eval` | ✗ sorry |
 | `verifier_iff` | ✗ sorry |
-| `p_subset_np` | ✗ sorry |
+| `p_subset_np` | ✗ sorry (currently blocked by the verifier-family size alignment) |
 
 ---
 
@@ -62,6 +63,10 @@ The key work is dependent-type bookkeeping around `Fin.ext` and an induction ove
 
 Reduce `((2 * n) / 2)` to `n`, then prove that the combined input restricted to its first half is propositionally equal to `inp`.
 
+### Task 7 — Finish `p_subset_np`
+
+Keep the final theorem specialized to the existing circuit model. Do not introduce a second verifier representation or extra abstraction layers unless they are needed to close the current proof.
+
 ---
 
 ## Hints
@@ -69,3 +74,4 @@ Reduce `((2 * n) / 2)` to `n`, then prove that the combined input restricted to 
 - Use `import Mathlib` explicitly for arithmetic and tactic support.
 - Use `import PVsNpLib` for the shared `IsPolynomial` definition.
 - The witness in the NP statement can be ignored; the verifier only needs the first half of the combined input.
+- Handle the size mismatch in `p_subset_np` directly: the verifier only needs to be well-behaved on inputs of size `2 * n`, so solve that alignment before adding more helper infrastructure.

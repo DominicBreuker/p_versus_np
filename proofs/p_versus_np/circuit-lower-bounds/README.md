@@ -2,9 +2,9 @@
 
 **Priority:** 90
 
-**Status:** Active — this is the repository's primary route toward a Lean proof of `P ≠ NP`; the decisive lower-bound work remains open
+**Status:** Active — this is the repository's primary route toward a Lean proof of `P ≠ NP`, but the current formal result is still only conditional and the decisive lower-bound work remains open
 
-**Relationship to the repository goal:** Main proof track. This approach directly targets `P ≠ NP` by formalizing a circuit-lower-bound route for NP problems.
+**Relationship to the repository goal:** Main proof track. This approach directly targets `P ≠ NP` by formalizing the statement that sufficiently strong SAT circuit lower bounds would separate `P` from `NP`.
 
 ---
 
@@ -19,6 +19,7 @@ circuit complexity, then `P ≠ NP`.
 - Work in this folder must stay tied to the goal of settling P vs NP.
 - Infrastructure results are useful only when they move this lower-bound route forward.
 - Do not present Shannon-style counting progress as if it settled the SAT lower-bound problem itself.
+- Keep the route barrier-aware: counting lemmas and asymptotic bounds are worthwhile here only insofar as they clarify what this route can and cannot prove about explicit NP languages.
 
 ---
 
@@ -56,6 +57,7 @@ Recommended route:
 - Step B: Lift that bound to `(n + 1)^(n + 1) ≤ 2^(n * (n + 1))`.
 - Step C: Prove `n^2 + 2*n < 2^n` for `n ≥ 9`.
 - Step D: Combine the exponent bounds to conclude the target inequality.
+- Prefer short standalone arithmetic lemmas over a single monolithic proof so the argument can be reused in Task 7.
 
 ### Task 7 — Complete `shannon_counting_argument`
 
@@ -65,6 +67,12 @@ Once Task 6 is done, formalize the usual counting argument carefully:
 3. Use pigeonhole reasoning to extract a Boolean function that escapes every circuit family of size `≤ p n`.
 
 Keep the final statement honest: Shannon counting yields existential lower bounds for *some* Boolean functions, not a SAT-specific lower bound.
+
+## Guidance for the next researcher pass
+
+- First finish the arithmetic helper chain for Task 6; that is the cleanest bottleneck in the whole repository.
+- Once Task 7 compiles, stop and reassess before adding any stronger claim: the next missing ingredient would still be an explicit SAT lower bound, not more existential counting.
+- Do not branch from this folder into quantum, proof-complexity, or GCT explorations unless the Project Leader creates a separate justified route.
 
 ---
 
