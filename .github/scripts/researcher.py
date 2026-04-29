@@ -356,7 +356,7 @@ class VibeRunResult:
     timed_out: bool = False
 
 
-def format_streaming_message(payload: dict[str, object]) -> str:
+def format_vibe_streaming_message(payload: dict[str, object]) -> str:
     role = str(payload.get("role") or "assistant")
     tool_calls = payload.get("tool_calls") or []
     content = str(payload.get("content") or "").strip()
@@ -400,7 +400,7 @@ def format_vibe_output_line(line: str) -> str:
         formatted = stripped
     else:
         if isinstance(payload, dict):
-            formatted = format_streaming_message(payload)
+            formatted = format_vibe_streaming_message(payload)
         else:
             formatted = stripped
 
@@ -467,7 +467,9 @@ def run_vibe(prompt_text: str) -> VibeRunResult:
                 for raw_line in process.stdout:
                     output_queue.put(raw_line)
             except Exception as exc:
-                output_queue.put(f"<vibe_warning>Output reader failed: {exc}</vibe_warning>\n")
+                output_queue.put(
+                    f"<vibe_warning>Output reader failed ({type(exc).__name__}): {exc}</vibe_warning>\n"
+                )
             finally:
                 process.stdout.close()
                 output_queue.put(None)
@@ -528,7 +530,7 @@ def main() -> None:
 
     initial_changed_paths = get_changed_paths()
     if initial_changed_paths:
-        print("Starting with existing repository changes; only new changes from this run will be filtered.")
+        print("Detected existing repository changes; only changes made during this run will be filtered.")
         for rel_path in sorted(set(initial_changed_paths)):
             print(f"  - {rel_path}")
 
