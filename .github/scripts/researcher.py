@@ -43,6 +43,9 @@ PROMPT_TEMPLATE_PATH: Path = REPO_ROOT / ".github" / "prompts" / "researcher_vib
 MOCK_VIBE_PATH: Path = REPO_ROOT / ".github" / "scripts" / "mock_vibe.py"
 PROMPT_FILENAME = ".mistral-researcher-prompt.md"
 DEAD_STATUSES: set[str] = {"Dead End", "Archived"}
+TARGET_TABLE_BASE_HEADERS = ("problem", "approach", "priority", "status")
+TARGET_TABLE_HEADERS = {TARGET_TABLE_BASE_HEADERS, TARGET_TABLE_BASE_HEADERS + ("relationships",)}
+PRIORITY_PATTERN = re.compile(r"[0-9]+(?:\.[0-9]+)?")
 SESSION_METADATA_FILENAME = "meta.json"
 SESSION_MESSAGES_FILENAME = "messages.jsonl"
 # Vibe emits single-line tagged status messages such as
@@ -259,20 +262,21 @@ def describe_discarded_edit(rel_path: str) -> str:
 
 def parse_targets(content: str) -> list[dict[str, str | float]]:
     targets: list[dict[str, str | float]] = []
-    for line in content.splitlines():
-        match = re.match(
-            r"\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*([0-9]+(?:\.[0-9]+)?)\s*\|\s*([^|]+?)\s*\|",
-            line,
-        )
-        if not match:
+    for raw_line in content.splitlines():
+        line = raw_line.strip()
+        if not line.startswith("|") or not line.endswith("|"):
             continue
-        problem, approach, priority_text, status = (
-            strip_markdown_link(match.group(1).strip()),
-            strip_markdown_link(match.group(2).strip()),
-            match.group(3).strip(),
-            match.group(4).strip(),
-        )
-        if problem.lower() in {"problem", "---", "--------"}:
+        columns = [part.strip() for part in line.split("|")[1:-1]]
+        if len(columns) not in {4, 5}:
+            continue
+        lowered_columns = tuple(column.lower() for column in columns)
+        if lowered_columns in TARGET_TABLE_HEADERS or is_separator_row(list(lowered_columns)):
+            continue
+        problem, approach, priority_text, status = columns[:4]
+        relationships = columns[4] if len(columns) == 5 else ""
+        problem = strip_markdown_link(problem)
+        approach = strip_markdown_link(approach)
+        if not PRIORITY_PATTERN.fullmatch(priority_text):
             continue
         priority_value = float(priority_text)
         targets.append(
@@ -282,10 +286,15 @@ def parse_targets(content: str) -> list[dict[str, str | float]]:
                 "priority": priority_text,
                 "priority_value": priority_value,
                 "status": status,
+                "relationships": relationships,
             }
         )
     targets.sort(key=lambda item: float(item["priority_value"]), reverse=True)
     return targets
+
+
+def is_separator_row(columns: list[str]) -> bool:
+    return all(set(column) <= {"-", " ", ":"} for column in columns)
 
 
 def strip_markdown_link(value: str) -> str:

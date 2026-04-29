@@ -2,108 +2,72 @@
 
 **Priority:** 90
 
-**Status:** Active — conditional P ≠ NP proof compiled; Shannon counting argument has two remaining `sorry` placeholders
+**Status:** Active — this is the repository's primary route toward a Lean proof of `P ≠ NP`; the decisive lower-bound work remains open
+
+**Relationship to the repository goal:** Main proof track. This approach directly targets `P ≠ NP` by formalizing a circuit-lower-bound route for NP problems.
 
 ---
 
 ## Problem Statement
 
-Prove that Boolean circuit complexity lower bounds for NP problems are sufficient to separate P from NP.
-Specifically, formalize the argument that if any NP-complete problem (e.g., SAT) requires superpolynomial
-circuit complexity, then P ≠ NP.
+Prove that sufficiently strong Boolean circuit lower bounds for NP problems are enough to separate `P` from `NP`.
+Specifically, formalize the argument that if an NP-complete problem such as SAT requires superpolynomial
+circuit complexity, then `P ≠ NP`.
 
-**Approach:**
-1. Define Boolean circuits and circuit complexity formally in Lean4. ✓
-2. Define the complexity classes P and NP in terms of circuit families. ✓
-3. Prove (or assume as axiom) that SAT is NP-complete. ✓ (axiomatized)
-4. Develop lower bound lemmas showing exponential circuit complexity for some NP instance.
-5. Conclude P ≠ NP. ✓ (conditional on steps 3–4)
+## Scope discipline
+
+- Work in this folder must stay tied to the goal of settling P vs NP.
+- Infrastructure results are useful only when they move this lower-bound route forward.
+- Do not present Shannon-style counting progress as if it settled the SAT lower-bound problem itself.
 
 ---
 
 ## Tasks
 
-- [x] Task 1: Formalize Boolean circuit definitions (BoolCircuit, Gate, CircuitNode, evalCircuit)
-- [x] Task 2: Fix `evalCircuit` — implemented via foldl over topological node array
-- [x] Task 3: Define `IsPolynomial` predicate and update `inP`
-- [x] Task 4: Fix `inNP` witness encoding (combined 2*n bitstring, omega-verified index)
-- [x] Task 5: Add sanity lemmas (`eval_const_true`, `eval_const_false`, `eval_var_zero`)
-- [x] Task 6: Axiomatize Cook–Levin theorem (`sat_is_np_complete`)
-- [x] Task 7: Prove `sat_superpolynomial_implies_p_neq_np` (no sorry — contradiction proof)
-- [x] Task 8: State and prove `p_neq_np` (conditional on the two axioms below)
-- [ ] Task 9: Prove `circuit_count_lt_functions_at_n` — remove sorry in the `n ≥ 9` branch
-- [ ] Task 10: Complete `shannon_counting_argument` — remove both sorry placeholders
+- [x] Task 1: Formalize Boolean circuit definitions (`BoolCircuit`, `Gate`, `CircuitNode`, `evalCircuit`)
+- [x] Task 2: Define `IsPolynomial`, `inP`, and `inNP` in the circuit model
+- [x] Task 3: Add sanity lemmas (`eval_const_true`, `eval_const_false`, `eval_var_zero`)
+- [x] Task 4: Axiomatize Cook–Levin (`sat_is_np_complete`)
+- [x] Task 5: Prove the conditional reduction from SAT circuit lower bounds to `P ≠ NP`
+- [ ] Task 6: Prove `circuit_count_lt_functions_at_n` — remove the arithmetic `sorry`
+- [ ] Task 7: Complete `shannon_counting_argument` without overstating what it implies
 
 ---
 
-## Key Axioms (current proof relies on these)
+## Key Axioms / Open Boundary
 
-1. **`sat_is_np_complete`** — Cook–Levin theorem. Classically provable; formal proof is
-   laborious but not an open problem.
+1. **`sat_is_np_complete`** — Cook–Levin theorem. Classically provable; formal proof is lengthy.
 2. **`sat_has_superpoly_lower_bound`** — SAT requires superpolynomial-size circuits.
-   **This is the P vs NP problem itself.** Do not claim it is proven.
+   **This is the unresolved step that would settle the P vs NP question in this route.**
 
-The `p_neq_np` theorem compiles, but it is a *conditional* proof:
-it reduces P ≠ NP to the assumption that SAT has no polynomial circuit family.
-That assumption is exactly what remains to be resolved.
+The compiled `p_neq_np` theorem in `Proof.lean` is conditional on these assumptions.
+Treat it as progress on the route, not as a solved proof of P vs NP.
 
 ---
 
 ## Immediate Next Steps
 
-### Task 9 — Prove `circuit_count_lt_functions_at_n` for n ≥ 9
+### Task 6 — Prove `circuit_count_lt_functions_at_n` for `n ≥ 9`
 
-Goal: `(n + 1)^(n + 1) * 2^n < 2^(2^n)` for `n ≥ 9` (small cases n=4..8 already use `decide`).
+Goal: `(n + 1)^(n + 1) * 2^n < 2^(2^n)` for `n ≥ 9`.
 
-**Recommended three-step proof route:**
+Recommended route:
+- Step A: Prove `n + 1 ≤ 2^n` for `n ≥ 1`.
+- Step B: Lift that bound to `(n + 1)^(n + 1) ≤ 2^(n * (n + 1))`.
+- Step C: Prove `n^2 + 2*n < 2^n` for `n ≥ 9`.
+- Step D: Combine the exponent bounds to conclude the target inequality.
 
-**Step 1 — auxiliary lemma A:** `n + 1 ≤ 2^n` for `n ≥ 1`, by induction.
+### Task 7 — Complete `shannon_counting_argument`
 
-**Step 2 — auxiliary lemma B:** `(n + 1)^(n + 1) ≤ 2^(n * (n + 1))` using lemma A and
-`Nat.pow_le_pow_left`.
+Once Task 6 is done, formalize the usual counting argument carefully:
+1. Bound a general polynomial `p n` by a simpler growth term for sufficiently large `n`.
+2. Show `circuit_count_upper_bound n (p n) < boolean_function_count n` eventually.
+3. Use pigeonhole reasoning to extract a Boolean function that escapes every circuit family of size `≤ p n`.
 
-**Step 3 — auxiliary lemma C:** `n^2 + 2*n < 2^n` for `n ≥ 9`, by induction.
-- Base `n = 9`: `81 + 18 = 99 < 512 = 2^9`. Use `norm_num` or `decide`.
-- Inductive step: `(n+1)^2 + 2*(n+1) = n^2 + 2n + 2n + 3`. Use `n ≤ 2^n - 1` (from A)
-  and the inductive hypothesis to close with `omega` or `linarith`.
-
-**Final assembly:**
-```lean
--- (n+1)^(n+1) * 2^n ≤ 2^(n*(n+1)) * 2^n = 2^(n^2 + 2*n + n) ≤ 2^(n^2 + 2*n + n)
--- But n^2 + 2*n < 2^n (lemma C), so 2^(n^2 + 2*n + n) < 2^(2^n + n) ≤ 2^(2^n + 2^n) = 2^(2^(n+1))
--- More directly: n^2 + 2*n < 2^n, so n*(n+1) + n = n^2 + 2*n < 2^n ≤ 2^n * 2^n = 2^(2*n) ≤ 2^(2^n)
-```
-
-Useful Mathlib lemmas:
-```lean
-Nat.pow_le_pow_left  -- a ≤ b → a^n ≤ b^n
-Nat.pow_lt_pow_right -- 1 < b → n < m → b^n < b^m
-Nat.pow_add          -- b^(m+n) = b^m * b^n
-```
-
-Use `omega` for linear arithmetic and `nlinarith` or `linarith` for combining inequalities.
-
-### Task 10 — Complete `shannon_counting_argument`
-
-Once Task 9 is done, the path for a general polynomial `p` with `p n ≤ c * n^k + c` is:
-1. Show that for large enough `n₀`, `p n ≤ n^(k+1)` for all `n ≥ n₀`.
-2. Extend `circuit_count_lt_functions_at_n` to `circuit_count_upper_bound n (n^(k+1)) < boolean_function_count n`.
-3. Use `Finset.exists_ne_map_eq_of_card_lt_of_maps_to` (Mathlib pigeonhole) to conclude.
-
----
-
-## Hints
-
-- The `sat_has_superpoly_lower_bound` axiom is the problem itself — do not confuse progress on
-  the Shannon argument (which gives *existential* lower bounds) with proving the SAT lower bound.
-- The Shannon argument shows most functions need large circuits; getting from "most" to "SAT specifically"
-  requires the NP-completeness of SAT (Cook–Levin), which is already axiomatized.
-- `omega` handles linear arithmetic; use `nlinarith` or `Nat.pow_lt_pow_right` for exponential bounds.
+Keep the final statement honest: Shannon counting yields existential lower bounds for *some* Boolean functions, not a SAT-specific lower bound.
 
 ---
 
 ## Library Code
 
-Reusable definitions live in `lib/utils.lean`. Currently available:
-- `IsPolynomial` predicate
-- `BoolFn` type alias
+Reusable definitions live in `lib/PVsNpLib/Utils.lean` and are imported via `import PVsNpLib`.

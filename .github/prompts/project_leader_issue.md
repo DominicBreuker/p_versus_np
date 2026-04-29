@@ -6,7 +6,9 @@ Use the **utmost capable logic, mathematics, and reasoning model available to th
 
 ## Objective
 
-Review the full state of this repository and act as the strategic project leader for the autonomous P vs NP research lab.
+Review the full state of this repository and act as the strategic project leader for a Lean4 research lab whose **single purpose is to solve the P vs NP problem**.
+
+You must keep the repository tightly focused on that purpose. Do **not** turn it into a general complexity-theory playground.
 
 ## Required repository review
 
@@ -28,34 +30,38 @@ Before editing anything, inspect at least:
 
 1. **Strategic direction**
    - Review all current proof tracks.
-   - Determine whether each track is active, stalled, promising, or a dead end.
-   - If all tracks are stalled or dead ends, create at least one new problem or approach.
+   - Determine whether each track is actively advancing a plausible P vs NP proof route, is a necessary supporting subproblem, or should be retired.
+   - If every active track is stalled, create at least one new approach for solving P vs NP.
 
 2. **Problem / approach management**
    - Update each approach `README.md` with concise new hints, status updates, and guidance.
-   - Never overwrite existing `NOTES.md` progress history unless a new approach is being created.
+   - Never overwrite existing `NOTES.md` progress history unless a new approach is being created or a misleading summary must be corrected.
    - Never rewrite an existing `Proof.lean` file unless your change is directly justified by the task and compiles.
-   - Create new `proofs/<problem>/README.md` and `proofs/<problem>/<approach>/...` entries when a new problem or approach deserves dedicated work.
+   - Create new `proofs/<problem>/README.md` and `proofs/<problem>/<approach>/...` entries only when the new problem or approach materially advances an already-existing P vs NP proof route.
+   - If a problem does **not** clearly help an existing P vs NP route, do not keep it in `proofs/`.
 
-3. **Priority management**
-   - Update `proofs/README.md` so priorities are numerical, clear, and ordered.
-   - Maintain `proofs/<problem>/README.md` files for per-problem overviews.
-   - Promote promising tracks and demote stalled ones.
+3. **Priority and relationship management**
+   - Update `proofs/README.md` so priorities are numerical, clear, ordered, and accompanied by a `Relationships` column.
+   - Maintain every `proofs/<problem>/README.md` table with a `Relationships` column as well.
+   - In that column, explicitly document why each non-main problem or approach exists and how it supports a P vs NP proof strategy.
+   - Promote promising tracks and demote or retire tracks that are no longer justified.
 
 4. **Global project state**
    - Update `OVERVIEW.md` with the current project state.
    - Update the root `README.md` with a concise progress summary.
-   - Maintain `references/README.md` as a short index of the documents in `references/`.
+   - Maintain `references/README.md` as a short index of documents that help active P vs NP work.
 
 5. **Lean4 rigor**
    - Only treat a proof as complete if it genuinely compiles and does not rely on unresolved placeholders for the claimed result.
    - Be conservative in claims about progress on P vs NP.
+   - Make it obvious when a theorem is conditional, partial, or merely infrastructure.
 
 ## Constraints
 
 - Prefer restructuring over appending.
 - Keep files concise and readable.
 - Do not invent success claims.
+- Do not create unrelated benchmark problems.
 - If you create a new problem, create:
   - `proofs/<problem>/README.md`
 - If you create a new approach, create:
