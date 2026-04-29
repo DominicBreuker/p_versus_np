@@ -2,6 +2,7 @@ import contextlib
 import importlib.util
 import io
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -77,10 +78,10 @@ class ChangedPathTests(unittest.TestCase):
 
 
 class VibeExecutionTests(unittest.TestCase):
-    def test_find_vibe_executable_prefers_repo_mock(self):
-        with mock.patch.dict(researcher.os.environ, {}, clear=True), \
-             mock.patch.object(researcher, "MOCK_VIBE_PATH", REPO_ROOT / ".github" / "scripts" / "mock_vibe.py"):
-            self.assertEqual(researcher.find_vibe_executable(), str(REPO_ROOT / ".github" / "scripts" / "mock_vibe.py"))
+    def test_find_vibe_executable_prefers_explicit_env_override(self):
+        mock_vibe = REPO_ROOT / ".github" / "scripts" / "mock_vibe.py"
+        with mock.patch.dict(researcher.os.environ, {"MISTRAL_VIBE_BIN": str(mock_vibe)}, clear=True):
+            self.assertEqual(researcher.find_vibe_executable(), str(mock_vibe))
 
     def test_format_vibe_output_line_renders_streaming_json(self):
         line = '{"role":"assistant","content":"Hello from mock vibe."}\n'
@@ -93,13 +94,45 @@ class VibeExecutionTests(unittest.TestCase):
         prompt_path = REPO_ROOT / researcher.PROMPT_FILENAME
         mock_vibe = REPO_ROOT / ".github" / "scripts" / "mock_vibe.py"
         output = io.StringIO()
-        with mock.patch.dict(researcher.os.environ, {"MISTRAL_VIBE_BIN": str(mock_vibe)}, clear=False), \
+        with tempfile.TemporaryDirectory() as tmpdir, \
+             mock.patch.dict(
+                 researcher.os.environ,
+                 {"MISTRAL_VIBE_BIN": str(mock_vibe), "VIBE_HOME": tmpdir},
+                 clear=False,
+             ), \
              contextlib.redirect_stdout(output):
             result = researcher.run_vibe("hello from test")
 
         self.assertEqual(result.returncode, 0)
         self.assertFalse(prompt_path.exists())
         self.assertIn("[vibe assistant]", output.getvalue())
+
+    def test_bind_latest_session_to_explicit_id_supports_resume(self):
+        mock_vibe = REPO_ROOT / ".github" / "scripts" / "mock_vibe.py"
+        explicit_session_id = "12345678-1234-1234-1234-123456789abc"
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with mock.patch.dict(
+                researcher.os.environ,
+                {"MISTRAL_VIBE_BIN": str(mock_vibe), "VIBE_HOME": tmpdir},
+                clear=False,
+            ):
+                first = researcher.run_vibe("hello from test")
+                self.assertEqual(first.returncode, 0)
+
+                session_dir = researcher.bind_latest_session_to_explicit_id(explicit_session_id)
+                self.assertTrue(session_dir.name.endswith("_12345678"))
+
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    second = researcher.run_vibe(
+                        "resume now",
+                        resume_session_id=explicit_session_id,
+                        bootstrap_from_file=False,
+                    )
+
+                self.assertEqual(second.returncode, 0)
+                self.assertIn("Resuming mock Vibe session", output.getvalue())
 
 
 if __name__ == "__main__":

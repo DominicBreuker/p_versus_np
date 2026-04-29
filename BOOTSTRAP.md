@@ -173,7 +173,7 @@ Both agent environments are configured to have access to the [`lean-lsp-mcp`](ht
 
 Use the Lean MCP tools for fast diagnostics (`lean_diagnostic_messages`), goal inspection (`lean_goal`), theorem search (`lean_local_search`, `lean_leansearch`, `lean_loogle`, `lean_leanfinder`), tactic comparison (`lean_multi_attempt`), and proof soundness checks (`lean_verify`) before relying on full `lake build` runs.
 
-The researcher workflow provisions a repository-local mock `vibe` CLI by default and validates the
-checked-in Lake manifest before launching the agent so that both agent environments
-start from the same Lean and dependency state. You can still point `MISTRAL_VIBE_BIN`
-at a real Vibe installation if you want to use one.
+The researcher workflow installs the real `mistral-vibe` CLI and requires
+`MISTRAL_VIBE_KEY` in CI. The repository-local mock `vibe` CLI exists only for
+local development/tests of `.github/scripts/researcher.py`, where we keep it aligned
+with upstream Vibe behavior (programmatic mode, streaming output, and session resume).

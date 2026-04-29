@@ -2,10 +2,9 @@
 """
 Researcher Agent for the P vs NP Research Project.
 
-This version is intentionally based on the working principles from
-`obledev/mistral-action`: it runs the real Mistral Vibe CLI inside the checked
-out repository, feeds it a prompt file, and lets the agent work directly in the
-workspace instead of calling the chat completions API directly.
+This script is designed for the real Mistral Vibe CLI in CI. The repository
+also ships a mock CLI for local development/tests of researcher.py so we can
+exercise the wrapper logic without consuming a live API key.
 
 Required environment variable:
     MISTRAL_VIBE_KEY or MISTRAL_API_KEY  — Mistral API key
@@ -16,6 +15,7 @@ Optional environment variables:
     MISTRAL_MAX_PRICE        — Max Vibe price in dollars
     MISTRAL_TIMEOUT_SECONDS  — Timeout for the Vibe run (default: 1800)
     MISTRAL_VIBE_BIN         — Override path to the `vibe` executable
+    MISTRAL_VIBE_SESSION_ID  — Explicit Vibe session ID used for resume demo
 """
 
 from __future__ import annotations
@@ -32,6 +32,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+from uuid import uuid4
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -43,6 +44,8 @@ MOCK_VIBE_PATH: Path = REPO_ROOT / ".github" / "scripts" / "mock_vibe.py"
 PROMPT_FILENAME = ".mistral-researcher-prompt.md"
 PRIORITY_ORDER: dict[str, int] = {"High": 0, "Medium": 1, "Low": 2}
 DEAD_STATUSES: set[str] = {"Dead End", "Archived"}
+SESSION_METADATA_FILENAME = "meta.json"
+SESSION_MESSAGES_FILENAME = "messages.jsonl"
 # Vibe emits single-line tagged status messages such as
 # `<vibe_stop_event>Turn limit reached</vibe_stop_event>`.
 VIBE_TAG_PATTERN = re.compile(r"^<(?P<tag>[a-z_]+)>(?P<message>.*)</(?P=tag)>$")
@@ -50,6 +53,7 @@ MISTRAL_MODEL: str = os.environ.get("MISTRAL_MODEL", "").strip()
 MISTRAL_MAX_TURNS: str = os.environ.get("MISTRAL_MAX_TURNS", "12").strip()
 MISTRAL_MAX_PRICE: str = os.environ.get("MISTRAL_MAX_PRICE", "").strip()
 MISTRAL_TIMEOUT_SECONDS: int = int(os.environ.get("MISTRAL_TIMEOUT_SECONDS", "1800"))
+MISTRAL_VIBE_SESSION_ID: str = os.environ.get("MISTRAL_VIBE_SESSION_ID", "").strip()
 
 
 def get_mistral_api_key() -> str:
@@ -82,7 +86,11 @@ def write_file(path: Path, content: str) -> None:
 
 
 def read_text_excerpt(path: Path, limit: int = 4000) -> str:
-    """Return a UTF-8 text excerpt for logging discarded edits."""
+    """Return text/log info for discarded edits.
+
+    Returns UTF-8 file content truncated to `limit` characters when possible,
+    a binary-file marker for non-text files, or an explanatory error string.
+    """
     try:
         content = path.read_text(encoding="utf-8")
     except UnicodeDecodeError:
@@ -199,6 +207,11 @@ def split_changed_paths(
 
 
 def is_path_allowed(rel_path: str, allowed_rules: set[str]) -> bool:
+    """Return whether a path matches the allowlist rules.
+
+    Rules ending in `/` are treated as directory prefixes; other rules must
+    match the repository-relative path exactly.
+    """
     for rule in allowed_rules:
         normalized_rule = rule.strip()
         if not normalized_rule:
@@ -341,12 +354,108 @@ def find_vibe_executable() -> str:
     configured = os.environ.get("MISTRAL_VIBE_BIN", "").strip()
     if configured:
         return configured
-    if MOCK_VIBE_PATH.is_file():
-        return str(MOCK_VIBE_PATH)
     executable = shutil.which("vibe")
     if not executable:
         raise RuntimeError("The `vibe` executable was not found on PATH.")
     return executable
+
+
+def is_mock_vibe_executable(executable: str) -> bool:
+    try:
+        return Path(executable).resolve() == MOCK_VIBE_PATH.resolve()
+    except OSError:
+        return False
+
+
+def resolve_session_id() -> str:
+    if MISTRAL_VIBE_SESSION_ID:
+        return MISTRAL_VIBE_SESSION_ID
+    return str(uuid4())
+
+
+def get_vibe_home() -> Path:
+    vibe_home = os.environ.get("VIBE_HOME", "").strip()
+    if vibe_home:
+        return Path(vibe_home).expanduser().resolve()
+    return Path.home().resolve() / ".vibe"
+
+
+def get_vibe_session_log_dir() -> Path:
+    return get_vibe_home() / "logs" / "session"
+
+
+def read_json_file(path: Path) -> dict[str, object]:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def write_json_file(path: Path, content: dict[str, object]) -> None:
+    path.write_text(json.dumps(content, indent=2, ensure_ascii=False), encoding="utf-8")
+
+
+def is_valid_vibe_session_dir(session_dir: Path) -> bool:
+    metadata_path = session_dir / SESSION_METADATA_FILENAME
+    messages_path = session_dir / SESSION_MESSAGES_FILENAME
+    if not metadata_path.is_file() or not messages_path.is_file():
+        return False
+    try:
+        metadata = read_json_file(metadata_path)
+    except (OSError, json.JSONDecodeError):
+        return False
+    environment = metadata.get("environment")
+    if not isinstance(environment, dict):
+        return False
+    return environment.get("working_directory") == str(REPO_ROOT)
+
+
+def find_latest_vibe_session_dir() -> Path | None:
+    session_root = get_vibe_session_log_dir()
+    if not session_root.is_dir():
+        return None
+    candidates: list[tuple[float, Path]] = []
+    for session_dir in session_root.glob("session_*"):
+        if not session_dir.is_dir() or not is_valid_vibe_session_dir(session_dir):
+            continue
+        messages_path = session_dir / SESSION_MESSAGES_FILENAME
+        try:
+            candidates.append((messages_path.stat().st_mtime, session_dir))
+        except OSError:
+            continue
+    if not candidates:
+        return None
+    candidates.sort(key=lambda item: item[0], reverse=True)
+    return candidates[0][1]
+
+
+def bind_latest_session_to_explicit_id(session_id: str) -> Path:
+    # Upstream Vibe exposes `--resume SESSION_ID` but does not expose a
+    # corresponding "start a new session with this exact ID" CLI flag.
+    # We therefore bind the just-written session log to the chosen explicit ID
+    # before launching the second pass with `--resume`.
+    session_dir = find_latest_vibe_session_dir()
+    if session_dir is None:
+        raise RuntimeError("Could not find the latest Vibe session log to bind an explicit session ID.")
+
+    metadata_path = session_dir / SESSION_METADATA_FILENAME
+    metadata = read_json_file(metadata_path)
+    metadata["session_id"] = session_id
+
+    target_dir = session_dir.with_name(f"{session_dir.name.rsplit('_', 1)[0]}_{session_id[:8]}")
+    if target_dir != session_dir:
+        if target_dir.exists():
+            raise RuntimeError(f"Target Vibe session directory already exists: {target_dir}")
+        session_dir.rename(target_dir)
+        session_dir = target_dir
+        metadata_path = session_dir / SESSION_METADATA_FILENAME
+
+    write_json_file(metadata_path, metadata)
+    return session_dir
+
+
+def build_resume_prompt(idea_name: str) -> str:
+    return (
+        f"Resume the previous Vibe session for `{idea_name}`. "
+        "Continue from your last result and next-step ideas, and take the next best step."
+    )
 
 
 @dataclass
@@ -407,23 +516,30 @@ def format_vibe_output_line(line: str) -> str:
     return formatted
 
 
-def run_vibe(prompt_text: str) -> VibeRunResult:
+def run_vibe(
+    prompt_text: str,
+    *,
+    vibe_executable: str | None = None,
+    resume_session_id: str | None = None,
+    bootstrap_from_file: bool = True,
+) -> VibeRunResult:
     prompt_path = REPO_ROOT / PROMPT_FILENAME
-    ensure_local_git_exclude(PROMPT_FILENAME)
-    write_file(prompt_path, prompt_text)
-
-    # This mirrors the upstream mistral-action approach and relies on Vibe
-    # exposing a read_file tool inside programmatic sessions.
-    bootstrap_prompt = (
-        f"Your full task instructions are in the file `{PROMPT_FILENAME}` "
-        f"in the current working directory. Read that file NOW with read_file, "
-        f"then follow every instruction in it."
-    )
+    prompt_argument = prompt_text
+    if bootstrap_from_file:
+        ensure_local_git_exclude(PROMPT_FILENAME)
+        write_file(prompt_path, prompt_text)
+        # Real Vibe programmatic mode accepts a direct prompt; we bootstrap from a
+        # prompt file so the researcher instructions stay large and readable.
+        prompt_argument = (
+            f"Your full task instructions are in the file `{PROMPT_FILENAME}` "
+            f"in the current working directory. Read that file NOW with read_file, "
+            f"then follow every instruction in it."
+        )
 
     command = [
-        find_vibe_executable(),
+        vibe_executable or find_vibe_executable(),
         "--prompt",
-        bootstrap_prompt,
+        prompt_argument,
         "--agent",
         "auto-approve",
         "--workdir",
@@ -432,6 +548,8 @@ def run_vibe(prompt_text: str) -> VibeRunResult:
         "--output",
         "streaming",
     ]
+    if resume_session_id:
+        command.extend(["--resume", resume_session_id])
 
     if MISTRAL_MODEL:
         command.extend(["--model", MISTRAL_MODEL])
@@ -463,6 +581,7 @@ def run_vibe(prompt_text: str) -> VibeRunResult:
         output_queue: queue.Queue[str | None] = queue.Queue()
 
         def reader() -> None:
+            """Read Vibe output lines in a background thread and enqueue them."""
             try:
                 for raw_line in process.stdout:
                     output_queue.put(raw_line)
@@ -528,6 +647,11 @@ def emit_github_output(name: str, value: str) -> None:
 def main() -> None:
     os.chdir(REPO_ROOT)
 
+    vibe_executable = find_vibe_executable()
+    using_mock_vibe = is_mock_vibe_executable(vibe_executable)
+    if not using_mock_vibe and not MISTRAL_API_KEY:
+        raise ValueError("Set MISTRAL_VIBE_KEY or MISTRAL_API_KEY before running the researcher with the real Vibe CLI.")
+
     initial_changed_paths = get_changed_paths()
     if initial_changed_paths:
         print("Detected existing repository changes; only changes made during this run will be filtered.")
@@ -547,10 +671,37 @@ def main() -> None:
     idea_name = idea["name"]
     allowed_paths = allowed_paths_for_idea(idea_name)
     prompt = build_prompt(idea_name)
+    session_id = resolve_session_id()
 
     print(f"Working on idea: {idea_name}  (Priority: {idea['priority']}, Status: {idea['status']})")
-    print("Running Mistral Vibe …")
-    result = run_vibe(prompt)
+    if using_mock_vibe:
+        print("Using mock Vibe CLI for researcher.py development/testing.")
+    else:
+        print("Using real Mistral Vibe CLI.")
+    print(f"Using Vibe session ID: {session_id}")
+
+    print("Running Mistral Vibe (pass 1/2) …")
+    first_result = run_vibe(prompt, vibe_executable=vibe_executable, bootstrap_from_file=True)
+    if first_result.timed_out:
+        print(
+            f"Mistral Vibe timed out after {MISTRAL_TIMEOUT_SECONDS} seconds.",
+            file=sys.stderr,
+        )
+        sys.exit(124)
+    if first_result.returncode != 0:
+        print("Mistral Vibe failed during the first pass.", file=sys.stderr)
+        sys.exit(first_result.returncode)
+
+    bound_session_dir = bind_latest_session_to_explicit_id(session_id)
+    print(f"Bound latest Vibe session log to explicit session ID in {bound_session_dir}")
+
+    print("Running Mistral Vibe (pass 2/2, resume) …")
+    result = run_vibe(
+        build_resume_prompt(idea_name),
+        vibe_executable=vibe_executable,
+        resume_session_id=session_id,
+        bootstrap_from_file=False,
+    )
 
     changed_paths = get_changed_paths()
     new_changed_paths = get_new_changed_paths(initial_changed_paths, changed_paths)
@@ -588,6 +739,7 @@ def main() -> None:
         print("Mistral Vibe completed without repository changes.")
 
     emit_github_output("idea_name", idea_name)
+    emit_github_output("vibe_session_id", session_id)
 
 
 if __name__ == "__main__":
