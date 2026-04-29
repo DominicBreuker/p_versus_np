@@ -2,7 +2,7 @@
 
 **Priority:** High
 
-**Status:** Active — new idea; formalization of a concrete, provable complexity separation
+**Status:** Active — monotonicity proven; diagonalization blocked on encoding and universal simulator
 
 ---
 
@@ -30,87 +30,77 @@ A formal Lean4 THT proof would be a landmark formalization achievement in itself
 
 Use an abstract model of computation to keep the formalization tractable:
 
-1. **Abstract machine model**: Rather than full Turing machines, use an abstract notion:
-   - A *decider* is a function `List Bool → Bool` (computes a yes/no answer).
-   - A *timed decider* carries a step-count bound: `∀ w, timeOf M w ≤ f w.length`.
+1. **Abstract machine model**: A *decider* is a function `List Bool → Bool`.
 2. **DTIME class**: `inDTIME f L = ∃ M, decides M L ∧ ∀ w, timeOf M w ≤ f w.length`.
-3. **Universal simulation**: State (as axiom) that a universal machine can simulate any
-   f(n)-time decider in f(n) * (f(n) + 1) steps (a quadratic overhead; the classical proof
-   achieves O(f(n) log f(n)) but the quadratic bound simplifies the formalization).
-4. **Diagonalization**: Construct a language D that differs from every decider M_i on some
-   input while running in g(n) steps; conclude D ∈ DTIME(g) \ DTIME(f).
+3. **Universal simulation**: Axiomatized with quadratic overhead.
+4. **Diagonalization**: Construct D that differs from every M_i on some input.
 
-> **Implementation note:** `Proof.lean` uses the condition `∀ n, f n * (f n + 1) < g n`
-> (quadratic gap) rather than the classical `f(n) log f(n) = o(g(n))` to match the
-> quadratic universal simulation axiom. This is a deliberate simplification to keep the
-> axiom and proof condition consistent.
+> `Proof.lean` uses `f(n) * (f(n) + 1) < g(n)` (quadratic gap) to match the quadratic simulation axiom.
 
 ---
 
 ## Tasks
 
-- [ ] Task 1: Define the abstract machine model (`Decider`, `decides`, `timeOf`)
-- [ ] Task 2: Define `DTIME f` as a set of languages
-- [ ] Task 3: Define `IsTimeConstructible f` and `IsLittleO f g`
-- [ ] Task 4: State the universal simulation axiom (or prove for a concrete model)
-- [ ] Task 5: Construct the diagonalizing language D
-- [ ] Task 6: Prove D ∈ DTIME(g) using the time budget
-- [ ] Task 7: Prove D ∉ DTIME(f) by diagonalization
-- [ ] Task 8: Conclude DTIME(f) ⊊ DTIME(g) (strict inclusion)
-- [ ] Task 9 (bonus): Instantiate for f = n, g = n², giving DTIME(n) ⊊ DTIME(n²)
+- [x] Task 1: Define abstract machine model (`Decider`, `decides`, `timeOf`)
+- [x] Task 2: Define `inDTIME f`
+- [x] Task 3: Prove `inDTIME_mono` (monotonicity — no sorry)
+- [x] Task 4: Prove `inDTIME_congr` (bound equality → class equality — no sorry)
+- [ ] Task 5: Define `encode : Nat → List Bool → List Bool` concretely (remove sorry)
+- [ ] Task 6: Define `universal : Decider` concretely (remove sorry)
+- [ ] Task 7: Construct the diagonalizing language D
+- [ ] Task 8: Prove D ∈ DTIME(g) using the universal simulation axiom
+- [ ] Task 9: Prove D ∉ DTIME(f) by contradiction (diagonalization)
+- [ ] Task 10: Conclude `DTIME_strictSubset f g` (complete `time_hierarchy_theorem`)
+- [ ] Task 11 (bonus): Instantiate for f = id, g = n³, giving DTIME(n) ⊊ DTIME(n³)
 
 ---
 
 ## Immediate Next Steps
 
-### Step 1 — Core definitions (start here)
+### Task 5 — Concrete `encode`
+
+Replace the `sorry` in `encode` with a concrete pairing:
 
 ```lean
-namespace PVsNp.TimeHierarchy
-
--- A language on binary words (represented as List Bool)
-abbrev Lang := List Bool → Prop
-
--- An abstract decider: maps input to Bool
-abbrev Decider := List Bool → Bool
-
--- A decider M decides language L
-def decides (M : Decider) (L : Lang) : Prop :=
-  ∀ w, M w = true ↔ L w
-
--- Abstract step count (axiomatized for now)
-noncomputable def timeOf (M : Decider) (w : List Bool) : Nat := sorry
-
--- DTIME(f): languages decidable within f(n) steps
-def inDTIME (f : Nat → Nat) (L : Lang) : Prop :=
-  ∃ M : Decider, decides M L ∧ ∀ w, timeOf M w ≤ f w.length
+def encode (i : Nat) (w : List Bool) : List Bool :=
+  List.replicate i false ++ [true] ++ w
 ```
 
-### Step 2 — Provable subset relation
+This represents index `i` as a run of `i` false-bits followed by a `true` separator, then the
+word `w`. No sorry needed for the definition itself.
 
-Before tackling strict inclusion, prove the easy direction:
+### Task 6 — Universal simulator (axiom is fine for now)
+
+The `universal` decider can remain a `noncomputable def` with `sorry` for now, since it is backed
+by the `universal_simulation` axiom. Focus on the diagonalization proof structure instead.
+
+### Task 7–9 — Diagonalization sketch
+
+Define D using the universal simulator:
+
 ```lean
-theorem inDTIME_mono {f g : Nat → Nat} (h : ∀ n, f n ≤ g n) (L : Lang)
-    (hL : inDTIME f L) : inDTIME g L
+noncomputable def diagLang (f : Nat → Nat) : Lang :=
+  fun w => universal w = false ∧ timeOf universal w ≤ f w.length
 ```
-This is straightforward from the definitions (already in `Proof.lean`).
 
-### Step 3 — Diagonalization sketch
+Or more precisely, using the Gödel-numbering interpretation:
+```lean
+-- D w = "the i-th machine does NOT accept w in f(|w|) steps"
+-- where i is encoded in w itself (first few bits as unary)
+```
 
-The diagonal language is:
-```
-D = {⟨i, w⟩ | M_i does NOT accept w within f(|w|) log f(|w|) steps}
-```
-where `⟨i, w⟩` is an encoding of index i and word w.
-Key invariant: deciding D takes at most g(n) steps (simulate for f(n) log f(n) steps + overhead).
+The key steps:
+1. Show `diagLang g` ∈ `inDTIME g`: universal runs within the g-step budget.
+2. Show `diagLang g` ∉ `inDTIME f`: if some M_j decided D within f steps, then on the
+   encoded input `encode j v`, M_j and universal disagree — contradiction.
 
 ---
 
 ## Hints
 
-- Lean4's `Finset` and `Set` are in Mathlib; use `Set.ssubset_iff_subset_ne` for strict inclusion.
-- For little-o: use Mathlib's `Asymptotics.IsLittleO` or define a simpler version.
-- Abstract over the exact machine model using axioms if needed — the diagonalization argument
-  is model-independent given the simulation axiom.
-- A simpler target: just prove DTIME(f) ⊆ DTIME(g) whenever f ≤ g pointwise (no diagonalization needed).
-- See Sipser *Introduction to the Theory of Computation* Ch. 9 for the classical proof.
+- For the diagonalization, use `universal_simulation` to get the index `i` such that
+  `universal (encode i v) = M v` for all v.
+- Use `Set.ssubset_iff_subset_ne` for strict inclusion.
+- For `IsLittleO`, use Mathlib's `Asymptotics.IsLittleO` or define a concrete version.
+- See Sipser *Introduction to the Theory of Computation* §9.1 for the classical proof.
+
