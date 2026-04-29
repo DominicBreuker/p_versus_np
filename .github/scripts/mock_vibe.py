@@ -74,14 +74,16 @@ def extract_prompt_path(workdir: Path, bootstrap_prompt: str) -> Path | None:
 
 
 def read_research_prompt(workdir: Path, bootstrap_prompt: str) -> tuple[str | None, str]:
-    """Return `(idea_name, prompt_content)` from the bootstrapped researcher prompt file."""
+    """Return `(target_label, prompt_content)` from the bootstrapped researcher prompt file."""
     prompt_path = extract_prompt_path(workdir, bootstrap_prompt)
     content = ""
     if prompt_path is not None:
         content = prompt_path.read_text(encoding="utf-8")
     else:
         content = bootstrap_prompt
-    match = re.search(r"Current target idea:\s*`([^`]+)`", content)
+    match = re.search(r"Current target proof task:\s*`([^`]+)`", content)
+    if match is None:
+        match = re.search(r"Current target idea:\s*`([^`]+)`", content)
     if match is None:
         match = re.search(r"for `([^`]+)`", content)
     return (match.group(1).strip() if match else None), content
@@ -268,8 +270,8 @@ def main() -> int:
     os.chdir(workdir)
 
     bootstrap_prompt = args.prompt if args.prompt is not None else (args.initial_prompt or "")
-    idea_name, _prompt_content = read_research_prompt(workdir, bootstrap_prompt)
-    idea_label = idea_name or "unknown-idea"
+    target_label, _prompt_content = read_research_prompt(workdir, bootstrap_prompt)
+    idea_label = target_label or "unknown-target"
 
     try:
         session_id, session_dir, resumed = resolve_session(args)

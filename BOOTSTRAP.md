@@ -7,7 +7,7 @@ This file documents how the repository was bootstrapped and how to set up a fres
 ## Overview
 
 This repository is a **self-sustaining, autonomous research lab** where LLM agents explore
-the **P vs NP problem** using **Lean4** for formal proofs.
+complexity-theory problems in **Lean4**.
 
 | Agent | Runs | Model | Auth / Secret |
 |---|---|---|---|
@@ -27,27 +27,32 @@ the **P vs NP problem** using **Lean4** for formal proofs.
 │   │   ├── create_copilot_issue.py  # Creates & assigns Copilot issues
 │   │   └── researcher.py            # Researcher LLM agent
 │   └── workflows/
-│       ├── copilot-setup-steps.yml # Prepares Copilot cloud agent environment
-│       ├── project_leader.yml  # Creates and assigns a Copilot issue every 8 h
-│       ├── researcher.yml      # Runs researcher.py every 30 min
-│       └── lean_check.yml      # Verifies Lean4 proofs on every push
-├── candidates/
-│   ├── README.md               # Priority table (managed by Project Leader)
-│   └── <idea-name>/
-│       ├── README.md           # Problem statement & hints (Project Leader)
-│       ├── NOTES.md            # Progress log (Researcher)
-│       └── Proof.lean          # Lean4 proof (Researcher)
+│       ├── copilot-setup-steps.yml  # Prepares Copilot cloud agent environment
+│       ├── project_leader.yml       # Creates and assigns a Copilot issue
+│       ├── researcher.yml           # Runs researcher.py
+│       └── lean_check.yml           # Verifies Lean4 proofs
+├── proofs/
+│   ├── README.md                    # Global priority table (managed by Project Leader)
+│   └── <problem>/
+│       ├── README.md                # Problem overview (managed by Project Leader)
+│       └── <approach>/
+│           ├── README.md            # Approach statement & hints (Project Leader)
+│           ├── NOTES.md             # Progress log (Researcher)
+│           └── Proof.lean           # Lean4 proof (Researcher)
+├── references/
+│   ├── README.md                    # Index of supplementary reference documents
+│   └── ...                          # Human-provided notes, papers, reviews, etc.
 ├── lib/
-│   ├── PVsNpLib.lean           # Importable shared library entry point
+│   ├── PVsNpLib.lean
 │   ├── PVsNpLib/
-│   │   └── Utils.lean          # Reusable Lean4 definitions/helpers
-│   ├── __init__.lean           # Legacy note file
-│   └── utils.lean              # Legacy compatibility shim
-├── lean-toolchain              # Lean4 toolchain version
-├── lakefile.lean               # Lake build configuration
-├── README.md                   # Project status (auto-updated)
-├── OVERVIEW.md                 # Detailed project state (auto-updated)
-└── BOOTSTRAP.md                # This file
+│   │   └── Utils.lean
+│   ├── __init__.lean
+│   └── utils.lean
+├── lean-toolchain
+├── lakefile.lean
+├── README.md
+├── OVERVIEW.md
+└── BOOTSTRAP.md
 ```
 
 ---
@@ -87,11 +92,6 @@ The repository includes `.github/workflows/copilot-setup-steps.yml`, which prein
 - `rg` for local theorem/source search
 - the `lean-lsp-mcp` server used by the Project Leader
 
-For reproducibility, the repository also commits `lake-manifest.json` and pins
-`lean-toolchain` to the exact Lean release required by Mathlib.
-
-This workflow must exist on the default branch before Copilot cloud-agent sessions can benefit from it.
-
 ### 6. Trigger the first run
 
 - Go to **Actions → Project Leader → Run workflow** to create and assign the first Copilot Project Leader issue.
@@ -107,39 +107,35 @@ All agent communication happens through committed files and GitHub issues — no
 
 | File | Written by | Read by |
 |---|---|---|
-| `candidates/README.md` | Project Leader | Researchers |
-| `candidates/<idea>/README.md` | Project Leader | Researchers |
-| `candidates/<idea>/NOTES.md` | Researchers | Project Leader, Researchers |
-| `candidates/<idea>/Proof.lean` | Researchers | Project Leader (review) |
-| `lib/utils.lean` | Researchers (on instruction) | Researchers |
+| `proofs/README.md` | Project Leader | Researchers |
+| `proofs/<problem>/README.md` | Project Leader | Project Leader, Researchers |
+| `proofs/<problem>/<approach>/README.md` | Project Leader | Researchers |
+| `proofs/<problem>/<approach>/NOTES.md` | Researchers | Project Leader, Researchers |
+| `proofs/<problem>/<approach>/Proof.lean` | Researchers | Project Leader |
+| `references/README.md` | Project Leader | Project Leader, Humans |
+| `references/*` | Humans, Project Leader | Project Leader |
 | `OVERVIEW.md`, `README.md` | Project Leader | Humans |
 | Project Leader issue | Workflow | GitHub Copilot coding agent |
 
-### Idea lifecycle
+### Work lifecycle
 
 1. **Kickoff** — The Project Leader workflow creates a GitHub issue and assigns the GitHub Copilot coding agent to it.
-2. **Generation / Review** — The Project Leader reviews progress, updates priorities and hints, and creates new ideas when needed.
-3. **Research** — Researcher picks the highest-priority active idea and advances the proof.
-4. **Success / Dead End** — Project Leader declares success (no `sorry`) or archives the idea.
-5. **Pivot** — If all ideas are dead ends, Project Leader generates new ones.
+2. **Project leadership** — The Project Leader reviews open problems, approaches, references, and priorities.
+3. **Research** — The Researcher picks one proof target randomly with probability proportional to its numeric priority.
+4. **Success / Dead End** — The Project Leader records success, stalls, or archives tracks conservatively.
+5. **Expansion** — When a hard subproblem becomes important, the Project Leader creates a dedicated `proofs/<problem>/...` entry for it.
 
 ---
 
 ## Lean4 Proof Verification
 
 The `lean_check.yml` workflow is manually triggered with **Run workflow** and checks every
-`candidates/*/Proof.lean` file with `lake env lean`.
-It is meant to verify that candidate proofs are executable Lean files; `sorry` warnings are acceptable.
+`proofs/*/*/Proof.lean` file with `lake env lean`.
+It is meant to verify that proof files are executable Lean files; `sorry` warnings are acceptable.
 
 To check locally:
 ```bash
-# Install elan (Lean toolchain manager)
-curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh
-
-# Download prebuilt Mathlib cache (much faster than building from source)
 lake exe cache get
-
-# Build the project
 lake build
 ```
 
@@ -158,40 +154,16 @@ import PVsNpLib.Utils
 
 Do not try to import raw file paths under `lib/`; Lake only resolves module names.
 
-If you intentionally change `lakefile.lean` or `lean-toolchain`, regenerate
-`lake-manifest.json` with `lake update` and commit the updated manifest.
-
 ---
 
 ## Agent Prompts
 
-### Project Leader issue prompt
-
-> Use the utmost capable logic, mathematics, and reasoning model available to the GitHub Copilot
-> coding agent for this issue. This task is primarily about deep mathematical reasoning, formal
-> proof strategy, repository-wide planning, and careful document curation.
-
-Full prompt: [`.github/prompts/project_leader_issue.md`](.github/prompts/project_leader_issue.md)
-
-### Researcher system prompt
-
-> You are a researcher working on the "P vs NP" problem. You are an expert in Lean4 and formal
-> theorem proving. Your role is to extend Lean4 proofs and track progress in NOTES.md.
-
-Prompt template: [`.github/prompts/researcher_vibe.md`](.github/prompts/researcher_vibe.md)
+- Project Leader prompt: `.github/prompts/project_leader_issue.md`
+- Researcher prompt: `.github/prompts/researcher_vibe.md`
 
 ---
 
 ## Lean MCP support
 
-Both agent environments are configured to have access to the [`lean-lsp-mcp`](https://github.com/oOo0oOo/lean-lsp-mcp) server.
-
-- **Project Leader / Copilot cloud agent** uses the repository-scoped `.mcp.json` definition together with `copilot-setup-steps.yml`.
-- **Researcher / Mistral Vibe** writes a `~/.vibe/config.toml` entry during the workflow before invoking `vibe`.
-
-Use the Lean MCP tools for fast diagnostics (`lean_diagnostic_messages`), goal inspection (`lean_goal`), theorem search (`lean_local_search`, `lean_leansearch`, `lean_loogle`, `lean_leanfinder`), tactic comparison (`lean_multi_attempt`), and proof soundness checks (`lean_verify`) before relying on full `lake build` runs.
-
-The researcher workflow installs the real `mistral-vibe` CLI and requires
-`MISTRAL_VIBE_KEY` in CI. The repository-local mock `vibe` CLI exists only for
-local development/tests of `.github/scripts/researcher.py`, where we keep it aligned
-with upstream Vibe behavior (programmatic mode, streaming output, and session resume).
+Both agent environments are configured to have access to the `lean-lsp-mcp` server.
+Use Lean MCP tooling for fast diagnostics before relying on full `lake build` runs.

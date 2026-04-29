@@ -1,6 +1,6 @@
-# Idea: P ⊆ NP (Formal Proof)
+# Approach: Circuit Lifting for P ⊆ NP
 
-**Priority:** Medium
+**Priority:** 80
 
 **Status:** New — provable without open-problem axioms; foundational building block
 
@@ -9,7 +9,7 @@
 ## Problem Statement
 
 Formally prove **P ⊆ NP** in the circuit complexity model already established in
-`candidates/circuit-lower-bounds/Proof.lean`.
+`proofs/p_versus_np/circuit-lower-bounds/Proof.lean`.
 
 Concretely: prove the Lean4 theorem
 

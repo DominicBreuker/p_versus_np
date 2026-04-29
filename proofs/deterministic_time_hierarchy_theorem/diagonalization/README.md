@@ -1,6 +1,6 @@
-# Idea: Time Hierarchy Theorem
+# Approach: Diagonalization for the Time Hierarchy Theorem
 
-**Priority:** High
+**Priority:** 70
 
 **Status:** Active — monotonicity proven; diagonalization blocked on encoding and universal simulator
 
@@ -103,4 +103,3 @@ The key steps:
 - Use `Set.ssubset_iff_subset_ne` for strict inclusion.
 - For `IsLittleO`, use Mathlib's `Asymptotics.IsLittleO` or define a concrete version.
 - See Sipser *Introduction to the Theory of Computation* §9.1 for the classical proof.
-

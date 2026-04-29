@@ -23,6 +23,7 @@ from __future__ import annotations
 import json
 import os
 import queue
+import random
 import re
 import shutil
 import subprocess
@@ -41,7 +42,6 @@ REPO_ROOT: Path = Path(__file__).resolve().parent.parent.parent
 PROMPT_TEMPLATE_PATH: Path = REPO_ROOT / ".github" / "prompts" / "researcher_vibe.md"
 MOCK_VIBE_PATH: Path = REPO_ROOT / ".github" / "scripts" / "mock_vibe.py"
 PROMPT_FILENAME = ".mistral-researcher-prompt.md"
-PRIORITY_ORDER: dict[str, int] = {"High": 0, "Medium": 1, "Low": 2}
 DEAD_STATUSES: set[str] = {"Dead End", "Archived"}
 SESSION_METADATA_FILENAME = "meta.json"
 SESSION_MESSAGES_FILENAME = "messages.jsonl"
@@ -149,21 +149,6 @@ def get_git_log(rel_path: str, n: int = 5) -> str:
         return ""
 
 
-def was_recently_updated(idea_name: str, minutes: int = 25) -> bool:
-    try:
-        result = run_git(
-            "log",
-            f"--since={minutes} minutes ago",
-            "--oneline",
-            "--",
-            f"candidates/{idea_name}/",
-            check=False,
-        )
-        return bool(result.stdout.strip())
-    except Exception:
-        return False
-
-
 def parse_changed_paths(status_output: str) -> list[str]:
     paths: list[str] = []
     for line in status_output.splitlines():
@@ -268,29 +253,39 @@ def describe_discarded_edit(rel_path: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Idea selection
+# Proof-target selection
 # ---------------------------------------------------------------------------
 
 
-def parse_ideas(content: str) -> list[dict[str, str]]:
-    ideas: list[dict[str, str]] = []
+def parse_targets(content: str) -> list[dict[str, str | float]]:
+    targets: list[dict[str, str | float]] = []
     for line in content.splitlines():
         match = re.match(
-            r"\|\s*([^|]+?)\s*\|\s*(High|Medium|Low)\s*\|\s*([^|]+?)\s*\|",
+            r"\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*([0-9]+(?:\.[0-9]+)?)\s*\|\s*([^|]+?)\s*\|",
             line,
         )
         if not match:
             continue
-        name, priority, status = (
+        problem, approach, priority_text, status = (
             strip_markdown_link(match.group(1).strip()),
-            match.group(2).strip(),
+            strip_markdown_link(match.group(2).strip()),
             match.group(3).strip(),
+            match.group(4).strip(),
         )
-        if name.lower() in {"idea name", "---", "---------", "idea-name"}:
+        if problem.lower() in {"problem", "---", "--------"}:
             continue
-        ideas.append({"name": name, "priority": priority, "status": status})
-    ideas.sort(key=lambda item: PRIORITY_ORDER.get(item["priority"], 3))
-    return ideas
+        priority_value = float(priority_text)
+        targets.append(
+            {
+                "problem": problem,
+                "approach": approach,
+                "priority": priority_text,
+                "priority_value": priority_value,
+                "status": status,
+            }
+        )
+    targets.sort(key=lambda item: float(item["priority_value"]), reverse=True)
+    return targets
 
 
 def strip_markdown_link(value: str) -> str:
@@ -300,20 +295,27 @@ def strip_markdown_link(value: str) -> str:
     return value
 
 
-def get_ideas() -> list[dict[str, str]]:
-    return parse_ideas(read_file(REPO_ROOT / "candidates" / "README.md"))
+def get_targets() -> list[dict[str, str | float]]:
+    return parse_targets(read_file(REPO_ROOT / "proofs" / "README.md"))
 
 
-def pick_idea(ideas: list[dict[str, str]]) -> dict[str, str] | None:
-    for idea in ideas:
-        if idea["status"] in DEAD_STATUSES:
-            continue
-        if not was_recently_updated(idea["name"]):
-            return idea
-    for idea in ideas:
-        if idea["status"] not in DEAD_STATUSES:
-            return idea
-    return None
+def pick_target(targets: list[dict[str, str | float]]) -> dict[str, str | float] | None:
+    active_targets = [
+        target
+        for target in targets
+        if str(target["status"]) not in DEAD_STATUSES and float(target["priority_value"]) > 0
+    ]
+    if active_targets:
+        return random.choices(
+            active_targets,
+            weights=[float(target["priority_value"]) for target in active_targets],
+            k=1,
+        )[0]
+
+    non_dead_targets = [target for target in targets if str(target["status"]) not in DEAD_STATUSES]
+    if not non_dead_targets:
+        return None
+    return non_dead_targets[0]
 
 
 # ---------------------------------------------------------------------------
@@ -321,23 +323,32 @@ def pick_idea(ideas: list[dict[str, str]]) -> dict[str, str] | None:
 # ---------------------------------------------------------------------------
 
 
-def allowed_paths_for_idea(idea_name: str) -> set[str]:
+def allowed_paths_for_target(problem_name: str, approach_name: str) -> set[str]:
     return {
-        f"candidates/{idea_name}/",
+        f"proofs/{problem_name}/{approach_name}/",
         "lib/",
     }
 
 
-def build_prompt(idea_name: str) -> str:
+def build_prompt(target: dict[str, str | float]) -> str:
+    problem_name = str(target["problem"])
+    approach_name = str(target["approach"])
+    target_label = f"{problem_name}/{approach_name}"
     current_time = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
-    git_log = get_git_log(f"candidates/{idea_name}/")
+    git_log = get_git_log(f"proofs/{problem_name}/{approach_name}/")
     template = read_file(PROMPT_TEMPLATE_PATH)
     if not template:
         raise FileNotFoundError(f"Prompt template not found: {PROMPT_TEMPLATE_PATH}")
 
-    allowed_targets = "\n".join(f"- `{path}**`" if path.endswith("/") else f"- `{path}`" for path in sorted(allowed_paths_for_idea(idea_name)))
+    allowed_targets = "\n".join(
+        f"- `{path}**`" if path.endswith("/") else f"- `{path}`"
+        for path in sorted(allowed_paths_for_target(problem_name, approach_name))
+    )
     return template.format(
-        idea_name=idea_name,
+        problem_name=problem_name,
+        approach_name=approach_name,
+        target_label=target_label,
+        target_path=f"proofs/{problem_name}/{approach_name}",
         current_time=current_time,
         git_log=git_log or "(no recent commits)",
         allowed_targets=allowed_targets,
@@ -472,9 +483,9 @@ def bind_latest_session_to_explicit_id(session_id: str) -> Path:
     return session_dir
 
 
-def build_resume_prompt(idea_name: str) -> str:
+def build_resume_prompt(target_label: str) -> str:
     return (
-        f"Resume the previous Vibe session for `{idea_name}`. "
+        f"Resume the previous Vibe session for `{target_label}`. "
         "Continue from your last result and next-step ideas, and take the next best step."
     )
 
@@ -486,8 +497,8 @@ class VibeRunResult:
     timed_out: bool = False
 
 
-def append_failure_note(idea_name: str, message: str) -> None:
-    notes_path = REPO_ROOT / "candidates" / idea_name / "NOTES.md"
+def append_failure_note(problem_name: str, approach_name: str, message: str) -> None:
+    notes_path = REPO_ROOT / "proofs" / problem_name / approach_name / "NOTES.md"
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     bullet = (
         f"- {timestamp} — Researcher workflow hit a technical interruption: {message}. "
@@ -506,7 +517,8 @@ def append_failure_note(idea_name: str, message: str) -> None:
 def finalize_changes(
     initial_changed_paths: list[str],
     allowed_paths: set[str],
-    idea_name: str,
+    problem_name: str,
+    approach_name: str,
     failure_message: str | None = None,
 ) -> tuple[list[str], list[str]]:
     changed_paths = get_changed_paths()
@@ -523,7 +535,7 @@ def finalize_changes(
         allowed_changes, blocked_changes = split_changed_paths(new_changed_paths, allowed_paths)
 
     if failure_message:
-        append_failure_note(idea_name, failure_message)
+        append_failure_note(problem_name, approach_name, failure_message)
         changed_paths = get_changed_paths()
         new_changed_paths = get_new_changed_paths(initial_changed_paths, changed_paths)
         allowed_changes, blocked_changes = split_changed_paths(new_changed_paths, allowed_paths)
@@ -723,24 +735,29 @@ def main() -> None:
         for rel_path in sorted(set(initial_changed_paths)):
             print(f"  - {rel_path}")
 
-    ideas = get_ideas()
-    if not ideas:
-        print("No ideas found in candidates/README.md — nothing to do.")
+    targets = get_targets()
+    if not targets:
+        print("No proof targets found in proofs/README.md — nothing to do.")
         sys.exit(0)
 
-    idea = pick_idea(ideas)
-    if idea is None:
-        print("No suitable idea found (all are dead ends or recently updated).")
+    target = pick_target(targets)
+    if target is None:
+        print("No suitable proof target found (all are dead ends or archived).")
         sys.exit(0)
 
-    idea_name = idea["name"]
-    allowed_paths = allowed_paths_for_idea(idea_name)
-    prompt = build_prompt(idea_name)
+    problem_name = str(target["problem"])
+    approach_name = str(target["approach"])
+    target_label = f"{problem_name}/{approach_name}"
+    allowed_paths = allowed_paths_for_target(problem_name, approach_name)
+    prompt = build_prompt(target)
     session_id = resolve_session_id()
     failure_message: str | None = None
     exit_code = 0
 
-    print(f"Working on idea: {idea_name}  (Priority: {idea['priority']}, Status: {idea['status']})")
+    print(
+        f"Working on target: {target_label}  "
+        f"(Priority: {target['priority']}, Status: {target['status']})"
+    )
     if using_mock_vibe:
         print("Using mock Vibe CLI for researcher.py development/testing.")
     else:
@@ -762,7 +779,7 @@ def main() -> None:
 
             print("Running Mistral Vibe (pass 2/2, resume) …")
             result = run_vibe(
-                build_resume_prompt(idea_name),
+                build_resume_prompt(target_label),
                 vibe_executable=vibe_executable,
                 resume_session_id=session_id,
                 bootstrap_from_file=False,
@@ -780,7 +797,8 @@ def main() -> None:
     allowed_changes, blocked_changes = finalize_changes(
         initial_changed_paths,
         allowed_paths,
-        idea_name,
+        problem_name,
+        approach_name,
         failure_message=failure_message,
     )
 
@@ -797,7 +815,9 @@ def main() -> None:
     else:
         print("Mistral Vibe completed without repository changes.")
 
-    emit_github_output("idea_name", idea_name)
+    emit_github_output("problem_name", problem_name)
+    emit_github_output("approach_name", approach_name)
+    emit_github_output("target_label", target_label)
     emit_github_output("vibe_session_id", session_id)
     emit_github_output("run_outcome", "success" if failure_message is None and exit_code == 0 else "failure")
     emit_github_output("failure_message", failure_message or "")

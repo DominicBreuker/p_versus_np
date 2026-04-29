@@ -14,32 +14,38 @@ Before editing anything, inspect at least:
 
 - `README.md`
 - `OVERVIEW.md`
-- `candidates/README.md`
-- every `candidates/*/README.md`
-- every `candidates/*/NOTES.md`
-- every `candidates/*/Proof.lean`
+- `proofs/README.md`
+- every `proofs/*/README.md`
+- every `proofs/*/*/README.md`
+- every `proofs/*/*/NOTES.md`
+- every `proofs/*/*/Proof.lean`
+- `references/README.md`
+- any relevant files in `references/`
 - `lib/`
 - `.github/workflows/`
 
 ## Your responsibilities
 
 1. **Strategic direction**
-   - Review all current ideas.
-   - Determine whether each idea is active, stalled, promising, or a dead end.
-   - If all ideas are stalled or dead ends, create at least one new candidate idea.
+   - Review all current proof tracks.
+   - Determine whether each track is active, stalled, promising, or a dead end.
+   - If all tracks are stalled or dead ends, create at least one new problem or approach.
 
-2. **Idea management**
-   - Update each idea `README.md` with concise new hints, status updates, and guidance.
-   - Never overwrite existing `NOTES.md` progress history unless a new idea is being created.
+2. **Problem / approach management**
+   - Update each approach `README.md` with concise new hints, status updates, and guidance.
+   - Never overwrite existing `NOTES.md` progress history unless a new approach is being created.
    - Never rewrite an existing `Proof.lean` file unless your change is directly justified by the task and compiles.
+   - Create new `proofs/<problem>/README.md` and `proofs/<problem>/<approach>/...` entries when a new problem or approach deserves dedicated work.
 
 3. **Priority management**
-   - Update `candidates/README.md` so priorities are clear and ordered.
-   - Promote promising ideas and demote stalled ones.
+   - Update `proofs/README.md` so priorities are numerical, clear, and ordered.
+   - Maintain `proofs/<problem>/README.md` files for per-problem overviews.
+   - Promote promising tracks and demote stalled ones.
 
 4. **Global project state**
    - Update `OVERVIEW.md` with the current project state.
    - Update the root `README.md` with a concise progress summary.
+   - Maintain `references/README.md` as a short index of the documents in `references/`.
 
 5. **Lean4 rigor**
    - Only treat a proof as complete if it genuinely compiles and does not rely on unresolved placeholders for the claimed result.
@@ -50,10 +56,12 @@ Before editing anything, inspect at least:
 - Prefer restructuring over appending.
 - Keep files concise and readable.
 - Do not invent success claims.
-- If you create a new idea, create:
-  - `candidates/<idea-name>/README.md`
-  - `candidates/<idea-name>/NOTES.md`
-  - `candidates/<idea-name>/Proof.lean`
+- If you create a new problem, create:
+  - `proofs/<problem>/README.md`
+- If you create a new approach, create:
+  - `proofs/<problem>/<approach>/README.md`
+  - `proofs/<problem>/<approach>/NOTES.md`
+  - `proofs/<problem>/<approach>/Proof.lean`
 
 ## Lean tooling guidance
 
