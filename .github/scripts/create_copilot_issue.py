@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create a GitHub issue and assign a Copilot coding agent to it."""
+"""Create a GitHub issue and assign a Copilot coding agent to it with model selection."""
 
 from __future__ import annotations
 
@@ -11,11 +11,9 @@ from pathlib import Path
 
 import requests
 
-
 GITHUB_API = "https://api.github.com"
 GRAPHQL_URL = f"{GITHUB_API}/graphql"
 REQUESTS_TIMEOUT = 20
-
 
 def get_headers(token: str) -> dict[str, str]:
     return {
@@ -23,13 +21,11 @@ def get_headers(token: str) -> dict[str, str]:
         "Accept": "application/vnd.github+json",
     }
 
-
 def load_issue_body(filepath: str) -> str:
     path = Path(filepath)
     if not path.exists():
         raise FileNotFoundError(f"Issue body file not found: {filepath}")
     return path.read_text(encoding="utf-8")
-
 
 def parse_vars(var_list: list[str] | None) -> dict[str, str]:
     """Parse repeated --var key=value arguments into a dict."""
@@ -40,7 +36,6 @@ def parse_vars(var_list: list[str] | None) -> dict[str, str]:
         key, value = item.split("=", 1)
         result[key.strip()] = value.strip()
     return result
-
 
 def render_template(body: str, vars_dict: dict[str, str]) -> str:
     """Replace {{ var }} in body with values from vars_dict."""
@@ -55,7 +50,6 @@ def render_template(body: str, vars_dict: dict[str, str]) -> str:
 
     return re.sub(r"{{\s*([\w.-]+)\s*}}", replacer, body)
 
-
 def create_issue(token: str, owner: str, repo: str, title: str, body: str) -> dict:
     response = requests.post(
         f"{GITHUB_API}/repos/{owner}/{repo}/issues",
@@ -66,8 +60,7 @@ def create_issue(token: str, owner: str, repo: str, title: str, body: str) -> di
     response.raise_for_status()
     return response.json()
 
-
-def get_copilot_actor_id(token: str, owner: str, repo: str) -> str:
+def get_copilot_actor_id(token: str, owner: str, repo: str, model: str | None = None) -> str:
     query = """
     query($owner:String!, $repo:String!) {
       repository(owner:$owner, name:$repo) {
@@ -89,11 +82,28 @@ def get_copilot_actor_id(token: str, owner: str, repo: str) -> str:
     response.raise_for_status()
     payload = response.json()
     nodes = payload["data"]["repository"]["suggestedActors"]["nodes"]
-    bot = next((node for node in nodes if node["login"].startswith("copilot-")), None)
-    if not bot:
-        raise RuntimeError("Copilot agent not found in suggestedActors")
-    return bot["id"]
 
+    # Log all available Copilot actors
+    copilot_actors = [node["login"] for node in nodes if node["login"].startswith("copilot-")]
+    if copilot_actors:
+        print("🔍 Available GitHub Copilot actors:")
+        for actor in copilot_actors:
+            print(f"   - {actor}")
+    else:
+        print("🔍 No GitHub Copilot actors found in suggestedActors.")
+
+    if model:
+        bot = next((node for node in nodes if node["login"] == f"copilot-{model}"), None)
+    else:
+        bot = next((node for node in nodes if node["login"].startswith("copilot-")), None)
+
+    if not bot:
+        available_models = [node["login"] for node in nodes if node["login"].startswith("copilot-")]
+        raise RuntimeError(
+            f"Copilot agent for model '{model}' not found. "
+            f"Available models: {', '.join(available_models)}"
+        )
+    return bot["id"]
 
 def get_issue_global_id(token: str, owner: str, repo: str, issue_number: int) -> str:
     query = """
@@ -114,7 +124,6 @@ def get_issue_global_id(token: str, owner: str, repo: str, issue_number: int) ->
     response.raise_for_status()
     payload = response.json()
     return payload["data"]["repository"]["issue"]["id"]
-
 
 def assign_actor_to_issue(token: str, issue_id: str, actor_id: str) -> list[str]:
     mutation = """
@@ -141,7 +150,6 @@ def assign_actor_to_issue(token: str, issue_id: str, actor_id: str) -> list[str]
     nodes = payload["data"]["replaceActorsForAssignable"]["assignable"]["assignees"]["nodes"]
     return [node["login"] for node in nodes]
 
-
 def append_github_output(name: str, value: str) -> None:
     github_output = os.environ.get("GITHUB_OUTPUT")
     if not github_output:
@@ -149,9 +157,8 @@ def append_github_output(name: str, value: str) -> None:
     with open(github_output, "a", encoding="utf-8") as fh:
         fh.write(f"{name}={value}\n")
 
-
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Create GitHub issue and assign Copilot agent")
+    parser = argparse.ArgumentParser(description="Create GitHub issue and assign Copilot agent with model selection")
     parser.add_argument("owner", help="Repository owner")
     parser.add_argument("repo", help="Repository name")
     parser.add_argument("issue_file", help="Path to the Markdown file containing issue content")
@@ -160,6 +167,11 @@ def main() -> None:
         "--token",
         default=os.getenv("GH_PAT") or os.getenv("GITHUB_TOKEN"),
         help="GitHub token (or set GH_PAT / GITHUB_TOKEN)",
+    )
+    parser.add_argument(
+        "--model",
+        default=None,
+        help="Copilot model to assign (e.g., 'gpt4', 'gpt35'). If not specified, any available Copilot agent will be used.",
     )
     parser.add_argument(
         "--var",
@@ -177,7 +189,7 @@ def main() -> None:
         issue = create_issue(args.token, args.owner, args.repo, args.title, body)
         print(f"📝 Created issue #{issue['number']}: {issue['html_url']}")
 
-        actor_id = get_copilot_actor_id(args.token, args.owner, args.repo)
+        actor_id = get_copilot_actor_id(args.token, args.owner, args.repo, args.model)
         print(f"🤖 Copilot agent ID: {actor_id}")
 
         issue_gid = get_issue_global_id(args.token, args.owner, args.repo, issue["number"])
@@ -189,7 +201,6 @@ def main() -> None:
         append_github_output("assignees", ",".join(assignees))
     except (requests.RequestException, FileNotFoundError, RuntimeError, ValueError) as exc:
         sys.exit(f"❌ Error: {exc}")
-
 
 if __name__ == "__main__":
     main()
