@@ -64,6 +64,38 @@ def evalCircuit {n : Nat} (c : BoolCircuit n) (inp : Fin n → Bool) : Bool :=
   vals.getD c.output false
 
 -- ---------------------------------------------------------------------------
+-- Sanity lemmas for evalCircuit
+-- ---------------------------------------------------------------------------
+
+/-- Helper: construct a single-node constant circuit -/
+def constCircuit (b : Bool) : BoolCircuit 0 :=
+  { nodes := #[(⟨Gate.Const b, []⟩ : CircuitNode)]
+    output := 0 }
+
+/-- A constant-true circuit evaluates to true -/
+theorem eval_const_true : evalCircuit (constCircuit true) (fun _ => false) = true := by
+  unfold evalCircuit constCircuit
+  simp [evalNode]
+
+/-- A constant-false circuit evaluates to false -/
+theorem eval_const_false : evalCircuit (constCircuit false) (fun _ => false) = false := by
+  unfold evalCircuit constCircuit
+  simp [evalNode]
+
+/-- Helper: construct a single-node variable circuit for input index i -/
+def varCircuit (n : Nat) (i : Nat) (_hi : i < n) : BoolCircuit n :=
+  { nodes := #[(⟨Gate.Var i, []⟩ : CircuitNode)]
+    output := 0 }
+
+/-- A Var-0 circuit on n>0 inputs evaluates to the first input bit -/
+theorem eval_var_zero (n : Nat) (hn : n > 0) (inp : Fin n → Bool) :
+    evalCircuit (varCircuit n 0 (Nat.zero_lt_of_lt hn)) inp = inp ⟨0, Nat.zero_lt_of_lt hn⟩ := by
+  unfold evalCircuit varCircuit
+  simp only [Array.foldl, Array.getD, Array.push, evalNode]
+  have : 0 < n := Nat.zero_lt_of_lt hn
+  simp [this]
+
+-- ---------------------------------------------------------------------------
 -- Complexity classes (abstract stubs)
 -- ---------------------------------------------------------------------------
 
@@ -83,6 +115,40 @@ def inNP (L : Language) : Prop :=
     V (2 * n) (fun i =>
       if h : i.val < n then inp ⟨i.val, h⟩
       else w ⟨i.val - n, by omega⟩))
+
+-- ---------------------------------------------------------------------------
+-- Circuit lower bounds via counting arguments
+-- ---------------------------------------------------------------------------
+
+/-- The number of Boolean circuits of size s on n inputs is at most (s+1)^(s+1) * 2^s.
+    This is a rough upper bound: there are at most s+1 nodes, each with a gate from a
+    finite set, and s children pointers. -/
+def circuit_count_upper_bound (_n s : Nat) : Nat := (s + 1) ^ (s + 1) * 2 ^ s
+
+/-- The number of distinct Boolean functions on n inputs is 2^(2^n). -/
+def boolean_function_count (n : Nat) : Nat := 2 ^ (2 ^ n)
+
+/-- Shannon's counting argument: For any polynomial p, there exist Boolean functions
+    on n inputs that cannot be computed by circuits of size ≤ p(n).
+
+    Proof sketch: For large enough n, circuit_count_upper_bound n (p n) < boolean_function_count n.
+    Since there are more Boolean functions than circuits, some function must require larger circuits. -/
+theorem shannon_counting_argument :
+    ∀ (p : Nat → Nat) (hp : IsPolynomial p),
+    ∃ n₀ : Nat, ∀ n ≥ n₀, ∃ (f : (Fin n → Bool) → Bool),
+      ∀ (c : BoolCircuit n), circuitSize c ≤ p n → ∃ inp : Fin n → Bool, evalCircuit c inp ≠ f inp := by
+  -- This is a counting argument that requires arithmetic reasoning
+  -- Placeholder: we state the theorem but leave the proof as sorry for now
+  intros p hp
+  -- Obtain polynomial bounds from hp
+  obtain ⟨k, c, h_bound⟩ := hp
+  -- The key inequality: circuit_count_upper_bound n (p n) < boolean_function_count n for large n
+  -- This follows because (p n)^(p n) * 2^(p n) < 2^(2^n) for large enough n
+  -- We use the fact that 2^n grows faster than any polynomial
+  refine' ⟨0, ?_⟩
+  intro n _
+  -- For now, we use sorry as the full counting argument requires careful arithmetic
+  sorry
 
 -- ---------------------------------------------------------------------------
 -- Main conjecture

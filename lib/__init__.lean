@@ -2,4 +2,4 @@
 -- Main entry point: documents and re-exports utility modules.
 --
 -- Usage in proof files:
---   import PVsNp.Lib.Utils
+--   import PVsNpLib.Utils
