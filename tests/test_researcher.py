@@ -13,6 +13,8 @@ SCRIPT_PATH = REPO_ROOT / ".github" / "scripts" / "researcher.py"
 spec = importlib.util.spec_from_file_location("researcher", SCRIPT_PATH)
 researcher = importlib.util.module_from_spec(spec)
 assert spec.loader is not None
+# `dataclass` initialization expects the module object to be present in `sys.modules`
+# while the script is being executed.
 sys.modules[spec.name] = researcher
 spec.loader.exec_module(researcher)
 

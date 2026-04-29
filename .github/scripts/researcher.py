@@ -43,6 +43,8 @@ MOCK_VIBE_PATH: Path = REPO_ROOT / ".github" / "scripts" / "mock_vibe.py"
 PROMPT_FILENAME = ".mistral-researcher-prompt.md"
 PRIORITY_ORDER: dict[str, int] = {"High": 0, "Medium": 1, "Low": 2}
 DEAD_STATUSES: set[str] = {"Dead End", "Archived"}
+# Vibe emits single-line tagged status messages such as
+# `<vibe_stop_event>Turn limit reached</vibe_stop_event>`.
 VIBE_TAG_PATTERN = re.compile(r"^<(?P<tag>[a-z_]+)>(?P<message>.*)</(?P=tag)>$")
 MISTRAL_MODEL: str = os.environ.get("MISTRAL_MODEL", "").strip()
 MISTRAL_MAX_TURNS: str = os.environ.get("MISTRAL_MAX_TURNS", "12").strip()
@@ -476,6 +478,8 @@ def run_vibe(prompt_text: str) -> VibeRunResult:
                 if process.poll() is None and time.monotonic() > deadline:
                     timed_out = True
                     process.kill()
+                    # Keep draining the queue so any buffered final output is logged
+                    # before the reader thread emits its sentinel.
                 continue
 
             if raw_line is None:
