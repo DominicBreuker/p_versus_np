@@ -106,7 +106,7 @@ See README for the step-by-step outline.
   - ✅ Closed `evalNode_normalizeNodeCode` (sorry 1) — Project Leader 2026-04-30
   - ⏳ Three hard subproofs remain behind temporary `sorry`s
 - **`sorry`/`admit` count:** 3 total (`evalCircuit_normalizeCircuit`, `poly_quadratic_bound_k_ge_1`, pigeonhole in `shannon_counting_argument`)
-- **File builds:** Yes (`lake env lean Proof.lean` passes)
+- **File builds:** Yes (`lake env lean Proof.lean` passes — note: `Proof.lean` is not part of the `PVsNpLib` library and is not checked by plain `lake build`; use `lake env lean Proof.lean` to verify individual proof files, as done by CI)
 
 ## Next Steps for the Next Researcher
 

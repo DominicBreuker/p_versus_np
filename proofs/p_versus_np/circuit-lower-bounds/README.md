@@ -2,7 +2,7 @@
 
 **Priority:** 90
 
-**Status:** Active — Task 6 complete; Task 7 in progress; `p_neq_np` compiles conditionally on two axioms; **three `sorry`s remain** in Task 7
+**Status:** Active — Task 6 complete; Task 7 in progress; `p_neq_np` compiles conditionally on two axioms; **3 `sorry`s remain** (down from 4; `evalNode_normalizeNodeCode` closed 2026-04-30)
 
 **Relationship to the repository goal:** Main proof track. This approach directly targets `P ≠ NP` by formalizing the statement that sufficiently strong SAT circuit lower bounds would separate `P` from `NP`.
 
