@@ -102,11 +102,20 @@ jobs:
           test -f lake-manifest.json
           uvx --from "lean-lsp-mcp==0.26.1" lean-lsp-mcp --help >/dev/null
 
-      - name: Run Researcher Agent
+      - name: Run Lean Researcher Agent
+        id: researcher
+        env:
+          MISTRAL_VIBE_KEY: ${{ secrets.MISTRAL_LABS_KEY }}
+          MISTRAL_MODEL: ${{ vars.MISTRAL_MODEL }}
+          MISTRAL_AGENT: "lean"
+        run: python .github/scripts/researcher.py
+
+      - name: Run Devstral Researcher Agent
         id: researcher
         env:
           MISTRAL_VIBE_KEY: ${{ secrets.MISTRAL_VIBE_KEY }}
           MISTRAL_MODEL: ${{ vars.MISTRAL_MODEL }}
+          MISTRAL_AGENT: "auto-approve"
         run: python .github/scripts/researcher.py
 
       - name: Clean up trailing whitespace

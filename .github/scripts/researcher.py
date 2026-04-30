@@ -52,6 +52,7 @@ SESSION_MESSAGES_FILENAME = "messages.jsonl"
 # `<vibe_stop_event>Turn limit reached</vibe_stop_event>`.
 VIBE_TAG_PATTERN = re.compile(r"^<(?P<tag>[a-z_]+)>(?P<message>.*)</(?P=tag)>$")
 MISTRAL_MODEL: str = os.environ.get("MISTRAL_MODEL", "").strip()
+MISTRAL_AGENT: str = os.environ.get("MISTRAL_AGENT", "auto-approve").strip()
 MISTRAL_MAX_TURNS: str = os.environ.get("MISTRAL_MAX_TURNS", "").strip()
 MISTRAL_MAX_PRICE: str = os.environ.get("MISTRAL_MAX_PRICE", "").strip()
 MISTRAL_TIMEOUT_SECONDS: int = int(os.environ.get("MISTRAL_TIMEOUT_SECONDS", "1800"))
@@ -623,12 +624,13 @@ def run_vibe(
             f"then follow every instruction in it."
         )
 
+
     command = [
         vibe_executable or find_vibe_executable(),
         "--prompt",
         prompt_argument,
         "--agent",
-        "auto-approve",
+        MISTRAL_AGENT,
         "--workdir",
         str(REPO_ROOT),
         "--output",
