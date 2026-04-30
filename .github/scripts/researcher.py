@@ -16,10 +16,16 @@ Optional environment variables:
     MISTRAL_TIMEOUT_SECONDS  — Timeout for the Vibe run (default: 1800)
     MISTRAL_VIBE_BIN         — Override path to the `vibe` executable
     MISTRAL_VIBE_SESSION_ID  — Explicit Vibe session ID used for resume demo
+
+Command-line arguments:
+    --run-count               — Number of Vibe passes to run (default: 2)
+    --overall-timeout-minutes — Stop starting new passes once cumulative
+                                runtime reaches this limit (default: 0, disabled)
 """
 
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import queue
@@ -67,6 +73,40 @@ def get_mistral_api_key() -> str:
 
 
 MISTRAL_API_KEY: str = get_mistral_api_key()
+
+
+def positive_int(value: str) -> int:
+    parsed = int(value)
+    if parsed <= 0:
+        raise argparse.ArgumentTypeError("value must be a positive integer")
+    return parsed
+
+
+def non_negative_float(value: str) -> float:
+    parsed = float(value)
+    if parsed < 0:
+        raise argparse.ArgumentTypeError("value must be non-negative")
+    return parsed
+
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Run the P vs NP researcher agent.")
+    parser.add_argument(
+        "--run-count",
+        type=positive_int,
+        default=2,
+        help="number of Vibe passes to execute (default: 2)",
+    )
+    parser.add_argument(
+        "--overall-timeout-minutes",
+        type=non_negative_float,
+        default=0.0,
+        help=(
+            "stop starting new Vibe passes once cumulative runtime reaches this many minutes; "
+            "0 disables the limit"
+        ),
+    )
+    return parser.parse_args(argv)
 
 
 # ---------------------------------------------------------------------------
@@ -144,6 +184,53 @@ def run_git(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
         capture_output=True,
         check=check,
     )
+
+
+def git_ref_exists(refname: str) -> bool:
+    result = run_git("show-ref", "--verify", "--quiet", refname, check=False)
+    return result.returncode == 0
+
+
+def get_current_branch_name() -> str:
+    result = run_git("rev-parse", "--abbrev-ref", "HEAD", check=False)
+    branch = result.stdout.strip()
+    if branch and branch != "HEAD":
+        return branch
+
+    for env_name in ("GITHUB_HEAD_REF", "GITHUB_REF_NAME"):
+        branch = os.environ.get(env_name, "").strip()
+        if branch:
+            return branch
+
+    raise RuntimeError("Could not determine the current Git branch for researcher pushes.")
+
+
+def sanitize_branch_component(value: str) -> str:
+    sanitized = re.sub(r"[^A-Za-z0-9._/-]+", "-", value.strip())
+    sanitized = sanitized.strip("./-")
+    return sanitized or "run"
+
+
+def append_github_step_summary(message: str) -> None:
+    summary_path = os.environ.get("GITHUB_STEP_SUMMARY", "").strip()
+    if not summary_path:
+        return
+    with open(summary_path, "a", encoding="utf-8") as fh:
+        fh.write(message.rstrip() + "\n")
+
+
+def create_fallback_branch_name(target_label: str, run_index: int) -> str:
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    short_sha = run_git("rev-parse", "--short", "HEAD").stdout.strip() or "unknown"
+    agent = sanitize_branch_component(MISTRAL_AGENT or "researcher")
+    label = sanitize_branch_component(target_label.replace("/", "-"))
+    return f"researcher-backup/{agent}/{label}/run-{run_index:02d}-{timestamp}-{short_sha}"
+
+
+def abort_rebase_if_needed() -> None:
+    if not (REPO_ROOT / ".git" / "rebase-merge").exists() and not (REPO_ROOT / ".git" / "rebase-apply").exists():
+        return
+    run_git("rebase", "--abort", check=False)
 
 
 def get_git_log(rel_path: str, n: int = 5) -> str:
@@ -493,9 +580,9 @@ def bind_latest_session_to_explicit_id(session_id: str) -> Path:
     return session_dir
 
 
-def build_resume_prompt(target_label: str) -> str:
+def build_resume_prompt(target_label: str, run_index: int, run_count: int) -> str:
     return (
-        f"Resume the previous Vibe session for `{target_label}`. "
+        f"Resume the previous Vibe session for `{target_label}` during pass {run_index}/{run_count}. "
         "Continue from your last result and next-step ideas, and take the next best step."
     )
 
@@ -505,6 +592,12 @@ class VibeRunResult:
     returncode: int
     stdout: str
     timed_out: bool = False
+
+
+@dataclass
+class GitPushResult:
+    branch_name: str
+    used_fallback_branch: bool = False
 
 
 def append_failure_note(problem_name: str, approach_name: str, message: str) -> None:
@@ -551,6 +644,67 @@ def finalize_changes(
         allowed_changes, blocked_changes = split_changed_paths(new_changed_paths, allowed_paths)
 
     return allowed_changes, blocked_changes
+
+
+def commit_and_push_run(
+    *,
+    commit_message: str,
+    target_label: str,
+    run_index: int,
+    remote_name: str = "origin",
+    max_attempts: int = 3,
+) -> GitPushResult:
+    run_git("add", "-A")
+    commit = run_git("commit", "--allow-empty", "-m", commit_message, check=False)
+    if commit.returncode != 0:
+        raise RuntimeError(f"Failed to create researcher commit: {commit.stderr.strip() or commit.stdout.strip()}")
+
+    primary_branch = get_current_branch_name()
+    last_push_error = ""
+
+    for attempt in range(1, max_attempts + 1):
+        fetch = run_git("fetch", "--prune", remote_name, check=False)
+        if fetch.returncode != 0:
+            last_push_error = fetch.stderr.strip() or fetch.stdout.strip()
+            print(f"Warning: git fetch failed before push attempt {attempt}/{max_attempts}: {last_push_error}")
+        elif git_ref_exists(f"refs/remotes/{remote_name}/{primary_branch}"):
+            rebase = run_git("rebase", f"{remote_name}/{primary_branch}", check=False)
+            if rebase.returncode != 0:
+                last_push_error = rebase.stderr.strip() or rebase.stdout.strip()
+                abort_rebase_if_needed()
+                print(f"Primary branch sync failed; preserving work on a fallback branch instead: {last_push_error}")
+                break
+
+        push = run_git("push", remote_name, f"HEAD:{primary_branch}", check=False)
+        if push.returncode == 0:
+            return GitPushResult(branch_name=primary_branch, used_fallback_branch=False)
+
+        last_push_error = push.stderr.strip() or push.stdout.strip()
+        print(f"Primary branch push attempt {attempt}/{max_attempts} failed: {last_push_error}")
+
+    abort_rebase_if_needed()
+    fallback_branch = create_fallback_branch_name(target_label, run_index)
+    switch = run_git("checkout", "-B", fallback_branch, check=False)
+    if switch.returncode != 0:
+        raise RuntimeError(
+            f"Failed to switch to fallback branch '{fallback_branch}': "
+            f"{switch.stderr.strip() or switch.stdout.strip()}"
+        )
+
+    fallback_push = run_git("push", "--set-upstream", remote_name, f"HEAD:{fallback_branch}", check=False)
+    if fallback_push.returncode != 0:
+        raise RuntimeError(
+            "Failed to preserve researcher work on a fallback branch after push/rebase problems: "
+            f"{fallback_push.stderr.strip() or fallback_push.stdout.strip() or last_push_error}"
+        )
+
+    message = (
+        f"Researcher work for run {run_index} was pushed to fallback branch `{fallback_branch}` "
+        f"after the primary branch `{primary_branch}` could not be updated cleanly."
+    )
+    print(message)
+    append_github_step_summary(message)
+    return GitPushResult(branch_name=fallback_branch, used_fallback_branch=True)
 
 
 def format_vibe_streaming_message(payload: dict[str, object]) -> str:
@@ -733,7 +887,20 @@ def emit_github_output(name: str, value: str) -> None:
         fh.write(f"{name}={value}\n")
 
 
+def build_commit_message(
+    *,
+    researcher_label: str,
+    target_label: str,
+    run_index: int,
+    run_count: int,
+    failed: bool,
+) -> str:
+    status = "update" if not failed else "update (interrupted)"
+    return f"{researcher_label} {status}: run {run_index}/{run_count} on {target_label}"
+
+
 def main() -> None:
+    args = parse_args()
     os.chdir(REPO_ROOT)
 
     vibe_executable = find_vibe_executable()
@@ -741,10 +908,10 @@ def main() -> None:
     if not using_mock_vibe and not MISTRAL_API_KEY:
         raise ValueError("Set MISTRAL_VIBE_KEY or MISTRAL_API_KEY before running the researcher with the real Vibe CLI.")
 
-    initial_changed_paths = get_changed_paths()
-    if initial_changed_paths:
+    startup_changed_paths = get_changed_paths()
+    if startup_changed_paths:
         print("Detected existing repository changes; only changes made during this run will be filtered.")
-        for rel_path in sorted(set(initial_changed_paths)):
+        for rel_path in sorted(set(startup_changed_paths)):
             print(f"  - {rel_path}")
 
     targets = get_targets()
@@ -765,6 +932,14 @@ def main() -> None:
     session_id = resolve_session_id()
     failure_message: str | None = None
     exit_code = 0
+    completed_runs = 0
+    last_pushed_branch = get_current_branch_name()
+    overall_timeout_reached = False
+    overall_timeout_seconds: float | None = None
+    if args.overall_timeout_minutes > 0:
+        overall_timeout_seconds = args.overall_timeout_minutes * 60.0
+    overall_start = time.monotonic()
+    researcher_label = os.environ.get("RESEARCHER_LABEL", "Researcher").strip() or "Researcher"
 
     print(
         f"Working on target: {target_label}  "
@@ -776,61 +951,119 @@ def main() -> None:
         print("Using real Mistral Vibe CLI.")
     print(f"Using Vibe session ID: {session_id}")
 
-    try:
-        print("Running Mistral Vibe (pass 1/2) …")
-        first_result = run_vibe(prompt, vibe_executable=vibe_executable, bootstrap_from_file=True)
-        if first_result.timed_out:
-            failure_message = f"Mistral Vibe timed out during pass 1/2 after {MISTRAL_TIMEOUT_SECONDS} seconds."
-            exit_code = 124
-        elif first_result.returncode != 0:
-            failure_message = f"Mistral Vibe failed during pass 1/2 with exit code {first_result.returncode}."
-            exit_code = first_result.returncode
+    for run_index in range(1, args.run_count + 1):
+        if run_index > 1 and overall_timeout_seconds is not None:
+            elapsed = time.monotonic() - overall_start
+            if elapsed >= overall_timeout_seconds:
+                overall_timeout_reached = True
+                print(
+                    "Overall Vibe runtime limit reached after "
+                    f"{completed_runs} completed pass(es); skipping remaining passes."
+                )
+                break
+
+        run_initial_changed_paths = get_changed_paths()
+        run_failure_message: str | None = None
+        run_exit_code = 0
+        completed_runs = run_index
+
+        try:
+            if run_index == 1:
+                print(f"Running Mistral Vibe (pass {run_index}/{args.run_count}) …")
+                result = run_vibe(prompt, vibe_executable=vibe_executable, bootstrap_from_file=True)
+                if result.timed_out:
+                    run_failure_message = (
+                        f"Mistral Vibe timed out during pass {run_index}/{args.run_count} "
+                        f"after {MISTRAL_TIMEOUT_SECONDS} seconds."
+                    )
+                    run_exit_code = 124
+                elif result.returncode != 0:
+                    run_failure_message = (
+                        f"Mistral Vibe failed during pass {run_index}/{args.run_count} "
+                        f"with exit code {result.returncode}."
+                    )
+                    run_exit_code = result.returncode
+                elif args.run_count > 1:
+                    bound_session_dir = bind_latest_session_to_explicit_id(session_id)
+                    print(f"Bound latest Vibe session log to explicit session ID in {bound_session_dir}")
+            else:
+                print(f"Running Mistral Vibe (pass {run_index}/{args.run_count}, resume) …")
+                result = run_vibe(
+                    build_resume_prompt(target_label, run_index, args.run_count),
+                    vibe_executable=vibe_executable,
+                    resume_session_id=session_id,
+                    bootstrap_from_file=False,
+                )
+                if result.timed_out:
+                    run_failure_message = (
+                        f"Mistral Vibe timed out during pass {run_index}/{args.run_count} "
+                        f"after {MISTRAL_TIMEOUT_SECONDS} seconds."
+                    )
+                    run_exit_code = 124
+                elif result.returncode != 0:
+                    run_failure_message = (
+                        f"Mistral Vibe failed during pass {run_index}/{args.run_count} "
+                        f"with exit code {result.returncode}."
+                    )
+                    run_exit_code = result.returncode
+        except Exception as exc:
+            run_failure_message = f"{type(exc).__name__}: {exc}"
+            run_exit_code = 1
+
+        allowed_changes, blocked_changes = finalize_changes(
+            run_initial_changed_paths,
+            allowed_paths,
+            problem_name,
+            approach_name,
+            failure_message=run_failure_message,
+        )
+
+        if blocked_changes:
+            print("ERROR: blocked changes remain after cleanup.", file=sys.stderr)
+            run_exit_code = 1
+            if run_failure_message is None:
+                run_failure_message = "blocked changes remained after cleanup"
+
+        if allowed_changes:
+            print("Allowed changes:")
+            for rel_path in sorted(set(allowed_changes)):
+                print(f"  - {rel_path}")
         else:
-            bound_session_dir = bind_latest_session_to_explicit_id(session_id)
-            print(f"Bound latest Vibe session log to explicit session ID in {bound_session_dir}")
+            print(f"Pass {run_index}/{args.run_count} completed without repository changes.")
 
-            print("Running Mistral Vibe (pass 2/2, resume) …")
-            result = run_vibe(
-                build_resume_prompt(target_label),
-                vibe_executable=vibe_executable,
-                resume_session_id=session_id,
-                bootstrap_from_file=False,
+        try:
+            push_result = commit_and_push_run(
+                commit_message=build_commit_message(
+                    researcher_label=researcher_label,
+                    target_label=target_label,
+                    run_index=run_index,
+                    run_count=args.run_count,
+                    failed=run_failure_message is not None,
+                ),
+                target_label=target_label,
+                run_index=run_index,
             )
-            if result.timed_out:
-                failure_message = f"Mistral Vibe timed out during pass 2/2 after {MISTRAL_TIMEOUT_SECONDS} seconds."
-                exit_code = 124
-            elif result.returncode != 0:
-                failure_message = f"Mistral Vibe failed during pass 2/2 with exit code {result.returncode}."
-                exit_code = result.returncode
-    except Exception as exc:
-        failure_message = f"{type(exc).__name__}: {exc}"
-        exit_code = 1
+            last_pushed_branch = push_result.branch_name
+            print(f"Pushed researcher commit for pass {run_index}/{args.run_count} to {last_pushed_branch}.")
+        except Exception as exc:
+            run_failure_message = (
+                f"{run_failure_message} | " if run_failure_message else ""
+            ) + f"Commit/push failed after pass {run_index}/{args.run_count}: {exc}"
+            run_exit_code = 1
 
-    allowed_changes, blocked_changes = finalize_changes(
-        initial_changed_paths,
-        allowed_paths,
-        problem_name,
-        approach_name,
-        failure_message=failure_message,
-    )
-
-    if blocked_changes:
-        print("ERROR: blocked changes remain after cleanup.", file=sys.stderr)
-        exit_code = 1
-        if failure_message is None:
-            failure_message = "blocked changes remained after cleanup"
-
-    if allowed_changes:
-        print("Allowed changes:")
-        for rel_path in sorted(set(allowed_changes)):
-            print(f"  - {rel_path}")
-    else:
-        print("Mistral Vibe completed without repository changes.")
+        if run_failure_message is not None:
+            failure_message = run_failure_message
+            exit_code = run_exit_code
+            break
 
     emit_github_output("problem_name", problem_name)
     emit_github_output("approach_name", approach_name)
     emit_github_output("target_label", target_label)
     emit_github_output("vibe_session_id", session_id)
+    emit_github_output("requested_run_count", str(args.run_count))
+    emit_github_output("completed_run_count", str(completed_runs))
+    emit_github_output("overall_timeout_reached", "true" if overall_timeout_reached else "false")
+    emit_github_output("pushed_branch", last_pushed_branch)
     emit_github_output("run_outcome", "success" if failure_message is None and exit_code == 0 else "failure")
     emit_github_output("failure_message", failure_message or "")
 
