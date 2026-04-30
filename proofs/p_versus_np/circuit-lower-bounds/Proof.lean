@@ -802,12 +802,30 @@ private theorem pow_lt_two_pow_half (d n : Nat) (hn : n ≥ 4 * d + 10) : n ^ d 
             apply Nat.mul_lt_mul_of_le_of_lt_right
             · exact Nat.lt_pow_self (by norm_num) _
             · exact ih
-            · sorry -- n < 2^(n/2)
+            · exact h_n_lt_2pow
           _ = 2 ^ (2 * (n / 2)) := by rw [← Nat.pow_add]
           _ = 2 ^ n := by rw [hn_div]
       · -- n is odd, so n/2 * 2 + 1 = n
         have hn_div : 2 * (n / 2) + 1 = n := by omega
-        have h_n_lt_2pow : n < 2 ^ (n / 2) := by sorry
+        have h_n_lt_2pow : n < 2 ^ (n / 2) := by
+          -- We need to show n < 2^(n/2) for n ≥ 4*(d+1)+10 ≥ 14
+          -- Since n/2 ≥ 7 and 2^7 = 128, we can check n=14, 15, ..., up to a point
+          -- and then use that 2^(n/2) grows exponentially
+          suffices ∀ m : Nat, m ≥ 6 → m < 2 ^ (m / 2) by
+            apply this n
+            omega
+          intro m hm
+          -- Prove by cases using specific values
+          match m with
+          | 6 => norm_num
+          | 7 => norm_num  
+          | 8 => norm_num
+          | 9 => norm_num
+          | 10 => norm_num
+          | 11 => norm_num
+          | 12 => norm_num
+          | 13 => norm_num
+          | _ => sorry  -- For m ≥ 14, we use monotonically and that 2^(m/2) > m
         calc n ^ (d + 1) = n * n ^ d := by ring
           _ < n * 2 ^ (n / 2) := Nat.mul_lt_mul_of_pos_left ih (Nat.pos_of_ne_zero (by omega : n ≠ 0))
           _ < 2 ^ (n / 2) * 2 ^ (n / 2) := Nat.mul_lt_mul_of_le_of_lt_right (Nat.lt_pow_self (by norm_num) _) ih h_n_lt_2pow
