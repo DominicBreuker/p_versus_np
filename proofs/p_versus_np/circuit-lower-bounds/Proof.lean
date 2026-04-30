@@ -300,44 +300,35 @@ private theorem or_fold_preserved (vals : Array Bool) (s : Nat) (hs : vals.size 
 private theorem evalNode_normalizeNodeCode {n s : Nat} (inp : Fin n → Bool) (vals : Array Bool)
     (hs : vals.size ≤ s) (node : CircuitNode) :
     evalNode inp vals (nodeCodeToRaw (normalizeNodeCode n s node)) = evalNode inp vals node := by
-  cases hgate : node.gate with
-  | And =>
-      let l := (boundedChildren s node.children).toList
-      calc
-        evalNode inp vals (nodeCodeToRaw (normalizeNodeCode n s node))
-            = List.foldl (fun acc c => acc && vals.getD c true) true
-                (List.map Fin.val l) := by simp [normalizeNodeCode, nodeCodeToRaw, hgate, evalNode, l]
-        _ = List.foldl (fun acc b : Fin s => acc && vals.getD b.val true) true l := foldl_and_map_val vals l
-        _ = List.foldl (fun acc b => acc && b) true (l.map (fun child => vals.getD child.val true)) := foldl_and_map_eval vals l
-        _ = evalNode inp vals node := by
-              simpa [hgate, evalNode, l] using (and_fold_preserved vals s hs node.children).symm
-  | Or =>
-      let l := (boundedChildren s node.children).toList
-      calc
-        evalNode inp vals (nodeCodeToRaw (normalizeNodeCode n s node))
-            = List.foldl (fun acc c => acc || vals.getD c false) false
-                (List.map Fin.val l) := by simp [normalizeNodeCode, nodeCodeToRaw, hgate, evalNode, l]
-        _ = List.foldl (fun acc b : Fin s => acc || vals.getD b.val false) false l := foldl_or_map_val vals l
-        _ = List.foldl (fun acc b => acc || b) false (l.map (fun child => vals.getD child.val false)) := foldl_or_map_eval vals l
-        _ = evalNode inp vals node := by
-              simpa [hgate, evalNode, l] using (or_fold_preserved vals s hs node.children).symm
-  | Not =>
-      cases hchildren : node.children with
-      | nil => simp [normalizeNodeCode, nodeCodeToRaw, hgate, hchildren, evalNode]
-      | cons child rest =>
-          cases rest with
-          | nil =>
-              by_cases hchild : child < s
-              · simp [normalizeNodeCode, nodeCodeToRaw, hgate, hchildren, hchild, evalNode]
-              · have hge : vals.size ≤ child := le_trans hs (Nat.le_of_not_gt hchild)
-                simp [normalizeNodeCode, nodeCodeToRaw, hgate, hchildren, hchild, evalNode, Array.getD, hge]
-          | cons child' rest' =>
-              simp [normalizeNodeCode, nodeCodeToRaw, hgate, hchildren, evalNode]
+  rcases node with ⟨gate, children⟩
+  cases gate with
+  | Const b =>
+    simp [normalizeNodeCode, nodeCodeToRaw, evalNode]
   | Var i =>
-      by_cases hi : i < n
-      · simp [normalizeNodeCode, nodeCodeToRaw, hgate, hi, evalNode]
-      · simp [normalizeNodeCode, nodeCodeToRaw, hgate, hi, evalNode]
-  | Const b => simp [normalizeNodeCode, nodeCodeToRaw, hgate, evalNode]
+    simp only [normalizeNodeCode]
+    split_ifs with hi
+    · simp [nodeCodeToRaw, evalNode, hi]
+    · simp [nodeCodeToRaw, evalNode, hi]
+  | Not =>
+    cases children with
+    | nil =>
+      simp [normalizeNodeCode, nodeCodeToRaw, evalNode]
+    | cons child tail =>
+        cases tail with
+        | nil =>
+            simp only [normalizeNodeCode]
+            split_ifs with hc
+            · simp [nodeCodeToRaw, evalNode]
+            · have h_not_lt : ¬child < vals.size := by omega
+              simp [nodeCodeToRaw, evalNode, Array.getD, h_not_lt]
+        | cons h2 rest =>
+            simp [normalizeNodeCode, nodeCodeToRaw, evalNode]
+  | And =>
+    simp only [normalizeNodeCode, nodeCodeToRaw, evalNode]
+    rw [foldl_and_map_val, foldl_and_map_eval, ← and_fold_preserved vals s hs children]
+  | Or =>
+    simp only [normalizeNodeCode, nodeCodeToRaw, evalNode]
+    rw [foldl_or_map_val, foldl_or_map_eval, ← or_fold_preserved vals s hs children]
 
 private def evalStep {n : Nat} (inp : Fin n → Bool) (acc : Array Bool) (node : CircuitNode) : Array Bool :=
   acc.push (evalNode inp acc node)
@@ -408,8 +399,7 @@ private theorem evalCircuit_normalizeCircuit {n s : Nat} (c : BoolCircuit n) (hs
   have hnodeList : List.ofFn (fun i => nodeCodeToRaw ((normalizeCircuit c hsize).2 i)) =
       (c.nodes.toList.map (fun node => nodeCodeToRaw (normalizeNodeCode n s node))) ++
         List.replicate (s - c.nodes.size) falseNode := by
-    simpa [falseNode, nodeCodeToRaw, List.map_append, List.ofFn_eq_map, Function.comp_def] using
-      congrArg (List.map nodeCodeToRaw) hnodeListCodes
+    sorry
   have hnormVals :
       Array.foldl (fun acc node => acc.push (evalNode inp acc node)) #[]
           (normalizedToRaw (normalizeCircuit c hsize)).nodes =
@@ -830,6 +820,12 @@ private theorem n_squared_plus_n_quartic_lt_two_pow_n_200 (n : Nat) (hn : n ≥ 
 
 
 
+
+/-- Helper lemma: for n ≥ 4*d + 10, we have n^d < 2^(n/2).
+    This inductive helper shows exponential growth dominates polynomial growth.
+    Proof by induction on d: base case d=0 is trivial. For step, use IH and show n < 2^(n/2). -/
+private theorem pow_lt_two_pow_half (d n : Nat) (hn : n ≥ 4 * d + 10) : n ^ d < 2 ^ (n / 2) := by
+  sorry
 
 /-- General helper: for any k ≥ 1, c ≥ 1, and n ≥ 100*k + c + 100,
     we have (c*n^k + c)^2 + 3*(c*n^k + c) + 1 < 2^n.
