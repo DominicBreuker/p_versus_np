@@ -51,35 +51,34 @@ Treat it as progress on the route, not as a solved proof of P vs NP.
 
 ### Task 6 — COMPLETE
 
-`circuit_count_lt_functions_at_n` compiles for all `n ≥ 4` without `sorry`. The helper chain
-`n_plus_one_le_two_pow_n`, `n_plus_one_pow_le_two_pow_n_times_n_plus_one`, and
-`n_squared_plus_two_n_lt_two_pow_n` are all proven. No further work is needed on Task 6.
+`circuit_count_lt_functions_at_n` compiles for all `n ≥ 4` without `sorry`. No further work needed.
 
 ### Task 7 — Complete `shannon_counting_argument` (two `sorry`s remain)
 
-**Sorry 1: `poly_quadratic_bound_k_ge_1` (line 272)**
+**Sorry 1: `poly_quadratic_bound_k_ge_1` — n ≥ 67108864 case (line 1259)**
 
-Goal: for k ≥ 1, c ≥ 1, and n ≥ 100*k + c + 100, prove
-`(c * n^k + c + c)^2 + 3*(c * n^k + c + c) + 1 < 2^n`.
+The proof handles each power-of-2 range up to `n < 67108864` by explicit case splits. The branch `n ≥ 67108864` uses `sorry`.
+
+Two viable approaches:
+- **Extend the case split:** Add one more doubling step using the same pattern already established (bound `n < 134217728 = 2^27`, compute the matching `k` bound, apply `norm_num` and `omega`). This follows directly from the pattern at lines 1231–1252.
+- **General lemma:** Prove `pow_lt_two_pow : ∀ m n, n ≥ 2*m + 10 → n^m < 2^n` by induction on `m`. Then replace all the case-split branches with a single application of this lemma. The base case `n^0 = 1 < 2^n` is trivial; the inductive step uses `n^(m+1) = n * n^m < n * 2^n ≤ 2^n * 2^n = 2^(2n) ≤ 2^(2^n)` together with exponential dominance.
+
+**Sorry 2: Pigeonhole step in `shannon_counting_argument` (line 1815)**
+
+Goal: `boolean_function_count n ≤ circuit_count_upper_bound n (p n)`.
+
+Context: `h_all_computable` gives that every Boolean function has a circuit of size ≤ `p n`; `circuitForFunction` (defined nearby using `Classical.choose`) maps each function to such a circuit and its injectivity is already proven (see lines 1240–1258).
 
 Recommended approach:
-- Prove a general lemma `pow_lt_two_pow`: for any m and n ≥ 2*m + 10, `n^m < 2^n`. This can be done by strong induction on m, using the inductive step `n^(m+1) = n * n^m < n * 2^n ≤ 2^n * 2^n = 2^(2n) ≤ 2^(2^n)` together with exponential dominance for the base cases.
-- Once `pow_lt_two_pow` is available, bound `(c * n^k + c + c)^2` by a polynomial in `n^k` and use `pow_lt_two_pow` to finish.
-
-**Sorry 2: Pigeonhole step in `shannon_counting_argument` (line 540)**
-
-Goal: derive `False` from `h_all_computable` (every Boolean function is computed by a circuit of size ≤ p n) together with `h_count` (circuit count < boolean function count).
-
-Recommended approach:
-- Define an injective map from `Bool^(Fin n → Bool)` (Boolean functions) to circuits of size ≤ p n; then use `Fintype.card_le_of_injective` or a surjection argument.
-- Alternatively, use `Finset.card_le_card` on the finite set of circuits paired with the set of functions they compute.
-- This step requires working with `Fintype` instances for `Fin n → Bool` and for circuits bounded in size.
+- Apply `Fintype.card_le_of_injective` with `circuitForFunction` as the injection.
+- This requires `Fintype` instances for `(Fin n → Bool) → Bool` (the type of Boolean functions) and for the type of circuits bounded in size. The function type already has a `Fintype` instance in Mathlib. For the circuit bound, you may need to show the image lands in a `Finset` whose cardinality is `circuit_count_upper_bound n (p n)`.
+- Alternatively, derive `boolean_function_count n ≤ circuit_count_upper_bound n (p n)` directly from the definitions using `Finset.card_le_card` on a suitable pair of finsets.
 
 Keep the final statement honest: Shannon counting yields existential lower bounds for *some* Boolean functions, not a SAT-specific lower bound.
 
 ## Guidance for the next researcher pass
 
-- Focus on `poly_quadratic_bound_k_ge_1` first; it is the most tractable remaining sorry.
+- Focus on `poly_quadratic_bound_k_ge_1` (Sorry 1) first; it is the most tractable remaining sorry.
 - Once Task 7 compiles, stop and reassess before adding any stronger claim: the next missing ingredient would still be an explicit SAT lower bound, not more existential counting.
 - Do not branch from this folder into quantum, proof-complexity, or GCT explorations unless the Project Leader creates a separate justified route.
 

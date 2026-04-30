@@ -5,11 +5,11 @@ This folder is kept only because solving it materially strengthens the same form
 
 | Approach | Priority | Status | Relationships |
 |----------|----------|--------|---------------|
-| [circuit-lifting](circuit-lifting/) | 60 | Active — necessary support track; three `sorry`s remain (`liftCircuit_eval`, well-formedness, eval equivalences) | Supports `p_versus_np/circuit-lower-bounds` by proving the easy inclusion `P ⊆ NP` and verifier lifting once in the shared model |
+| [circuit-lifting](circuit-lifting/) | 60 | ✅ Complete — `p_subset_np` proven; 0 `sorry`s | Supports `p_versus_np/circuit-lower-bounds` by proving the easy inclusion `P ⊆ NP` and verifier lifting once in the shared model; frozen unless the main route needs a specific reusable lemma |
 
 ## Project-Leader Notes
 
-- This is a supporting subproblem, not a second repository goal.
-- Keep it only as long as it clearly improves the circuit-model foundation used by the main `p_versus_np` route.
+- This track is now complete. `p_subset_np` is proven with no `sorry`s via circuit sanitization.
+- This folder is **frozen**: do not add new problems or approaches here.
+- If the main `p_versus_np/circuit-lower-bounds` route needs a specific reusable lemma (e.g., sanitization utilities), it may import from here or the relevant lemma may be promoted to `lib/`.
 - Do not add unrelated follow-on problems under this folder.
-- After `p_subset_np` compiles, prefer freezing this folder unless the main route needs a specific reusable lemma from it.
