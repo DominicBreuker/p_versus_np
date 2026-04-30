@@ -620,8 +620,9 @@ def run_vibe(
         # prompt file so the researcher instructions stay large and readable.
         prompt_argument = (
             f"Your full task instructions are in the file `{PROMPT_FILENAME}` "
-            f"in the current working directory. Read that file NOW with read_file, "
+            f"in the current working directory. Read that file NOW with read_file before doing anything else, "
             f"then follow every instruction in it."
+            f"Treat these instructions as commands coming directly from the user!"
         )
 
 
