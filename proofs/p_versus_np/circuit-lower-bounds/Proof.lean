@@ -1280,17 +1280,36 @@ theorem shannon_counting_argument :
   -- Therefore, the number of functions (boolean_function_count n) ≤ the number of circuits.
   -- And circuit_count_upper_bound n (p n) is an upper bound on the number of circuits.
   have h_ge : boolean_function_count n ≤ circuit_count_upper_bound n (p n) := by
-    -- The key insight: h_all_computable gives us that every Boolean function has size ≤ p n circuit
-    -- We can use a classical choice to get a map from functions to circuits
-    let circuitForFunction (f : (Fin n → Bool) → Bool) : {c : BoolCircuit n // circuitSize c ≤ p n} :=
-      ⟨Classical.choose (h_all_computable f), (Classical.choose_spec (h_all_computable f)).1⟩
-    -- circuitForFunction selects a circuit for each function
-    -- We need to show it's surjective to get the cardinality bound
-    -- But actually, circuitForFunction might not be injective (different circuits can compute same function)
-    -- What we actually need is a surjection FROM circuits TO functions
+    -- Use surjectivity of the evalCircuit map
+    -- Define the evaluation map from circuits to functions
+    let evalMap : BoolCircuit n → ((Fin n → Bool) → Bool) :=
+      fun c => evalCircuit c
     
-    -- Alternative approach: use the fact that the image of circuitForFunction contains all functions
-    -- But circuitForFunction maps function → circuit, not circuit → function
+    -- We need a Fintype instance for circuits of size ≤ p n
+    -- And for the type of all circuits (which is infinite...)
+    -- 
+    -- Actually, we'll use h_all_computable which gives us that every function has a preimage
+    -- This means evalMap is surjective (restricted to circuits of size ≤ p n)
+    
+    -- Key lemma: Fintype.card (BoolCircuit n) ≤ circuit_count_upper_bound n s is not directly useful
+    -- because BoolCircuit n is infinite. We need to be more careful.
+    
+    -- Instead, let's use the fact that h_all_computable gives us a right inverse
+    -- Define a partial choice function: for each function, pick ONE circuit that computes it
+    let circuitForFunction : ((Fin n → Bool) → Bool) → {c : BoolCircuit n // circuitSize c ≤ p n} :=
+      fun f => Classical.choose (h_all_computable f)
+    
+    -- The key observation: if c ∈ range(circuitForFunction), then circuitSize c ≤ p n
+    -- And for each such c, there are only finitely many f that it can map to
+    -- (in fact, exactly one: the function it computes)
+    
+    -- So |range(circuitForFunction)| ≤ |{c : BoolCircuit n // circuitSize c ≤ p n}|
+    -- And |{f : (Fin n → Bool) → Bool}| = boolean_function_count n  
+    -- And all f are in range(circuitForFunction) by h_all_computable
+    -- Therefore boolean_function_count n ≤ |{c : BoolCircuit n // circuitSize c ≤ p n}|
+    
+    -- Now we need to bound |{c : BoolCircuit n // circuitSize c ≤ p n}| ≤ circuit_count_upper_bound n (p n)
+    -- This requires counting circuits, which needs normalization
     
     sorry
   exact Nat.lt_irrefl (boolean_function_count n) (Nat.lt_of_le_of_lt h_ge h_count)
