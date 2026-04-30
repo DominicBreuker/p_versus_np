@@ -825,7 +825,26 @@ private theorem n_squared_plus_n_quartic_lt_two_pow_n_200 (n : Nat) (hn : n ≥ 
     This inductive helper shows exponential growth dominates polynomial growth.
     Proof by induction on d: base case d=0 is trivial. For step, use IH and show n < 2^(n/2). -/
 private theorem pow_lt_two_pow_half (d n : Nat) (hn : n ≥ 4 * d + 10) : n ^ d < 2 ^ (n / 2) := by
-  sorry
+  induction d with
+  | zero => simp; omega
+  | succ d ih =>
+      -- IH: n^d < 2^(n/2)
+      -- Need: n^(d+1) < 2^(n/2)
+      have hd : d ≥ 0 := by omega
+      have hn6 : n ≥ 6 := by omega
+      by_cases h_even : 2 ∣ n
+      · -- n is even
+        have hn_div : 2 * (n / 2) = n := Nat.div_mul_cancel h_even
+        calc n ^ (d + 1) = n * n ^ d := by ring
+          _ < n * 2 ^ (n / 2) := Nat.mul_lt_mul_of_pos_left ih (Nat.pos_of_ne_zero (by omega : n ≠ 0))
+          _ < 2 ^ (n / 2) * 2 ^ (n / 2) := Nat.mul_lt_mul_of_le_of_lt_right _ _ (Nat.lt_pow_self (by norm_num) _) ih
+            where _ : n < 2 ^ (n / 2) := by
+              -- Need: for n ≥ 4*(d+1)+10, n < 2^(n/2)
+              sorry
+          _ = 2 ^ (2 * (n / 2)) := by rw [← Nat.pow_add]
+          _ = 2 ^ n := by rw [hn_div]
+      · -- n is odd, so n/2 * 2 + 1 = n
+        sorry
 
 /-- General helper: for any k ≥ 1, c ≥ 1, and n ≥ 100*k + c + 100,
     we have (c*n^k + c)^2 + 3*(c*n^k + c) + 1 < 2^n.
