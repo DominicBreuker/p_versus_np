@@ -1,12 +1,14 @@
 name: Researcher
 
 on:
+  schedule:
+    - cron: '15 * * * *'
   workflow_dispatch:
     inputs:
       lean_researcher_run_count:
         description: Number of Vibe passes to run per lean researcher invocation
         required: false
-        default: '3'
+        default: '5'
       devstral_researcher_run_count:
         description: Number of Vibe passes to run per devstral researcher invocation
         required: false
