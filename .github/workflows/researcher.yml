@@ -111,7 +111,7 @@ jobs:
       - name: Run Lean Researcher Agent
         id: researcher-lean
         env:
-          MISTRAL_VIBE_KEY: ${{ secrets.MISTRAL_VIBE_KEY }}
+          MISTRAL_VIBE_KEY: ${{ secrets.MISTRAL_LABS_KEY }}
           MISTRAL_MODEL: ${{ vars.MISTRAL_MODEL }}
           MISTRAL_AGENT: "lean"
         run: python .github/scripts/researcher.py
