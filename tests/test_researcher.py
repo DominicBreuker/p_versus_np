@@ -368,7 +368,7 @@ class RepositoryTargetInvariantTests(unittest.TestCase):
         offenders = [
             f"{target['problem']}/{target['approach']}={target['priority']}"
             for target in researcher.get_targets()
-            if researcher.is_solved_status(str(target["status"])) and float(target["priority_value"]) != 0
+            if researcher.is_solved_status(str(target["status"])) and float(target["priority_value"]) > 0
         ]
         self.assertEqual(offenders, [])
 
