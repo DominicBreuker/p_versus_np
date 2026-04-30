@@ -291,6 +291,12 @@ private theorem four_n_squared_plus_six_n_plus_one_lt_two_pow_n (n : Nat) (hn : 
       _ = 2 * 2^k := by ring
       _ = 2 ^ (k + 1) := by rw [Nat.pow_succ]; ring
 
+
+
+
+
+
+
 /-- Helper lemma: for n ≥ 200, n^4 + 3*n^2 + 1 < 2^n. -/
 private theorem n_quartic_plus_lt_two_pow_n_200 (n : Nat) (hn : n ≥ 200) : n ^ 4 + 3 * n ^ 2 + 1 < 2 ^ n := by
   -- Base case: n = 200
@@ -368,6 +374,8 @@ private theorem n_quartic_plus_lt_two_pow_n_200 (n : Nat) (hn : n ≥ 200) : n ^
       _ = 2 * 2^k := by ring
       _ = 2 ^ (k + 1) := by rw [Nat.pow_succ]; ring
 
+
+
 /-- General helper: for any k ≥ 1, c ≥ 1, and n ≥ 100*k + c + 100,
     we have (c*n^k + c)^2 + 3*(c*n^k + c) + 1 < 2^n.
     This handles the k ≥ 1 case of poly_quadratic_bound.
@@ -376,8 +384,6 @@ private theorem n_quartic_plus_lt_two_pow_n_200 (n : Nat) (hn : n ≥ 200) : n ^
     The LHS is a polynomial in n of degree 2k, while the RHS grows exponentially.
     For sufficiently large n, exponential growth dominates polynomial growth.
     The threshold ensures n is large enough for this to hold for all k ≥ 1, c ≥ 1.
-    Formalizing this in Lean's Nat arithmetic requires proving that n^(2k) < 2^n
-    for n ≥ 100*k + c + 100. This is left as sorry for now.
     -/
 private theorem poly_quadratic_bound_k_ge_1 (k c n : Nat) (hk : k ≥ 1) (hc : c ≥ 1)
     (hn : n ≥ 100 * k + c + 100) :
@@ -426,12 +432,28 @@ private theorem poly_quadratic_bound_k_ge_1 (k c n : Nat) (hk : k ≥ 1) (hc : c
         _ = n ^ 4 + 3 * n ^ 2 + 1 := by ring
         _ < 2 ^ n := n_quartic_plus_lt_two_pow_n_200 n hn200
     | succ k =>
-      -- k ≥ 2
-      -- For k ≥ 2, we have n ≥ 100*(k+1) + c + 100 ≥ 301
-      -- We use a general approach: bound c * n^(k+1) + c by n^(k+1) + n^(k+1) = 2*n^(k+1)
-      -- Then (2*n^(k+1))^2 + 3*(2*n^(k+1)) + 1 = 4*n^(2k+2) + 6*n^(k+1) + 1
-      -- For n ≥ 301 and k ≥ 2, this is < 2^n
-      -- We can use induction on n
+      -- k ≥ 2, so the original k in the theorem is k+2 ≥ 4
+      -- We have n ≥ 100*(k+2) + c + 100 ≥ 501
+      -- For such large n, exponential growth (2^n) dominates polynomial growth (n^(2k+6))
+      -- We use a direct approach: bound the polynomial and use the existing quartic lemma
+      have hn500 : n ≥ 500 := by omega
+      have hc_le_n : c ≤ n := by omega
+      -- Bound: c * n^(k+2) + c < n^4 (since c < n and n^(k+2) < n^4 for k+2 < 4, but k+2 ≥ 4)
+      -- Actually, for k ≥ 2, k+2 ≥ 4, so n^(k+2) ≥ n^4
+      -- But we can bound: c * n^(k+2) + c ≤ n * n^(k+2) + n ≤ n^(k+3) + n^4 (for n ≥ 1)
+      -- This is getting complex. Let me use a simpler approach.
+      -- Since n ≥ 100*(k+2) + c + 100, we have n ≥ 501
+      -- We can show: (c * n^(k+2) + c)^2 + 3*(c * n^(k+2) + c) + 1 < 2^n
+      -- by using the fact that for n ≥ 500, n^10 + 3*n^5 + 1 < 2^n
+      -- and for k ≥ 2, (c * n^(k+2) + c)^2 + 3*(c * n^(k+2) + c) + 1 ≤ n^10 + 3*n^5 + 1
+      -- But this requires c * n^(k+2) + c ≤ n^5, which is false for k ≥ 2
+      -- Let me try yet another approach: just use the existing n_quartic_plus_lt_two_pow_n_200
+      -- We have n ≥ 500, so n^4 + 3*n^2 + 1 < 2^n
+      -- We need to show (c * n^(k+2) + c)^2 + 3*(c * n^(k+2) + c) + 1 < 2^n
+      -- For k ≥ 2 and n ≥ 501, we can verify this holds numerically
+      -- Since formalizing the general case is complex, we use a direct approach
+      -- We know that for n ≥ 500, 2^n grows much faster than any polynomial
+      -- So the inequality holds. We leave this as sorry for now.
       sorry
 
 /-- Helper for k=0: For c ≥ 0 and n ≥ 2*c + 5, 4*c^2 + 6*c + 1 < 2^n. -/
@@ -655,55 +677,22 @@ theorem shannon_counting_argument :
   -- This means every Boolean function is computed by some circuit of size ≤ p n
   -- But we've shown circuit_count_upper_bound n (p n) < boolean_function_count n
   --
-  -- Key insight: boolean_function_count n = 2^(2^n) is the number of distinct
-  -- Boolean functions on n inputs. Each function can be identified with a
-  -- number in [0, 2^(2^n) - 1] via its truth table.
+  -- Key insight: h_all_computable gives us a function that maps each Boolean function
+  -- to a circuit that computes it. This function is injective:
+  -- if f ≠ g, then any circuit computing f cannot compute g (since circuits compute unique functions)
   --
-  -- circuit_count_upper_bound n (p n) is an upper bound on the number of
-  -- distinct circuits of size ≤ p n.
-  --
-  -- Since circuit_count_upper_bound n (p n) < 2^(2^n), there are more
-  -- possible truth tables than circuits. Therefore, by the pigeonhole principle,
-  -- at least two distinct truth tables must be computed by the same circuit,
-  -- or some truth table is not computed by any circuit.
-  --
-  -- Actually, h_all_computable says every function (truth table) is computed
-  -- by some circuit. This would mean there's a surjection from circuits to
-  -- truth tables. But there are more truth tables than circuits, which is
-  -- impossible.
-  --
-  -- We construct an injective function from truth tables to circuits
-  -- For each Boolean function f : (Fin n → Bool) → Bool, we choose a circuit c
-  -- that computes it (which exists by h_all_computable)
-  --
-  -- The existence of such an injective function would mean:
-  -- boolean_function_count n ≤ circuit_count_upper_bound n (p n)
-  -- But we have circuit_count_upper_bound n (p n) < boolean_function_count n
+  -- Therefore, the number of Boolean functions ≤ number of circuits of size ≤ p n
+  -- But boolean_function_count n = 2^(2^n) > circuit_count_upper_bound n (p n) ≥ number of circuits
   -- This is a contradiction.
   --
-  -- To formalize the existence of an injective function, we need to:
-  -- 1. Choose a specific circuit for each function (using choice)
-  -- 2. Show that if two functions are different, they must be computed by
-  --    different circuits
+  -- To formalize the injectivity: suppose f ≠ g but both map to the same circuit c
+  -- Then ∀ inp, evalCircuit c inp = f inp and ∀ inp, evalCircuit c inp = g inp
+  -- So f = g, which is a contradiction
   --
-  -- However, this is not necessarily true - two different functions could
-  -- be computed by the same circuit. So we need a different approach.
+  -- However, formalizing this requires working with function extensionality
+  -- and cardinality reasoning in Lean, which is complex for higher-order function types
   --
-  -- Instead, we use the fact that h_all_computable gives us a function
-  -- that maps each function to a circuit that computes it.
-  -- This is a surjection from circuits to functions (not necessarily injective).
-  --
-  -- The key insight is: if every function is computed by some circuit,
-  -- then the number of functions is at most the number of circuits.
-  -- But we've shown the opposite inequality.
-  --
-  -- To see why this is a contradiction, note that if we have a surjection
-  -- from a set A to a set B, then |A| ≥ |B|.
-  -- Here, circuits form set A and functions form set B.
-  -- But |A| < |B|, so there cannot be a surjection from A to B.
-  --
-  -- However, formalizing this argument requires Fintype instances and
-  -- cardinality lemmas that are not currently available.
+  -- For now, we leave this as sorry
   sorry
 
 -- ---------------------------------------------------------------------------
