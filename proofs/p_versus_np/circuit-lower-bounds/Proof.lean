@@ -386,28 +386,15 @@ private theorem normalizeCircuit_nodes_list {n s : Nat} (c : BoolCircuit n) (hsi
 private theorem evalCircuit_normalizeCircuit {n s : Nat} (c : BoolCircuit n) (hsize : circuitSize c ≤ s)
     (inp : Fin n → Bool) :
     evalCircuit (normalizedToRaw (normalizeCircuit c hsize)) inp = evalCircuit c inp := by
-  -- Unfold evalCircuit on both sides
+  -- Strategy: Show that evaluation is invariant under normalization
+  -- The normalized circuit has c.nodes followed by (s - c.nodes.size) const-false nodes
+  -- Evaluation of const-false nodes doesn't change the accumulated values
   unfold evalCircuit normalizedToRaw normalizeCircuit
-  -- Convert Array.foldl to List.foldl
-  simp only [Array.foldl_toList]
-  -- Use normalizeCircuit_nodes_list to split the normalized node list
-  rw [normalizeCircuit_nodes_list c hsize]
-  -- Apply List.foldl_append
-  rw [List.foldl_append]
-  -- The prefix fold: apply evalStep_fold_normalized_eq
-  have hbound : c.nodes.size + (s - c.nodes.size) ≤ s := by
-    rw [Nat.add_sub_of_le hsize]
-  rw [evalStep_fold_normalized_eq inp #[ ] _ hbound]
-  -- The suffix: each evaluates to false, doesn't change earlier positions
-  -- Case split on whether c.output < c.nodes.size
-  by_cases hout : c.output < c.nodes.size
-  · -- If output is in the original nodes, use evalStep_fold_getElem?_preserve
-    have : c.output = c.nodes.size + (c.output - c.nodes.size) := by omega
-    simp [Array.getElem?_eq_getElem (Nat.le_of_lt hsize)]
-    rw [evalStep_fold_getElem?_preserve inp #[] _ _ (c.output - c.nodes.size) (by omega)]
-    simp
-  · -- If output is in the padding, both sides evaluate to false
-    sorry
+  -- Both sides create an array by folding over nodes
+  -- LHS folds over: normalizeCircuit c hsize nodes (which are c.nodes padded with const false)
+  -- RHS folds over: c.nodes
+  -- We need to show these produce the same final array
+  sorry
 
 private def encodeNodeCode {n s : Nat} : NodeCode n s → Bool ⊕ Fin n ⊕ Fin s ⊕ Finset (Fin s) ⊕ Finset (Fin s)
   | .const b => Sum.inl b
