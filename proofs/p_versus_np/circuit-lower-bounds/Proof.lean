@@ -267,21 +267,21 @@ private theorem four_n_squared_plus_six_n_plus_one_lt_two_pow_n (n : Nat) (hn : 
     calc (4 * (k + 1) ^ 2 + 6 * (k + 1) + 1)
         = 4 * (k^2 + 2*k + 1) + 6*k + 6 + 1 := by ring
       _ = 4*k^2 + 8*k + 4 + 6*k + 7 := by ring
-      _ = 4*k^2 + 6*k + 1 + (2*k + 6) := by ring
-      _ < 2^k + (2*k + 6) := by omega
-      _ ≤ 2^k + 2^k := by
-          have : 2 * k + 6 ≤ 2 ^ k := by
-            -- For k ≥ 196, 2*k + 6 ≤ 2^k
-            have base : 2 * 196 + 6 ≤ 2 ^ 196 := by norm_num
-            have step : ∀ m ≥ 196, 2 * m + 6 ≤ 2 ^ m → 2 * (m + 1) + 6 ≤ 2 ^ (m + 1) := by
+      _ = 4*k^2 + 6*k + 1 + (8*k + 10) := by ring
+      _ < 2^k + (8*k + 10) := by omega
+      _ ≤ 2 * 2^k := by
+          have : 8 * k + 10 ≤ 2 ^ k := by
+            -- For k ≥ 196, 8*k + 10 ≤ 2^k
+            have base : 8 * 196 + 10 ≤ 2 ^ 196 := by norm_num
+            have step : ∀ m ≥ 196, 8 * m + 10 ≤ 2 ^ m → 8 * (m + 1) + 10 ≤ 2 ^ (m + 1) := by
               intro m hm h
-              calc 2 * (m + 1) + 6 = 2 * m + 2 + 6 := by ring
-                _ ≤ 2 ^ m + 2 := by omega
+              calc 8 * (m + 1) + 10 = 8 * m + 8 + 10 := by ring
+                _ = 8 * m + 18 := by ring
+                _ ≤ 2 ^ m + 8 := by omega
                 _ ≤ 2 ^ m + 2 ^ m := by
-                    have : 2 ≤ 2 ^ m := by
-                      have : m ≥ 1 := by omega
-                      have : 1 ≤ m := by omega
-                      calc 2 = 2 ^ 1 := by norm_num
+                    have : 8 ≤ 2 ^ m := by
+                      have : m ≥ 3 := by omega
+                      calc 8 = 2 ^ 3 := by norm_num
                         _ ≤ 2 ^ m := Nat.pow_le_pow_right (by norm_num) this
                     omega
                 _ = 2 * 2 ^ m := by ring
@@ -299,86 +299,13 @@ private theorem four_n_squared_plus_six_n_plus_one_lt_two_pow_n (n : Nat) (hn : 
     The LHS is a polynomial in n of degree 2k, while the RHS grows exponentially.
     For sufficiently large n, exponential growth dominates polynomial growth.
     The threshold ensures n is large enough for this to hold for all k ≥ 1, c ≥ 1.
-    Formalizing this in Lean's Nat arithmetic is complex due to the need to handle
-    arbitrary k and c with precise bounds. -/
+    Formalizing this in Lean's Nat arithmetic requires proving that n^(2k) < 2^n
+    for n ≥ 100*k + c + 100. This is left as sorry for now.
+    -/
 private theorem poly_quadratic_bound_k_ge_1 (k c n : Nat) (hk : k ≥ 1) (hc : c ≥ 1)
     (hn : n ≥ 100 * k + c + 100) :
     (c * n ^ k + c) ^ 2 + 3 * (c * n ^ k + c) + 1 < 2 ^ n := by
-  -- We use induction on n starting from n₀ = 100*k + c + 100
-  let n₀ := 100 * k + c + 100
-  have hn₀ : n ≥ n₀ := hn
-  have hn₀_ge_200 : n₀ ≥ 200 := by omega
-
-  -- Prove ∀ m ≥ n₀, (c * m^k + c)^2 + 3*(c * m^k + c) + 1 < 2^m
-  suffices ∀ m ≥ n₀, (c * m ^ k + c) ^ 2 + 3 * (c * m ^ k + c) + 1 < 2 ^ m by
-    exact this n hn₀
-
-  intro m hm
-  induction m, hm using Nat.le_induction with
-  | base =>
-    -- Base case: m = n₀
-    -- We need (c * n₀^k + c)^2 + 3*(c * n₀^k + c) + 1 < 2^n₀
-    -- Since n₀ ≥ 200, we can use the existing helper lemmas
-    -- Bound: c * n₀^k + c ≤ 2*c * n₀^k (since n₀^k ≥ 1)
-    have h_nk_ge_1 : n₀ ^ k ≥ 1 := Nat.one_le_pow k n₀ (by omega)
-    have hP_bound : c * n₀ ^ k + c ≤ 2 * c * n₀ ^ k := by
-      have : c * 1 ≤ c * n₀ ^ k := Nat.mul_le_mul_left c h_nk_ge_1
-      have : c ≤ c * n₀ ^ k := by omega
-      omega
-
-    -- LHS ≤ (2*c*n₀^k)^2 + 3*(2*c*n₀^k) + 1 = 4*c^2*n₀^(2k) + 6*c*n₀^k + 1
-    --     ≤ (4*c^2 + 6*c + 1) * n₀^(2k)
-    have hLHS_bound : (c * n₀ ^ k + c) ^ 2 + 3 * (c * n₀ ^ k + c) + 1 ≤
-        (4 * c ^ 2 + 6 * c + 1) * n₀ ^ (2 * k) := by
-      have h1 : (c * n₀ ^ k + c) ^ 2 ≤ (2 * c * n₀ ^ k) ^ 2 := Nat.pow_le_pow_left hP_bound 2
-      have h2 : 3 * (c * n₀ ^ k + c) ≤ 3 * (2 * c * n₀ ^ k) := Nat.mul_le_mul_left 3 hP_bound
-      have h3 : 1 ≤ (2 * c * n₀ ^ k) ^ 2 := by
-        have h_pos1 : 0 < 2 * c * n₀ ^ k := by omega
-        have h_ge1 : 1 ≤ 2 * c * n₀ ^ k := by omega
-        calc 1 = 1 ^ 2 := by norm_num
-          _ ≤ (2 * c * n₀ ^ k) ^ 2 := Nat.pow_le_pow_left h_ge1 2
-      omega
-
-    -- Now show (4*c^2 + 6*c + 1) * n₀^(2k) < 2^n₀
-    -- We have 4*c^2 + 6*c + 1 ≤ 4*n₀^2 + 6*n₀ + 1 < 2^n₀ (for n₀ ≥ 196)
-    have hc_le_n₀ : c ≤ n₀ := by omega
-    have hn₀_ge_196 : n₀ ≥ 196 := by omega
-    have h_poly_lt : 4 * c ^ 2 + 6 * c + 1 < 2 ^ n₀ := by
-      have : 4 * c ^ 2 + 6 * c + 1 ≤ 4 * n₀ ^ 2 + 6 * n₀ + 1 := by
-        have h1 : c ^ 2 ≤ n₀ ^ 2 := Nat.pow_le_pow_left hc_le_n₀ 2
-        have h2 : c ≤ n₀ := hc_le_n₀
-        omega
-      calc 4 * c ^ 2 + 6 * c + 1 ≤ 4 * n₀ ^ 2 + 6 * n₀ + 1 := this
-        _ < 2 ^ n₀ := four_n_squared_plus_six_n_plus_one_lt_two_pow_n n₀ hn₀_ge_196
-
-    -- And n₀^(2k) ≤ 2^n₀
-    -- We have n₀ ≥ 100*k + c + 100, so 2k ≤ n₀
-    have h_2k_le_n₀ : 2 * k ≤ n₀ := by omega
-    -- For n₀ ≥ 200 and 2k ≤ n₀, we have n₀^(2k) ≤ n₀^n₀
-    -- But we need n₀^(2k) ≤ 2^n₀ / (4*c^2 + 6*c + 1)
-    -- Actually, let's use a different approach: show n₀^(2k) ≤ 2^n₀ directly
-    -- We use the fact that n₀ ≥ 100*k + 101, so 2k ≤ (n₀ - 101) * 2 / 100 = (n₀ - 101) / 50
-    -- For n₀ ≥ 200, we have (n₀ - 101) / 50 ≥ 1
-    -- We need to show n₀^(2k) ≤ 2^n₀
-    -- This is equivalent to 2k * log2(n₀) ≤ n₀
-    -- With 2k ≤ (n₀ - 101) / 50, we need (n₀ - 101) / 50 * log2(n₀) ≤ n₀
-    -- For n₀ ≥ 200, log2(n₀) < n₀ / 10 (approximately), so (n₀ - 101) / 50 * n₀ / 10 < n₀
-    -- i.e., (n₀ - 101) / 500 < 1, i.e., n₀ < 601
-    -- So this only works for n₀ < 601.
-    -- For n₀ ≥ 601, we need a different approach.
-    -- Actually, let's use: n₀^(2k) ≤ n₀^n₀ (since 2k ≤ n₀)
-    -- And we need n₀^n₀ < 2^n₀, which is false for n₀ > 2.
-    -- So this approach doesn't work.
-    -- Let me try yet another approach: use the fact that for n₀ ≥ 200, n₀^2 < 2^n₀
-    -- And n₀^(2k) = (n₀^2)^k < (2^n₀)^k = 2^(k * n₀)
-    -- We need 2^(k * n₀) < 2^n₀, which means k * n₀ < n₀, i.e., k < 1, which contradicts k ≥ 1.
-    -- So this doesn't work either.
-    -- I think the fundamental issue is that the bound (4*c^2 + 6*c + 1) * n₀^(2k) is too loose.
-    -- Let me try a tighter bound for the LHS.
-    sorry
-  | succ m hm ih =>
-    -- Inductive step
-    sorry
+  sorry
 
 /-- Helper for k=0: For c ≥ 0 and n ≥ 2*c + 5, 4*c^2 + 6*c + 1 < 2^n. -/
 private theorem poly_quadratic_bound_k0 (c : Nat) (n : Nat) (hn : n ≥ 2 * c + 5) :
@@ -618,14 +545,38 @@ theorem shannon_counting_argument :
   -- truth tables. But there are more truth tables than circuits, which is
   -- impossible.
   --
-  -- To formalize this, we would need to:
-  -- 1. Define a Fintype instance for Fin (circuit_count_upper_bound n (p n))
-  -- 2. Define a Fintype instance for Fin (boolean_function_count n)
-  -- 3. Use h_all_computable to construct a surjection
-  -- 4. Use Fintype.card_le_of_surjective to get the contradiction
+  -- We construct an injective function from truth tables to circuits
+  -- For each Boolean function f : (Fin n → Bool) → Bool, we choose a circuit c
+  -- that computes it (which exists by h_all_computable)
   --
-  -- However, this requires significant infrastructure. For now, we note that
-  -- the mathematical content is clear and leave the formalization as sorry.
+  -- The existence of such an injective function would mean:
+  -- boolean_function_count n ≤ circuit_count_upper_bound n (p n)
+  -- But we have circuit_count_upper_bound n (p n) < boolean_function_count n
+  -- This is a contradiction.
+  --
+  -- To formalize the existence of an injective function, we need to:
+  -- 1. Choose a specific circuit for each function (using choice)
+  -- 2. Show that if two functions are different, they must be computed by
+  --    different circuits
+  --
+  -- However, this is not necessarily true - two different functions could
+  -- be computed by the same circuit. So we need a different approach.
+  --
+  -- Instead, we use the fact that h_all_computable gives us a function
+  -- that maps each function to a circuit that computes it.
+  -- This is a surjection from circuits to functions (not necessarily injective).
+  --
+  -- The key insight is: if every function is computed by some circuit,
+  -- then the number of functions is at most the number of circuits.
+  -- But we've shown the opposite inequality.
+  --
+  -- To see why this is a contradiction, note that if we have a surjection
+  -- from a set A to a set B, then |A| ≥ |B|.
+  -- Here, circuits form set A and functions form set B.
+  -- But |A| < |B|, so there cannot be a surjection from A to B.
+  --
+  -- However, formalizing this argument requires Fintype instances and
+  -- cardinality lemmas that are not currently available.
   sorry
 
 -- ---------------------------------------------------------------------------
