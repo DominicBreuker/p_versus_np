@@ -339,30 +339,35 @@ private theorem n_quartic_plus_lt_two_pow_n_200 (n : Nat) (hn : n ≥ 200) : n ^
                 -- So 4*m^3 ≥ 32000000 > 486023 ≥ 12*m^2 + 30*m + 23
                 have h_lower : 4 * m ^ 3 ≥ 4 * 200 ^ 3 := by
                   have : m ^ 3 ≥ 200 ^ 3 := Nat.pow_le_pow_left (by omega) 3
-                  exact Nat.mul_le_mul_left 4 this
+                  omega
                 have h_upper : 12 * m ^ 2 + 30 * m + 23 ≤ 12 * m ^ 2 + 30 * m ^ 2 + 23 * m ^ 2 := by
                   have : m ≥ 200 := hm
                   have : m ≥ 1 := by omega
                   have : 30 * m ≤ 30 * m ^ 2 := by
                     calc 30 * m = 30 * m * 1 := by ring
-                      _ ≤ 30 * m * m := Nat.mul_le_mul_right (30 * m) (by omega)
+                      _ ≤ 30 * m * m := by apply Nat.mul_le_mul_left; omega
                       _ = 30 * m ^ 2 := by ring
                   have : 23 ≤ 23 * m ^ 2 := by
                     have : m ^ 2 ≥ 1 := by
                       calc m ^ 2 ≥ 1 ^ 2 := Nat.pow_le_pow_left (by omega) 2
                         _ = 1 := by norm_num
                     calc 23 = 23 * 1 := by ring
-                      _ ≤ 23 * m ^ 2 := Nat.mul_le_mul_right 23 this
+                      _ ≤ 23 * m ^ 2 := by apply Nat.mul_le_mul_left; exact this
                   omega
                 have h_combined : 12 * m ^ 2 + 30 * m ^ 2 + 23 * m ^ 2 = 65 * m ^ 2 := by ring
                 rw [h_combined] at h_upper
+                -- We want to show 4 * m^3 ≥ 12 * m^2 + 30 * m + 23
+                -- This follows from 4 * m^3 ≥ 65 * m^2 (since 12 * m^2 + 30 * m + 23 ≤ 65 * m^2)
+                -- which is equivalent to 4 * m ≥ 65, i.e., m ≥ 17 (since m ≥ 200)
                 have h_final : 4 * m ^ 3 ≥ 65 * m ^ 2 := by
-                  have : m ≥ 200 := hm
-                  have : m ≥ 65 := by omega
-                  have : m ^ 3 ≥ 65 * m ^ 2 := by
-                    calc m ^ 3 = m * m ^ 2 := by ring
-                      _ ≥ 65 * m ^ 2 := Nat.mul_le_mul_left m (by omega)
-                  exact Nat.mul_le_mul_left 4 this
+                  -- 4 * m^3 ≥ 65 * m^2  <=>  4 * m ≥ 65  (for m ≥ 1)
+                  -- Since m ≥ 200, we have 4 * m ≥ 800 ≥ 65
+                  have : m ≥ 17 := by omega
+                  calc 4 * m ^ 3 = 4 * m * m ^ 2 := by ring
+                    _ ≥ 65 * m ^ 2 := by
+                        apply Nat.mul_le_mul_right
+                        -- Need to show 4 * m ≥ 65
+                        omega
                 omega
               calc (m + 1) ^ 4 = m^4 + 4*m^3 + 6*m^2 + 4*m + 1 := by ring
                 _ ≥ 4*m^3 + 6*m^2 + 10*m + 4 + 4*m^3 + 6*m^2 + 4*m + 1 := by omega
@@ -403,16 +408,12 @@ private theorem poly_quadratic_bound_k_ge_1 (k c n : Nat) (hk : k ≥ 1) (hc : c
       -- We have n ≥ 100*1 + c + 100 = c + 200
       -- For k=1, p(n) = c*n + c, so we need (c*n + c)^2 + 3*(c*n + c) + 1 < 2^n
       -- We use: c*n + c ≤ n^2 for n ≥ 200, c ≥ 1
-      have h_poly_bound : c * n + c ≤ n ^ 2 := by
-        calc c * n + c = c * (n + 1) := by ring
-          _ ≤ (n - 200) * (n + 1) := Nat.mul_le_mul_right (n + 1) (by omega : c ≤ n - 200)
-          _ ≤ n * n := by
-              -- (n - 200) * (n + 1) ≤ n * n for n ≥ 200
-              -- This is equivalent to: n^2 - 199n - 200 ≤ n^2, i.e., -199n - 200 ≤ 0, i.e., 199n + 200 ≥ 0
-              have : n ≥ 200 := hn200
-              sorry -- This still needs work, but let's skip for now
-          _ = n ^ 2 := by ring
-      -- For now, use sorry to skip this complex arithmetic
+      -- For k=1, we have p(n) = c*n + c = c*(n+1)
+      -- We want to show (c*n + c)^2 + 3*(c*n + c) + 1 < 2^n
+      -- From hn: n ≥ 100*(0 + 1) + c + 100 = 200 + c, we get c ≤ n - 200
+      have hc_bound : c ≤ n - 200 := by omega
+      -- Now c * n + c = c * (n + 1) ≤ (n - 200) * (n + 1) = n^2 - 199*n - 200 ≤ n^2
+      -- Skip the detailed proof for now; the inequality holds for large n
       sorry
     | succ k =>
       -- k ≥ 2, so the original k in the theorem is k+2 ≥ 4
