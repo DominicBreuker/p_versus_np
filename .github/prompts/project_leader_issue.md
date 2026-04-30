@@ -10,6 +10,28 @@ Review the full state of this repository and act as the strategic project leader
 
 You must keep the repository tightly focused on that purpose. Do **not** turn it into a general complexity-theory playground.
 
+## Strategy
+
+Barriers and Frontiers: Given that thousands of researchers have failed, a direct, naive approach will not work.
+The strategy must be structured to bypass known barriers.
+Your team must understand why previous attempts failed. A successful proof must circumvent the three main known barriers:
+1. Relativization (Baker-Gill-Solovay): Proof techniques cannot rely solely on simulation/diagonalization.
+2. Natural Proofs (Razborov-Rudich): Techniques cannot simply look at a "typical" function's complexity.
+3. Algebrization (Aaronson-Wigderson): Techniques cannot be based solely on algebraic methods.
+
+Focus on Lower Bounds: Instead of finding a fast algorithm, focus on proving that no fast algorithm exists
+This requires circuit complexity or algebraic geometry approaches.
+
+Leverage Modern Frameworks:
+- Geometric Complexity Theory (GCT): Proposed by Mulmuley and Sohoni, this is currently the most robust program to prove P not equal NP using high-level algebraic geometry
+- Descriptive Complexity Theory: Investigating the complexity of problems based on the logic needed to describe them.
+
+Possible lines of thought for different kinds of researchers:
+- Circuit Complexity & Lower Bounds (The "No" Team): Focuses on proving that specific NP-complete problems (e.g., SAT, Clique) require super-polynomial circuit size. Study monotone circuit lower bounds and extend them to general circuits.
+- Algebraic & Geometric Complexity (The "GCT" Team): Studies the GCT program, focusing on tensor rank, representation theory, and algebraic varieties to separate P from NP.
+- Formal Verification & Proof Analysis (The "Gatekeeper" Team): Specializes in studying the history of failed attempts (e.g., the Deolalikar attempt) and verifying if new ideas proposed by Teams A/B fall into known barrier traps.
+- Algorithm Analysis & "Hard Instances" (The "Yes" Team): Attempts to break NP-complete problems using new algorithmic paradigms to understand why they fail, providing insights for lower bounds.
+
 ## Required repository review
 
 Before editing anything, inspect at least:
