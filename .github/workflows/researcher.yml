@@ -81,6 +81,12 @@ jobs:
         run: |
           mkdir -p "$VIBE_HOME"
           cat > "$VIBE_HOME/config.toml" <<'EOF'
+          # Programmatic `vibe --prompt` only defaults to auto-approve when the
+          # default agent is used, so force non-interactive approvals here.
+          auto_approve = true
+          # The builtin Lean agent is opt-in upstream and must be installed explicitly.
+          installed_agents = ["lean"]
+
           [[mcp_servers]]
           name = "lean-lsp"
           transport = "stdio"
@@ -110,17 +116,17 @@ jobs:
           MISTRAL_AGENT: "lean"
         run: python .github/scripts/researcher.py
 
-      - name: Commit and push changes
+      - name: Commit and push lean changes
         if: always()
         run: |
           git config --global user.name "Lean-Researcher"
           git config --global user.email "lean-researcher@p-vs-np.github"
           git add .
           if ! git diff --quiet || ! git diff --staged --quiet; then
-            if [ "${{ steps.researcher.outputs.run_outcome }}" = "success" ]; then
-              git commit -m "Lean Researcher update: work on ${{ steps.researcher.outputs.target_label || 'proof target' }}"
+            if [ "${{ steps.researcher-lean.outputs.run_outcome }}" = "success" ]; then
+              git commit -m "Lean Researcher update: work on ${{ steps.researcher-lean.outputs.target_label || 'proof target' }}"
             else
-              git commit -m "Lean Researcher update (interrupted): work on ${{ steps.researcher.outputs.target_label || 'proof target' }}"
+              git commit -m "Lean Researcher update (interrupted): work on ${{ steps.researcher-lean.outputs.target_label || 'proof target' }}"
             fi
             git push
           fi
@@ -153,17 +159,17 @@ jobs:
             lake env lean "$f"
           done
 
-      - name: Commit and push changes
+      - name: Commit and push devstral changes
         if: always()
         run: |
           git config --global user.name "Devstral Researcher"
           git config --global user.email "devstral-researcher@p-vs-np.github"
           git add .
           if ! git diff --quiet || ! git diff --staged --quiet; then
-            if [ "${{ steps.researcher.outputs.run_outcome }}" = "success" ]; then
-              git commit -m "Devstral Researcher update: work on ${{ steps.researcher.outputs.target_label || 'proof target' }}"
+            if [ "${{ steps.researcher-devstral.outputs.run_outcome }}" = "success" ]; then
+              git commit -m "Devstral Researcher update: work on ${{ steps.researcher-devstral.outputs.target_label || 'proof target' }}"
             else
-              git commit -m "Devstral Researcher update (interrupted): work on ${{ steps.researcher.outputs.target_label || 'proof target' }}"
+              git commit -m "Devstral Researcher update (interrupted): work on ${{ steps.researcher-devstral.outputs.target_label || 'proof target' }}"
             fi
             git push
           fi
@@ -171,8 +177,12 @@ jobs:
       - name: Fail workflow if researcher or validation failed
         if: always()
         run: |
-          if [ "${{ steps.researcher.outcome }}" != "success" ]; then
-            echo "Researcher step failed."
+          if [ "${{ steps.researcher-lean.outcome }}" != "success" ]; then
+            echo "Lean researcher step failed."
+            exit 1
+          fi
+          if [ "${{ steps.researcher-devstral.outcome }}" != "success" ]; then
+            echo "Devstral researcher step failed."
             exit 1
           fi
           if [ "${{ steps.validate.outcome }}" != "success" ]; then

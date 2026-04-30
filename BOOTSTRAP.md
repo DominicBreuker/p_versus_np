@@ -13,7 +13,7 @@ Every workflow, prompt, proof target, and reference file should be evaluated aga
 | Agent | Runs | Model | Auth / Secret |
 |---|---|---|---|
 | Project Leader | Every 8 hours | GitHub Copilot coding agent (request strongest reasoning/math model in issue prompt) | `GH_PAT` |
-| Researcher | Every 30 minutes | Mistral Vibe (configurable model) | `MISTRAL_VIBE_KEY` |
+| Researcher | Every 30 minutes | Mistral Vibe (configurable model) | `MISTRAL_VIBE_KEY` / `MISTRAL_LABS_KEY` |
 
 ---
 
