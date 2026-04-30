@@ -386,46 +386,7 @@ private theorem normalizeCircuit_nodes_list {n s : Nat} (c : BoolCircuit n) (hsi
 private theorem evalCircuit_normalizeCircuit {n s : Nat} (c : BoolCircuit n) (hsize : circuitSize c ≤ s)
     (inp : Fin n → Bool) :
     evalCircuit (normalizedToRaw (normalizeCircuit c hsize)) inp = evalCircuit c inp := by
-  let rawVals : Array Bool := List.foldl (evalStep inp) #[] c.nodes.toList
-  let canonVals : Array Bool :=
-    List.foldl (evalStep inp) #[]
-      (c.nodes.toList.map (fun node => nodeCodeToRaw (normalizeNodeCode n s node)))
-  have hcanon : canonVals = rawVals := by
-    dsimp [canonVals, rawVals]
-    exact evalStep_fold_normalized_eq inp #[] c.nodes.toList (by simpa)
-  have hnodeListCodes : List.ofFn (normalizeCircuit c hsize).2 =
-      List.ofFn (fun i : Fin c.nodes.size => normalizeNodeCode n s (c.nodes[i])) ++
-        List.replicate (s - c.nodes.size) (NodeCode.const false) := normalizeCircuit_nodes_list c hsize
-  have hnodeList : List.ofFn (fun i => nodeCodeToRaw ((normalizeCircuit c hsize).2 i)) =
-      (c.nodes.toList.map (fun node => nodeCodeToRaw (normalizeNodeCode n s node))) ++
-        List.replicate (s - c.nodes.size) falseNode := by
-    sorry
-  have hnormVals :
-      Array.foldl (fun acc node => acc.push (evalNode inp acc node)) #[]
-          (normalizedToRaw (normalizeCircuit c hsize)).nodes =
-        List.foldl (evalStep inp) #[] ((c.nodes.toList.map (fun node => nodeCodeToRaw (normalizeNodeCode n s node))) ++
-          List.replicate (s - c.nodes.size) falseNode) := by
-    simp [normalizedToRaw, evalStep, Array.foldl_toList, Array.toList_ofFn, hnodeList]
-  have hrawVals :
-      Array.foldl (fun acc node => acc.push (evalNode inp acc node)) #[] c.nodes = rawVals := by
-    simp [rawVals, evalStep, Array.foldl_toList]
-  unfold evalCircuit
-  rw [hnormVals, hrawVals, List.foldl_append]
-  simp only [canonVals, rawVals]
-  rw [hcanon]
-  by_cases houtput : c.output < c.nodes.size
-  · have hsizeVals : rawVals.size = c.nodes.size := by
-      dsimp [rawVals]
-      simpa using evalStep_fold_size inp #[] c.nodes.toList
-    have hprefix : (List.foldl (evalStep inp) rawVals (List.replicate (s - c.nodes.size) falseNode))[c.output]? =
-        rawVals[c.output]? := by
-      apply evalStep_fold_getElem?_preserve inp rawVals (List.replicate (s - c.nodes.size) falseNode) c.output
-      simpa [hsizeVals] using houtput
-    simp [normalizedToRaw, normalizeCircuit, houtput, hsizeVals, hprefix]
-  · have hsizeVals : rawVals.size = c.nodes.size := by
-      dsimp [rawVals]
-      simpa using evalStep_fold_size inp #[] c.nodes.toList
-    simp [normalizedToRaw, normalizeCircuit, houtput, hsizeVals, Array.getD]
+  sorry
 
 private def encodeNodeCode {n s : Nat} : NodeCode n s → Bool ⊕ Fin n ⊕ Fin s ⊕ Finset (Fin s) ⊕ Finset (Fin s)
   | .const b => Sum.inl b
@@ -844,7 +805,22 @@ private theorem pow_lt_two_pow_half (d n : Nat) (hn : n ≥ 4 * d + 10) : n ^ d 
           _ = 2 ^ (2 * (n / 2)) := by rw [← Nat.pow_add]
           _ = 2 ^ n := by rw [hn_div]
       · -- n is odd, so n/2 * 2 + 1 = n
-        sorry
+        have hn_div : 2 * (n / 2) + 1 = n := by omega
+        calc n ^ (d + 1) = n * n ^ d := by ring
+          _ < n * 2 ^ (n / 2) := Nat.mul_lt_mul_of_pos_left ih (Nat.pos_of_ne_zero (by omega : n ≠ 0))
+          _ < 2 ^ (n / 2) * 2 ^ (n / 2) := Nat.mul_lt_mul_of_le_of_lt_right _ _ (Nat.lt_pow_self (by norm_num) _) ih
+            where _ : n < 2 ^ (n / 2) := by
+              -- For odd n ≥ 4*(d+1)+10, we have n ≥ 4*(d+1)+11
+              -- n/2 ≥ 2*(d+1)+5, so 2^(n/2) ≥ 2^(2*(d+1)+5) > n
+              have : n ≥ 6 := by omega
+              have : n - 1 = 2 * (n / 2) := by omega
+              sorry
+          _ = 2 ^ (2 * (n / 2)) := by rw [← Nat.pow_add]
+          _ ≤ 2 ^ n := by
+              have : 2 * (n / 2) ≤ n := by omega
+              apply Nat.pow_le_pow_right
+              · norm_num
+              · exact this
 
 /-- General helper: for any k ≥ 1, c ≥ 1, and n ≥ 100*k + c + 100,
     we have (c*n^k + c)^2 + 3*(c*n^k + c) + 1 < 2^n.
@@ -1297,17 +1273,25 @@ theorem shannon_counting_argument :
   -- For a surjection, |domain| ≥ |codomain|, so |circuits| ≥ |functions|
   -- But we need |functions| ≤ |circuits|, which is the same thing
   --
-  -- Actually, we use a direct counting argument:
-  -- The set of circuits of size ≤ p n has cardinality at most circuit_count_upper_bound n (p n)
-  -- Each circuit computes at most one Boolean function
-  -- So the number of Boolean functions computable by circuits of size ≤ p n is at most circuit_count_upper_bound n (p n)
-  -- But h_all_computable says ALL Boolean functions are computable by such circuits
-  -- So boolean_function_count n ≤ circuit_count_upper_bound n (p n)
-  --
-  -- However, formalizing this in Lean requires working with cardinalities of infinite types
-  -- For now, we use the fact that this is a direct consequence of h_all_computable
-  -- and the definitions of boolean_function_count and circuit_count_upper_bound
+  -- The counting argument:
+  -- Define the surjective map from {circuits of size ≤ p n} → {all Boolean functions}
+  -- where each circuit maps to the function it computes.
+  -- By h_all_computable, every function has a preimage, so this is surjective.
+  -- Therefore, the number of functions (boolean_function_count n) ≤ the number of circuits.
+  -- And circuit_count_upper_bound n (p n) is an upper bound on the number of circuits.
   have h_ge : boolean_function_count n ≤ circuit_count_upper_bound n (p n) := by
+    -- The key insight: h_all_computable gives us that every Boolean function has size ≤ p n circuit
+    -- We can use a classical choice to get a map from functions to circuits
+    let circuitForFunction (f : (Fin n → Bool) → Bool) : {c : BoolCircuit n // circuitSize c ≤ p n} :=
+      ⟨Classical.choose (h_all_computable f), (Classical.choose_spec (h_all_computable f)).1⟩
+    -- circuitForFunction selects a circuit for each function
+    -- We need to show it's surjective to get the cardinality bound
+    -- But actually, circuitForFunction might not be injective (different circuits can compute same function)
+    -- What we actually need is a surjection FROM circuits TO functions
+    
+    -- Alternative approach: use the fact that the image of circuitForFunction contains all functions
+    -- But circuitForFunction maps function → circuit, not circuit → function
+    
     sorry
   exact Nat.lt_irrefl (boolean_function_count n) (Nat.lt_of_le_of_lt h_ge h_count)
 
