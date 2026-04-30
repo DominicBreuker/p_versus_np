@@ -2,8 +2,8 @@
 
 | Problem | Approach | Priority | Status | Relationships |
 |---------|----------|----------|--------|---------------|
-| [p_versus_np](p_versus_np/) | [circuit-lower-bounds](p_versus_np/circuit-lower-bounds/) | 90 | Active — direct but still highly incomplete route to `P ≠ NP`; present Lean progress is a conditional reduction plus partial counting infrastructure | Direct attack on `P ≠ NP`; the support track exists only to finish reusable circuit-model infrastructure |
-| [p_subset_np](p_subset_np/) | [circuit-lifting](p_subset_np/circuit-lifting/) | 60 | Active — necessary support track; remaining work is standard verifier-lifting formalization in the same circuit model | Supports `p_versus_np/circuit-lower-bounds` by proving the easy inclusion `P ⊆ NP` and avoiding duplicate bookkeeping in the main route |
+| [p_versus_np](p_versus_np/) | [circuit-lower-bounds](p_versus_np/circuit-lower-bounds/) | 90 | Active — Task 6 complete; Task 7 in progress (k=0 done, k≥1 and pigeonhole `sorry` remain); `p_neq_np` compiles conditionally | Direct attack on `P ≠ NP`; the support track exists only to finish reusable circuit-model infrastructure |
+| [p_subset_np](p_subset_np/) | [circuit-lifting](p_subset_np/circuit-lifting/) | 60 | Active — necessary support track; three `sorry`s remain (`liftCircuit_eval`, well-formedness, eval equivalences) | Supports `p_versus_np/circuit-lower-bounds` by proving the easy inclusion `P ⊆ NP` and avoiding duplicate bookkeeping in the main route |
 
 ## Guidance for Researchers
 

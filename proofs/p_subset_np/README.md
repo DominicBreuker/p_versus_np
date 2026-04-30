@@ -5,7 +5,7 @@ This folder is kept only because solving it materially strengthens the same form
 
 | Approach | Priority | Status | Relationships |
 |----------|----------|--------|---------------|
-| [circuit-lifting](circuit-lifting/) | 60 | Active — necessary support track; remaining work is standard formalization in the shared circuit model | Supports `p_versus_np/circuit-lower-bounds` by proving the easy inclusion `P ⊆ NP` and verifier lifting once in the shared model |
+| [circuit-lifting](circuit-lifting/) | 60 | Active — necessary support track; three `sorry`s remain (`liftCircuit_eval`, well-formedness, eval equivalences) | Supports `p_versus_np/circuit-lower-bounds` by proving the easy inclusion `P ⊆ NP` and verifier lifting once in the shared model |
 
 ## Project-Leader Notes
 
