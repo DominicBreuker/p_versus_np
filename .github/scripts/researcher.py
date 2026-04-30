@@ -411,7 +411,7 @@ def strip_markdown_link(value: str) -> str:
 
 def normalized_status_head(status: str) -> str:
     """Return the normalized leading status marker from a target table status cell."""
-    cleaned = re.sub(r"^[^\w]+", "", status).strip().casefold()
+    cleaned = re.sub(r"^[^\w\s]+", "", status).strip().casefold()
     if not cleaned:
         return ""
     return re.split(r"\s+[—-]\s+", cleaned, maxsplit=1)[0].split(";", maxsplit=1)[0].strip()
@@ -434,7 +434,7 @@ def find_priority_inconsistencies(targets: list[dict[str, str | float]]) -> list
         status = str(target["status"])
         if is_solved_status(status) and float(target["priority_value"]) > 0:
             warnings.append(
-                "Solved/frozen target has non-zero priority and will be ignored by researchers: "
+                "Solved/frozen target has non-zero priority (should be 0); researchers will skip it: "
                 f"{target['problem']}/{target['approach']} "
                 f"(priority {target['priority']}, status {status})"
             )
