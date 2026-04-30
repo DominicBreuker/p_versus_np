@@ -36,7 +36,7 @@ Your job in this run:
 3. Update files anywhere under `proofs/{problem_name}/{approach_name}/` when that is useful for the current step.
 4. Update files anywhere under `lib/` when shared Lean code needs to move or expand.
 5. Update `proofs/{problem_name}/{approach_name}/NOTES.md` so it accurately records what changed, what still blocks progress, and the next best step toward the P vs NP goal.
-6. Do NOT update files anywhere outside `proofs/{problem_name}/{approach_name}/` and `lib/`, this is a hard rule!
+6. Do NOT update files anywhere outside `proofs/{problem_name}/{approach_name}/` and `lib/`, this is a hard rule! All edits of the researcher agents outside these folders will be discarded automatically!
 
 Lean tooling guidance:
 
