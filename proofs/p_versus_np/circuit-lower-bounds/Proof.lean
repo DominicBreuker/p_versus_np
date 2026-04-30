@@ -300,7 +300,35 @@ private theorem or_fold_preserved (vals : Array Bool) (s : Nat) (hs : vals.size 
 private theorem evalNode_normalizeNodeCode {n s : Nat} (inp : Fin n → Bool) (vals : Array Bool)
     (hs : vals.size ≤ s) (node : CircuitNode) :
     evalNode inp vals (nodeCodeToRaw (normalizeNodeCode n s node)) = evalNode inp vals node := by
-  sorry
+  rcases node with ⟨gate, children⟩
+  cases gate with
+  | Const b =>
+    simp [normalizeNodeCode, nodeCodeToRaw, evalNode]
+  | Var i =>
+    simp only [normalizeNodeCode]
+    split_ifs with hi
+    · simp [nodeCodeToRaw, evalNode, hi]
+    · simp [nodeCodeToRaw, evalNode, hi]
+  | Not =>
+    cases children with
+    | nil =>
+      simp [normalizeNodeCode, nodeCodeToRaw, evalNode]
+    | cons child tail =>
+        cases tail with
+        | nil =>
+            simp only [normalizeNodeCode]
+            split_ifs with hc
+            · simp [nodeCodeToRaw, evalNode]
+            · have h_not_lt : ¬child < vals.size := by omega
+              simp [nodeCodeToRaw, evalNode, Array.getD, h_not_lt]
+        | cons h2 rest =>
+            simp [normalizeNodeCode, nodeCodeToRaw, evalNode]
+  | And =>
+    simp only [normalizeNodeCode, nodeCodeToRaw, evalNode]
+    rw [foldl_and_map_val, foldl_and_map_eval, ← and_fold_preserved vals s hs children]
+  | Or =>
+    simp only [normalizeNodeCode, nodeCodeToRaw, evalNode]
+    rw [foldl_or_map_val, foldl_or_map_eval, ← or_fold_preserved vals s hs children]
 
 private def evalStep {n : Nat} (inp : Fin n → Bool) (acc : Array Bool) (node : CircuitNode) : Array Bool :=
   acc.push (evalNode inp acc node)

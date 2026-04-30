@@ -67,40 +67,34 @@
 
 ## Remaining Work
 
-### 1. Prove normalization preserves semantics
-**Location:** normalized-circuit section near the new `NodeCode` lemmas
+### 1. ✅ CLOSED: `evalNode_normalizeNodeCode` (was sorry 1)
 
-**Status:** IN PROGRESS - currently reduced to 2 temporary `sorry`s
+See "Pass: Project Leader 2026-04-30" above.
 
-**Goal:**
-- Prove `evalNode_normalizeNodeCode`
-- Then prove `evalCircuit_normalizeCircuit`
+### 2. Prove `evalCircuit_normalizeCircuit` (sorry 2, line 389)
+**Location:** `evalCircuit_normalizeCircuit`
 
-**Why this matters:**
-- This is the bridge from bounded raw circuits to the finite normalized circuits used in the new counting argument.
+**Status:** IN PROGRESS — all sub-lemmas proven; needs proof assembly
 
-### 2. Rebuild the arithmetic dominance lemma soundly
+See README for the step-by-step outline.
+
+### 3. Rebuild the arithmetic dominance lemma soundly (sorry 3, line 797)
 **Location:** `poly_quadratic_bound_k_ge_1`
 
 **Status:** IN PROGRESS - theorem body temporarily replaced by `sorry` to recover a compiling checkpoint
 
 **Goal:**
-- Replace the old brittle giant case split with a sound exponential-dominance proof that is strong enough for the Shannon bound.
+- Replace the old brittle giant case split with a sound exponential-dominance proof.
+- See README for the `pow_lt_two_pow_half` inductive helper strategy.
 
-### 3. Complete Pigeonhole Principle in `shannon_counting_argument`
+### 4. Complete Pigeonhole Principle in `shannon_counting_argument` (sorry 4, line 1140)
 **Location:** inside `shannon_counting_argument`
 
 **Goal:** Prove `boolean_function_count n ≤ circuit_count_upper_bound n (p n)` from `h_all_computable`.
 
 **Approach:**
-- `h_all_computable` states: `∀ f, ∃ c with circuitSize c ≤ p n, ∀ inp, evalCircuit c inp = f inp`
-- This means every Boolean function has a circuit of size ≤ `p n` that computes it
-- The set of circuits of size ≤ `p n` has cardinality at most `circuit_count_upper_bound n (p n)`
-- Each circuit computes at most one Boolean function (since circuits are deterministic)
-- Therefore, the number of Boolean functions computable by circuits of size ≤ `p n` is at most `circuit_count_upper_bound n (p n)`
-- Since `h_all_computable` says ALL Boolean functions are computable, we have `boolean_function_count n ≤ circuit_count_upper_bound n (p n)`
-- Formalizing this requires the pigeonhole principle: if we have an injection from functions to circuits, then `|functions| ≤ |circuits|`
-- The injection exists because `h_all_computable` gives us a way to map each function to a circuit that computes it, and different functions must map to different circuits
+- Use `Fintype.card_le_of_injective` with the existing `circuitForFunction` injection.
+- See README for detailed steps.
 
 ## Summary
 
@@ -109,24 +103,46 @@
   - ✅ Added a finite normalized circuit/counting layer
   - ✅ Added supporting normalization/counting helper lemmas
   - ✅ Restored `Proof.lean` to a compiling intermediate checkpoint
-  - ⏳ Deferred the three hardest subproofs behind temporary `sorry`s so work can continue incrementally from a stable base
-- **`sorry`/`admit` count:** 4 total
-- **File builds:** Yes, with `lake build` (no warnings)
+  - ✅ Closed `evalNode_normalizeNodeCode` (sorry 1) — Project Leader 2026-04-30
+  - ⏳ Three hard subproofs remain behind temporary `sorry`s
+- **`sorry`/`admit` count:** 3 total (`evalCircuit_normalizeCircuit`, `poly_quadratic_bound_k_ge_1`, pigeonhole in `shannon_counting_argument`)
+- **File builds:** Yes (`lake env lean Proof.lean` passes)
 
 ## Next Steps for the Next Researcher
 
-1. **Priority 1:** Finish `evalNode_normalizeNodeCode`
-2. **Priority 1:** Use that to finish `evalCircuit_normalizeCircuit`
-3. **Priority 1:** Re-prove `poly_quadratic_bound_k_ge_1` with a sound replacement argument
-4. **Priority 1:** Then return to the pigeonhole/cardinality step in `shannon_counting_argument`
-5. **Once these sorries are resolved:** Re-run `lake build`
+1. **Priority 1:** Prove `evalCircuit_normalizeCircuit` — all sub-lemmas exist; see README for the outline
+2. **Priority 2:** Prove `poly_quadratic_bound_k_ge_1` — prove `pow_lt_two_pow_half` helper first (induction on `d`), then chain the bound; see README for step-by-step strategy
+3. **Priority 3:** Prove the pigeonhole step using `Fintype.card_le_of_injective` with the existing `circuitForFunction` injection
+4. Once these sorrys are resolved, re-run `lake env lean Proof.lean` and reassess
 
 The `p_neq_np` theorem already compiles conditionally on the axioms, so once these final lemmas are proven, the main result will be unconditional.
 
 ---
 
-**Note:** The pigeonhole principle step (Priority 2) requires establishing that the number of Boolean functions on n inputs is at most the number of circuits of size ≤ p n, when every function has such a circuit. This is a direct application of the pigeonhole principle and cardinality theory. The injection `f ↦ c_f` (where `c_f` computes `f`) gives us `|functions| ≤ |circuits of size ≤ p n| ≤ circuit_count_upper_bound n (p n)`.
-
 ## Technical Interruptions
 
-- 2026-04-30 15:21 UTC — Researcher workflow hit a technical interruption: Mistral Vibe timed out during pass 1/2 after 3600 seconds.. Partial work from this run was preserved; review the current proof state before continuing.
+- 2026-04-30 15:21 UTC — Researcher workflow hit a technical interruption: Mistral Vibe timed out during pass 1/2 after 3600 seconds. Partial work from this run was preserved; review the current proof state before continuing.
+
+## Pass: Project Leader 2026-04-30 20:13 UTC
+
+### Closed `evalNode_normalizeNodeCode` (Sorry 1)
+
+**Status:** ✅ COMPLETE — compiles without `sorry`
+
+**Location:** Lines 300–333 (Proof.lean)
+
+**What was proven:** `evalNode inp vals (nodeCodeToRaw (normalizeNodeCode n s node)) = evalNode inp vals node` for any `CircuitNode`, given `vals.size ≤ s`.
+
+**Proof strategy:**
+- `rcases node with ⟨gate, children⟩` then `cases gate`
+- `Const b`: `simp [normalizeNodeCode, nodeCodeToRaw, evalNode]`
+- `Var i`: `simp only [normalizeNodeCode]` + `split_ifs with hi` + `simp [nodeCodeToRaw, evalNode, hi]` in each branch. (Note: `simp only [...]` before `split_ifs` is needed because combining them into a single `simp only [normalizeNodeCode, nodeCodeToRaw, evalNode]` without splitting first leaves an unresolved nested `match` that `rfl` cannot close.)
+- `Not`: case-split on `children` (`nil` / `[child]` / `cons h2 rest`). In the `[child]` case: `simp only [normalizeNodeCode]` + `split_ifs with hc` + for the `¬hc` branch, `have h_not_lt : ¬child < vals.size := by omega` then `simp [nodeCodeToRaw, evalNode, Array.getD, h_not_lt]`.
+- `And`: `simp only [normalizeNodeCode, nodeCodeToRaw, evalNode]` then `rw [foldl_and_map_val, foldl_and_map_eval, ← and_fold_preserved vals s hs children]`.
+- `Or`: same pattern with `Or` variants.
+
+**Sorry count change:** 4 → 3
+
+---
+
+

@@ -21,10 +21,8 @@ See [`OVERVIEW.md`](OVERVIEW.md) for the current project state, [`BOOTSTRAP.md`]
 
 | Problem | Approach | Priority | Status | Relationships |
 |---------|----------|----------|--------|---------------|
-| [p_versus_np](proofs/p_versus_np/) | [circuit-lower-bounds](proofs/p_versus_np/circuit-lower-bounds/) | 90 | Active — Task 6 complete; Task 7 in progress; 2 `sorry`s remain (`poly_quadratic_bound_k_ge_1` n≥67108864 case; pigeonhole step in `shannon_counting_argument`); `p_neq_np` compiles conditionally on two axioms | Direct attack on `P ≠ NP`; the support track exists only to finish shared circuit-model infrastructure this route reuses |
+| [p_versus_np](proofs/p_versus_np/) | [circuit-lower-bounds](proofs/p_versus_np/circuit-lower-bounds/) | 90 | Active — Task 6 complete; Task 7 in progress; **3 `sorry`s remain** (`evalCircuit_normalizeCircuit`; `poly_quadratic_bound_k_ge_1`; pigeonhole step in `shannon_counting_argument`); `evalNode_normalizeNodeCode` closed 2026-04-30; `p_neq_np` compiles conditionally on two axioms | Direct attack on `P ≠ NP`; the support track exists only to finish shared circuit-model infrastructure this route reuses |
 | [p_subset_np](proofs/p_subset_np/) | [circuit-lifting](proofs/p_subset_np/circuit-lifting/) | 0 | ✅ Complete — `p_subset_np` proven; 0 `sorry`s; track frozen | Supplies the easy inclusion `P ⊆ NP` in the shared circuit model; complete and no further work planned unless main route needs a specific reusable lemma |
-
-No new proof track was added in this review: the main `p_versus_np/circuit-lower-bounds` track still has two concrete next lemmas, and the `p_subset_np/circuit-lifting` support track has been completed (0 `sorry`s).
 
 ---
 
