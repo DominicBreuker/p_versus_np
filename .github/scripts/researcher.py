@@ -186,6 +186,14 @@ def run_git(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
     )
 
 
+def completed_process_message(result: subprocess.CompletedProcess[str]) -> str:
+    stderr = result.stderr.strip()
+    stdout = result.stdout.strip()
+    if stderr and stdout:
+        return f"{stderr}\n{stdout}"
+    return stderr or stdout
+
+
 def git_ref_exists(refname: str) -> bool:
     result = run_git("show-ref", "--verify", "--quiet", refname, check=False)
     return result.returncode == 0
@@ -657,7 +665,7 @@ def commit_and_push_run(
     run_git("add", "-A")
     commit = run_git("commit", "--allow-empty", "-m", commit_message, check=False)
     if commit.returncode != 0:
-        raise RuntimeError(f"Failed to create researcher commit: {commit.stderr.strip() or commit.stdout.strip()}")
+        raise RuntimeError(f"Failed to create researcher commit: {completed_process_message(commit)}")
 
     primary_branch = get_current_branch_name()
     last_push_error = ""
@@ -665,12 +673,12 @@ def commit_and_push_run(
     for attempt in range(1, max_attempts + 1):
         fetch = run_git("fetch", "--prune", remote_name, check=False)
         if fetch.returncode != 0:
-            last_push_error = fetch.stderr.strip() or fetch.stdout.strip()
+            last_push_error = completed_process_message(fetch)
             print(f"Warning: git fetch failed before push attempt {attempt}/{max_attempts}: {last_push_error}")
         elif git_ref_exists(f"refs/remotes/{remote_name}/{primary_branch}"):
             rebase = run_git("rebase", f"{remote_name}/{primary_branch}", check=False)
             if rebase.returncode != 0:
-                last_push_error = rebase.stderr.strip() or rebase.stdout.strip()
+                last_push_error = completed_process_message(rebase)
                 abort_rebase_if_needed()
                 print(f"Primary branch sync failed; preserving work on a fallback branch instead: {last_push_error}")
                 break
@@ -679,7 +687,7 @@ def commit_and_push_run(
         if push.returncode == 0:
             return GitPushResult(branch_name=primary_branch, used_fallback_branch=False)
 
-        last_push_error = push.stderr.strip() or push.stdout.strip()
+        last_push_error = completed_process_message(push)
         print(f"Primary branch push attempt {attempt}/{max_attempts} failed: {last_push_error}")
 
     abort_rebase_if_needed()
@@ -688,14 +696,14 @@ def commit_and_push_run(
     if switch.returncode != 0:
         raise RuntimeError(
             f"Failed to switch to fallback branch '{fallback_branch}': "
-            f"{switch.stderr.strip() or switch.stdout.strip()}"
+            f"{completed_process_message(switch)}"
         )
 
     fallback_push = run_git("push", "--set-upstream", remote_name, f"HEAD:{fallback_branch}", check=False)
     if fallback_push.returncode != 0:
         raise RuntimeError(
             "Failed to preserve researcher work on a fallback branch after push/rebase problems: "
-            f"{fallback_push.stderr.strip() or fallback_push.stdout.strip() or last_push_error}"
+            f"{completed_process_message(fallback_push) or last_push_error}"
         )
 
     message = (
@@ -899,6 +907,12 @@ def build_commit_message(
     return f"{researcher_label} {status}: run {run_index}/{run_count} on {target_label}"
 
 
+def merge_failure_messages(existing_message: str | None, addition: str) -> str:
+    if not existing_message:
+        return addition
+    return f"{existing_message} | {addition}"
+
+
 def main() -> None:
     args = parse_args()
     os.chdir(REPO_ROOT)
@@ -1046,9 +1060,10 @@ def main() -> None:
             last_pushed_branch = push_result.branch_name
             print(f"Pushed researcher commit for pass {run_index}/{args.run_count} to {last_pushed_branch}.")
         except Exception as exc:
-            run_failure_message = (
-                f"{run_failure_message} | " if run_failure_message else ""
-            ) + f"Commit/push failed after pass {run_index}/{args.run_count}: {exc}"
+            run_failure_message = merge_failure_messages(
+                run_failure_message,
+                f"Commit/push failed after pass {run_index}/{args.run_count}: {exc}",
+            )
             run_exit_code = 1
 
         if run_failure_message is not None:

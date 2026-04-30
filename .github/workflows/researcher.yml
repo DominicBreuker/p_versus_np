@@ -126,7 +126,7 @@ jobs:
 
       - name: Configure Lean researcher git identity
         run: |
-          git config user.name "Lean-Researcher"
+          git config user.name "Lean Researcher"
           git config user.email "lean-researcher@p-vs-np.github"
 
       - name: Run Lean Researcher Agent
@@ -143,7 +143,7 @@ jobs:
 
       - name: Configure Devstral researcher git identity
         run: |
-          git config user.name "Devstral-Researcher"
+          git config user.name "Devstral Researcher"
           git config user.email "devstral-researcher@p-vs-np.github"
 
       - name: Run Devstral Researcher Agent
