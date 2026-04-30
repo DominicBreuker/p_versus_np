@@ -2,7 +2,7 @@
 
 **Priority:** 90
 
-**Status:** Active — this is the repository's primary route toward a Lean proof of `P ≠ NP`, but the current formal result is still only conditional and the decisive lower-bound work remains open
+**Status:** Active — Task 6 complete; Task 7 in progress; `p_neq_np` compiles conditionally on two axioms; two `sorry`s remain in Task 7
 
 **Relationship to the repository goal:** Main proof track. This approach directly targets `P ≠ NP` by formalizing the statement that sufficiently strong SAT circuit lower bounds would separate `P` from `NP`.
 
@@ -31,7 +31,7 @@ circuit complexity, then `P ≠ NP`.
 - [x] Task 3: Add sanity lemmas (`eval_const_true`, `eval_const_false`, `eval_var_zero`)
 - [x] Task 4: Axiomatize Cook–Levin (`sat_is_np_complete`)
 - [x] Task 5: Prove the conditional reduction from SAT circuit lower bounds to `P ≠ NP`
-- [ ] Task 6: Prove `circuit_count_lt_functions_at_n` — remove the arithmetic `sorry`
+- [x] Task 6: Prove `circuit_count_lt_functions_at_n` — complete for all `n ≥ 4`
 - [ ] Task 7: Complete `shannon_counting_argument` without overstating what it implies
 
 ---
@@ -49,29 +49,37 @@ Treat it as progress on the route, not as a solved proof of P vs NP.
 
 ## Immediate Next Steps
 
-### Task 6 — Prove `circuit_count_lt_functions_at_n` for `n ≥ 9`
+### Task 6 — COMPLETE
 
-Goal: `(n + 1)^(n + 1) * 2^n < 2^(2^n)` for `n ≥ 9`.
+`circuit_count_lt_functions_at_n` compiles for all `n ≥ 4` without `sorry`. The helper chain
+`n_plus_one_le_two_pow_n`, `n_plus_one_pow_le_two_pow_n_times_n_plus_one`, and
+`n_squared_plus_two_n_lt_two_pow_n` are all proven. No further work is needed on Task 6.
 
-Recommended route:
-- Step A: Prove `n + 1 ≤ 2^n` for `n ≥ 1`.
-- Step B: Lift that bound to `(n + 1)^(n + 1) ≤ 2^(n * (n + 1))`.
-- Step C: Prove `n^2 + 2*n < 2^n` for `n ≥ 9`.
-- Step D: Combine the exponent bounds to conclude the target inequality.
-- Prefer short standalone arithmetic lemmas over a single monolithic proof so the argument can be reused in Task 7.
+### Task 7 — Complete `shannon_counting_argument` (two `sorry`s remain)
 
-### Task 7 — Complete `shannon_counting_argument`
+**Sorry 1: `poly_quadratic_bound_k_ge_1` (line 272)**
 
-Once Task 6 is done, formalize the usual counting argument carefully:
-1. Bound a general polynomial `p n` by a simpler growth term for sufficiently large `n`.
-2. Show `circuit_count_upper_bound n (p n) < boolean_function_count n` eventually.
-3. Use pigeonhole reasoning to extract a Boolean function that escapes every circuit family of size `≤ p n`.
+Goal: for k ≥ 1, c ≥ 1, and n ≥ 100*k + c + 100, prove
+`(c * n^k + c + c)^2 + 3*(c * n^k + c + c) + 1 < 2^n`.
+
+Recommended approach:
+- Prove a general lemma `pow_lt_two_pow`: for any m and n ≥ 2*m + 10, `n^m < 2^n`. This can be done by strong induction on m, using the inductive step `n^(m+1) = n * n^m < n * 2^n ≤ 2^n * 2^n = 2^(2n) ≤ 2^(2^n)` together with exponential dominance for the base cases.
+- Once `pow_lt_two_pow` is available, bound `(c * n^k + c + c)^2` by a polynomial in `n^k` and use `pow_lt_two_pow` to finish.
+
+**Sorry 2: Pigeonhole step in `shannon_counting_argument` (line 540)**
+
+Goal: derive `False` from `h_all_computable` (every Boolean function is computed by a circuit of size ≤ p n) together with `h_count` (circuit count < boolean function count).
+
+Recommended approach:
+- Define an injective map from `Bool^(Fin n → Bool)` (Boolean functions) to circuits of size ≤ p n; then use `Fintype.card_le_of_injective` or a surjection argument.
+- Alternatively, use `Finset.card_le_card` on the finite set of circuits paired with the set of functions they compute.
+- This step requires working with `Fintype` instances for `Fin n → Bool` and for circuits bounded in size.
 
 Keep the final statement honest: Shannon counting yields existential lower bounds for *some* Boolean functions, not a SAT-specific lower bound.
 
 ## Guidance for the next researcher pass
 
-- First finish the arithmetic helper chain for Task 6; that is the cleanest bottleneck in the whole repository.
+- Focus on `poly_quadratic_bound_k_ge_1` first; it is the most tractable remaining sorry.
 - Once Task 7 compiles, stop and reassess before adding any stronger claim: the next missing ingredient would still be an explicit SAT lower bound, not more existential counting.
 - Do not branch from this folder into quantum, proof-complexity, or GCT explorations unless the Project Leader creates a separate justified route.
 

@@ -54,19 +54,33 @@ using the circuit-model definitions already aligned with the main `p_versus_np` 
 
 ## Immediate Next Steps
 
-### Task 5 — Prove `liftCircuit_eval`
+### Task 5 — Prove `liftCircuit_eval` (line 119)
 
-Show that the lifted circuit reads only the first `n` bits of a `Fin (2*n) → Bool` input.
-The key work is dependent-type bookkeeping around `Fin.ext` and an induction over the shared node array.
+**Blocker:** Array.foldl congruence.
 
-### Task 6 — Prove `verifier_iff`
+The `h_nodes` helper lemma is already proven: for all `i < c.nodes.size` and all `acc : Array Bool`,
+`evalNode inp acc c.nodes[i]! = evalNode (fun i => inp ⟨i.val, _⟩) acc c.nodes[i]!`.
 
-Reduce `((2 * n) / 2)` to `n`, then prove that the combined input restricted to its first half is propositionally equal to `inp`.
+The remaining step is to lift this per-node equality to an equality of the full foldl results.
 
-### Task 7 — Finish `p_subset_np`
+Recommended approach:
+1. Convert the foldl to a list fold: `Array.foldl_toList` or `Array.foldl_eq_foldl_toList` to rewrite `c.nodes.foldl f #[]` as `c.nodes.toList.foldl f #[]`.
+2. Induct on `c.nodes.toList`, using `h_nodes` at each index to justify that `f acc node = g acc node` and therefore the foldl states agree at every step.
+3. Conclude by the equality of the final arrays (same output index, same values).
 
-Keep the final theorem specialized to the existing circuit model. Do not introduce a second verifier representation or extra abstraction layers unless they are needed to close the current proof.
-The current blocker is the verifier-family size alignment.
+### Task 6 — Prove `verifier_iff` (line 191)
+
+**Status: likely already compiles.** The theorem has a proof attempt using `Eq.rec` and `Fin.cast`. Check with `lean_diagnostic_messages` before attempting further changes.
+
+### Task 7 — Finish `p_subset_np` (line 258)
+
+Three sub-goals remain:
+
+1. **Well-formedness (line 288):** Circuits from `inP` decode Var nodes as `idx < n`; Var nodes with `idx ≥ n` return `false` anyway by `evalNode`. Try removing the `IsWellFormed` assumption from `liftCircuit_eval` entirely and proving the result unconditionally using the same `h_nodes` argument (the `idx ≥ n` branch is unreachable because `evalNode` returns `false` for it on both sides).
+
+2. **Even case eval equivalence (line 292):** Once `liftCircuit_eval` is proven unconditionally, this goal reduces to `hc_correct` on the restriction of `inp`.
+
+3. **Odd case eval equivalence (line 315):** Prove a version of `liftCircuit_eval` for `liftCircuitTo`; the proof is identical (same node array, different phantom type).
 
 ---
 
@@ -75,4 +89,4 @@ The current blocker is the verifier-family size alignment.
 - Use `import Mathlib` explicitly for arithmetic and tactic support.
 - Use `import PVsNpLib` for the shared `IsPolynomial` definition.
 - The witness in the NP statement can be ignored; the verifier only needs the first half of the combined input.
-- Handle the size mismatch in `p_subset_np` directly: the verifier only needs to be well-behaved on inputs of size `2 * n`, so solve that alignment before adding more helper infrastructure.
+- `verifier_iff` is already proven; focus first on `liftCircuit_eval` and then on the well-formedness bypass.

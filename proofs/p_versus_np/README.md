@@ -5,7 +5,7 @@ This is the main problem the repository exists to solve.
 
 | Approach | Priority | Status | Relationships |
 |----------|----------|--------|---------------|
-| [circuit-lower-bounds](circuit-lower-bounds/) | 90 | Active — direct but still highly incomplete route toward `P ≠ NP`; current Lean work is still on the conditional reduction and counting infrastructure | Main proof track; supporting work under `proofs/p_subset_np/` exists only to complete the shared circuit model this route reuses |
+| [circuit-lower-bounds](circuit-lower-bounds/) | 90 | Active — Task 6 complete; Task 7 in progress (k≥1 case and pigeonhole step remain); `p_neq_np` compiles conditionally on two axioms | Main proof track; supporting work under `proofs/p_subset_np/` exists only to complete the shared circuit model this route reuses |
 
 ## Project-Leader Notes
 
