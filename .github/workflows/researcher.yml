@@ -24,7 +24,7 @@ jobs:
     permissions:
       contents: write
     env:
-      LEAN_RESEARCHER_RUN_COUNT: ${{ inputs.lean_researcher_run_count || vars.LEAN_RESEARCHER_RUN_COUNT || '3' }}
+      LEAN_RESEARCHER_RUN_COUNT: ${{ inputs.lean_researcher_run_count || vars.LEAN_RESEARCHER_RUN_COUNT || '5' }}
       DEVSTRAL_RESEARCHER_RUN_COUNT: ${{ inputs.devstral_researcher_run_count || vars.DEVSTRAL_RESEARCHER_RUN_COUNT || '0' }}
       RESEARCHER_OVERALL_TIMEOUT_MINUTES: ${{ inputs.vibe_overall_timeout_minutes || vars.RESEARCHER_OVERALL_TIMEOUT_MINUTES || '0' }}
 
