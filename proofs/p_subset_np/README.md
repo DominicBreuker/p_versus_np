@@ -5,7 +5,7 @@ This folder is kept only because solving it materially strengthens the same form
 
 | Approach | Priority | Status | Relationships |
 |----------|----------|--------|---------------|
-| [circuit-lifting](circuit-lifting/) | 60 | ✅ Complete — `p_subset_np` proven; 0 `sorry`s | Supports `p_versus_np/circuit-lower-bounds` by proving the easy inclusion `P ⊆ NP` and verifier lifting once in the shared model; frozen unless the main route needs a specific reusable lemma |
+| [circuit-lifting](circuit-lifting/) | 0 | ✅ Complete — `p_subset_np` proven; 0 `sorry`s | Supports `p_versus_np/circuit-lower-bounds` by proving the easy inclusion `P ⊆ NP` and verifier lifting once in the shared model; frozen unless the main route needs a specific reusable lemma |
 
 ## Project-Leader Notes
 

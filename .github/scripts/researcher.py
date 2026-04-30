@@ -48,7 +48,21 @@ REPO_ROOT: Path = Path(__file__).resolve().parent.parent.parent
 PROMPT_TEMPLATE_PATH: Path = REPO_ROOT / ".github" / "prompts" / "researcher_vibe.md"
 MOCK_VIBE_PATH: Path = REPO_ROOT / ".github" / "scripts" / "mock_vibe.py"
 PROMPT_FILENAME = ".mistral-researcher-prompt.md"
-DEAD_STATUSES: set[str] = {"Dead End", "Archived"}
+# Status detection only inspects the normalized leading status marker, not
+# later prose such as "Task 6 complete; Task 7 in progress".
+DEAD_STATUS_HEADS: set[str] = {"dead end", "archived", "retired"}
+# Matched case-insensitively against normalized_status_head(...) to treat
+# solved/frozen tracks as ineligible researcher targets even if they still
+# carry a stale positive priority.
+SOLVED_STATUS_HEAD_PREFIXES: tuple[str, ...] = (
+    "complete",
+    "completed",
+    "solved",
+    "proven",
+    "finished",
+    "frozen",
+    "closed",
+)
 TARGET_TABLE_BASE_HEADERS = ("problem", "approach", "priority", "status")
 TARGET_TABLE_HEADERS = {TARGET_TABLE_BASE_HEADERS, TARGET_TABLE_BASE_HEADERS + ("relationships",)}
 PRIORITY_PATTERN = re.compile(r"[0-9]+(?:\.[0-9]+)?")
@@ -400,6 +414,39 @@ def strip_markdown_link(value: str) -> str:
     return value
 
 
+def normalized_status_head(status: str) -> str:
+    """Return the normalized leading status marker from a target table status cell."""
+    # Drop leading emoji/punctuation status markers such as "✅" before matching.
+    cleaned = re.sub(r"^[^\w\s]+", "", status).strip().casefold()
+    if not cleaned:
+        return ""
+    return re.split(r"\s+[—-]\s+", cleaned, maxsplit=1)[0].split(";", maxsplit=1)[0].strip()
+
+
+def is_dead_status(status: str) -> bool:
+    """Return whether the status marks a target as retired, archived, or otherwise dead."""
+    return normalized_status_head(status) in DEAD_STATUS_HEADS
+
+
+def is_solved_status(status: str) -> bool:
+    """Return whether the status marks a target as complete, solved, or frozen."""
+    return normalized_status_head(status).startswith(SOLVED_STATUS_HEAD_PREFIXES)
+
+
+def find_priority_inconsistencies(targets: list[dict[str, str | float]]) -> list[str]:
+    """Return warnings for solved/frozen targets that still carry a positive priority."""
+    warnings: list[str] = []
+    for target in targets:
+        status = str(target["status"])
+        if is_solved_status(status) and float(target["priority_value"]) > 0:
+            warnings.append(
+                "Solved/frozen target has non-zero priority (should be 0); researchers will skip it: "
+                f"{target['problem']}/{target['approach']} "
+                f"(priority {target['priority']}, status {status})"
+            )
+    return warnings
+
+
 def get_targets() -> list[dict[str, str | float]]:
     return parse_targets(read_file(REPO_ROOT / "proofs" / "README.md"))
 
@@ -408,7 +455,9 @@ def pick_target(targets: list[dict[str, str | float]]) -> dict[str, str | float]
     active_targets = [
         target
         for target in targets
-        if str(target["status"]) not in DEAD_STATUSES and float(target["priority_value"]) > 0
+        if not is_dead_status(str(target["status"]))
+        and not is_solved_status(str(target["status"]))
+        and float(target["priority_value"]) > 0
     ]
     if active_targets:
         return random.choices(
@@ -417,7 +466,11 @@ def pick_target(targets: list[dict[str, str | float]]) -> dict[str, str | float]
             k=1,
         )[0]
 
-    non_dead_targets = [target for target in targets if str(target["status"]) not in DEAD_STATUSES]
+    non_dead_targets = [
+        target
+        for target in targets
+        if not is_dead_status(str(target["status"])) and not is_solved_status(str(target["status"]))
+    ]
     if not non_dead_targets:
         return None
     return non_dead_targets[0]
@@ -933,9 +986,14 @@ def main() -> None:
         print("No proof targets found in proofs/README.md — nothing to do.")
         sys.exit(0)
 
+    for warning in find_priority_inconsistencies(targets):
+        formatted_warning = f"WARNING: {warning}"
+        print(formatted_warning)
+        append_github_step_summary(formatted_warning)
+
     target = pick_target(targets)
     if target is None:
-        print("No suitable proof target found (all are dead ends or archived).")
+        print("No suitable proof target found (all remaining tracks are completed, frozen, dead ends, or archived).")
         sys.exit(0)
 
     problem_name = str(target["problem"])
