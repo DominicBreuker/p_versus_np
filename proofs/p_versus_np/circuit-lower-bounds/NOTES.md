@@ -71,3 +71,7 @@ Need to prove: for k ≥ 1, c ≥ 1, and n ≥ 100*k + c + 100, we have `(c * n^
    - Consider working with explicit truth table encodings as `Fin (2^(2^n))`
 
 3. **Future work:** Once Task 7 is complete, verify the overall proof structure correctly captures Shannon's counting argument, noting that it proves existentially that *some* Boolean functions require large circuits, not explicitly for SAT.
+
+## Technical Interruptions
+
+- 2026-04-30 09:54 UTC — Researcher workflow hit a technical interruption: Mistral Vibe timed out during pass 1/2 after 1800 seconds.. Partial work from this run was preserved; review the current proof state before continuing.

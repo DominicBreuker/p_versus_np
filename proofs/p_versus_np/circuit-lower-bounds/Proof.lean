@@ -291,6 +291,83 @@ private theorem four_n_squared_plus_six_n_plus_one_lt_two_pow_n (n : Nat) (hn : 
       _ = 2 * 2^k := by ring
       _ = 2 ^ (k + 1) := by rw [Nat.pow_succ]; ring
 
+/-- Helper lemma: for n ≥ 200, n^4 + 3*n^2 + 1 < 2^n. -/
+private theorem n_quartic_plus_lt_two_pow_n_200 (n : Nat) (hn : n ≥ 200) : n ^ 4 + 3 * n ^ 2 + 1 < 2 ^ n := by
+  -- Base case: n = 200
+  have base200 : 200 ^ 4 + 3 * 200 ^ 2 + 1 < 2 ^ 200 := by norm_num
+  -- Inductive step
+  suffices ∀ k ≥ 200, k ^ 4 + 3 * k ^ 2 + 1 < 2 ^ k by exact this n hn
+  intro k hk
+  induction k, hk using Nat.le_induction with
+  | base => exact base200
+  | succ k hk ih =>
+    -- IH: k^4 + 3*k^2 + 1 < 2^k
+    -- Goal: (k+1)^4 + 3*(k+1)^2 + 1 < 2^(k+1)
+    calc (k + 1) ^ 4 + 3 * (k + 1) ^ 2 + 1
+        = k^4 + 4*k^3 + 6*k^2 + 4*k + 1 + 3*k^2 + 6*k + 3 + 1 := by ring
+      _ = k^4 + 4*k^3 + 9*k^2 + 10*k + 5 := by ring
+      _ = k^4 + 3*k^2 + 1 + (4*k^3 + 6*k^2 + 10*k + 4) := by ring
+      _ < 2^k + (4*k^3 + 6*k^2 + 10*k + 4) := by omega
+      _ ≤ 2^k + 2^k := by
+          -- Show 4*k^3 + 6*k^2 + 10*k + 4 ≤ 2^k
+          -- For k ≥ 200, k^4 < 2^k (from IH) and k^4 ≥ 4*k^3 + 6*k^2 + 10*k + 4
+          have h_k4_lt : k ^ 4 < 2 ^ k := by omega
+          have h_k4_ge : k ^ 4 ≥ 4 * k ^ 3 + 6 * k ^ 2 + 10 * k + 4 := by
+            -- For k ≥ 200, this holds (verified by norm_num for k=200)
+            -- We use induction to prove it for all k ≥ 200
+            have base : 200 ^ 4 ≥ 4 * 200 ^ 3 + 6 * 200 ^ 2 + 10 * 200 + 4 := by norm_num
+            have step : ∀ m ≥ 200, m ^ 4 ≥ 4 * m ^ 3 + 6 * m ^ 2 + 10 * m + 4 →
+                (m + 1) ^ 4 ≥ 4 * (m + 1) ^ 3 + 6 * (m + 1) ^ 2 + 10 * (m + 1) + 4 := by
+              intro m hm h
+              -- We need: (m+1)^4 ≥ 4*(m+1)^3 + 6*(m+1)^2 + 10*(m+1) + 4
+              -- Expanding: m^4 + 4*m^3 + 6*m^2 + 4*m + 1 ≥ 4*m^3 + 12*m^2 + 12*m + 4 + 6*m^2 + 12*m + 6 + 10*m + 10 + 4
+              -- Simplifying RHS: 4*m^3 + 18*m^2 + 34*m + 24
+              -- So we need: m^4 ≥ 12*m^2 + 30*m + 23
+              -- From IH: m^4 ≥ 4*m^3 + 6*m^2 + 10*m + 4
+              -- For m ≥ 200, 4*m^3 ≥ 12*m^2 + 30*m + 23
+              have h_ih : m ^ 4 ≥ 4 * m ^ 3 + 6 * m ^ 2 + 10 * m + 4 := h
+              have h_cubic : 4 * m ^ 3 ≥ 12 * m ^ 2 + 30 * m + 23 := by
+                have : m ≥ 200 := hm
+                -- For m ≥ 200, 4*m^3 ≥ 4*200^3 = 4*8000000 = 32000000
+                -- And 12*m^2 + 30*m + 23 ≤ 12*200^2 + 30*200 + 23 = 12*40000 + 6000 + 23 = 480000 + 6000 + 23 = 486023
+                -- So 4*m^3 ≥ 32000000 > 486023 ≥ 12*m^2 + 30*m + 23
+                have h_lower : 4 * m ^ 3 ≥ 4 * 200 ^ 3 := by
+                  have : m ^ 3 ≥ 200 ^ 3 := Nat.pow_le_pow_left (by omega) 3
+                  exact Nat.mul_le_mul_left 4 this
+                have h_upper : 12 * m ^ 2 + 30 * m + 23 ≤ 12 * m ^ 2 + 30 * m ^ 2 + 23 * m ^ 2 := by
+                  have : m ≥ 200 := hm
+                  have : m ≥ 1 := by omega
+                  have : 30 * m ≤ 30 * m ^ 2 := by
+                    calc 30 * m = 30 * m * 1 := by ring
+                      _ ≤ 30 * m * m := Nat.mul_le_mul_right (30 * m) (by omega)
+                      _ = 30 * m ^ 2 := by ring
+                  have : 23 ≤ 23 * m ^ 2 := by
+                    have : m ^ 2 ≥ 1 := by
+                      calc m ^ 2 ≥ 1 ^ 2 := Nat.pow_le_pow_left (by omega) 2
+                        _ = 1 := by norm_num
+                    calc 23 = 23 * 1 := by ring
+                      _ ≤ 23 * m ^ 2 := Nat.mul_le_mul_right 23 this
+                  omega
+                have h_combined : 12 * m ^ 2 + 30 * m ^ 2 + 23 * m ^ 2 = 65 * m ^ 2 := by ring
+                rw [h_combined] at h_upper
+                have h_final : 4 * m ^ 3 ≥ 65 * m ^ 2 := by
+                  have : m ≥ 200 := hm
+                  have : m ≥ 65 := by omega
+                  have : m ^ 3 ≥ 65 * m ^ 2 := by
+                    calc m ^ 3 = m * m ^ 2 := by ring
+                      _ ≥ 65 * m ^ 2 := Nat.mul_le_mul_left m (by omega)
+                  exact Nat.mul_le_mul_left 4 this
+                omega
+              calc (m + 1) ^ 4 = m^4 + 4*m^3 + 6*m^2 + 4*m + 1 := by ring
+                _ ≥ 4*m^3 + 6*m^2 + 10*m + 4 + 4*m^3 + 6*m^2 + 4*m + 1 := by omega
+                _ = 8*m^3 + 12*m^2 + 14*m + 5 := by ring
+                _ ≥ 4*(m^3 + 3*m^2 + 3*m + 1) + 6*(m^2 + 2*m + 1) + 10*(m + 1) + 4 := by ring_nf; omega
+                _ = 4 * (m + 1) ^ 3 + 6 * (m + 1) ^ 2 + 10 * (m + 1) + 4 := by ring
+            exact Nat.le_induction base step k hk
+          omega
+      _ = 2 * 2^k := by ring
+      _ = 2 ^ (k + 1) := by rw [Nat.pow_succ]; ring
+
 /-- General helper: for any k ≥ 1, c ≥ 1, and n ≥ 100*k + c + 100,
     we have (c*n^k + c)^2 + 3*(c*n^k + c) + 1 < 2^n.
     This handles the k ≥ 1 case of poly_quadratic_bound.
@@ -305,7 +382,57 @@ private theorem four_n_squared_plus_six_n_plus_one_lt_two_pow_n (n : Nat) (hn : 
 private theorem poly_quadratic_bound_k_ge_1 (k c n : Nat) (hk : k ≥ 1) (hc : c ≥ 1)
     (hn : n ≥ 100 * k + c + 100) :
     (c * n ^ k + c) ^ 2 + 3 * (c * n ^ k + c) + 1 < 2 ^ n := by
-  sorry
+  -- For n ≥ 100*k + c + 100, we have n ≥ 200
+  have hn200 : n ≥ 200 := by omega
+  -- For k = 1, we can bound c * n + c ≤ n^2 and use n_quartic_plus_lt_two_pow_n_200
+  -- For k ≥ 2, we need a different approach
+  cases k with
+  | zero =>
+    -- k = 0, but we have k ≥ 1, so this case is impossible
+    omega
+  | succ k =>
+    cases k with
+    | zero =>
+      -- k = 1
+      -- We have n ≥ 100*1 + c + 100 = c + 200, so c ≤ n - 200
+      have hc_bound : c ≤ n - 200 := by omega
+      -- c * n + c = c*(n+1) ≤ (n - 200)*(n+1) < n^2 for n ≥ 200
+      have h_poly_bound : c * n + c < n ^ 2 := by
+        have hc_le : c ≤ n - 200 := hc_bound
+        have h_mul : c * (n + 1) ≤ (n - 200) * (n + 1) := Nat.mul_le_mul_right (n + 1) hc_le
+        have h_lt : (n - 200) * (n + 1) < n ^ 2 := by
+          have : n ≥ 200 := hn200
+          -- For n ≥ 200, (n - 200) * (n + 1) < n^2
+          -- We can show: n^2 = (n - 200) * (n + 1) + 199 * n + 200
+          -- So n^2 - (n - 200) * (n + 1) = 199 * n + 200 > 0
+          have h_eq : (n - 200) * (n + 1) + 199 * n + 200 = n ^ 2 := by
+            have : n ≥ 200 := hn200
+            -- Expand (n - 200) * (n + 1) = n*(n+1) - 200*(n+1)
+            -- = n^2 + n - 200*n - 200
+            -- So (n - 200) * (n + 1) + 199 * n + 200 = n^2 + n - 200*n - 200 + 199*n + 200
+            -- = n^2 + (n - 200*n + 199*n) + (-200 + 200)
+            -- = n^2 + (n - n) + 0 = n^2
+            omega
+          omega
+        calc c * n + c = c * (n + 1) := by ring
+          _ ≤ (n - 200) * (n + 1) := h_mul
+          _ < n ^ 2 := h_lt
+      -- Now bound the LHS
+      calc (c * n + c) ^ 2 + 3 * (c * n + c) + 1
+          < (n ^ 2) ^ 2 + 3 * (n ^ 2) + 1 := by
+              have h_sq : (c * n + c) ^ 2 < (n ^ 2) ^ 2 := Nat.pow_lt_pow_left h_poly_bound 2
+              have h_lin : 3 * (c * n + c) < 3 * (n ^ 2) := Nat.mul_lt_mul_left 3 h_poly_bound
+              omega
+        _ = n ^ 4 + 3 * n ^ 2 + 1 := by ring
+        _ < 2 ^ n := n_quartic_plus_lt_two_pow_n_200 n hn200
+    | succ k =>
+      -- k ≥ 2
+      -- For k ≥ 2, we have n ≥ 100*(k+1) + c + 100 ≥ 301
+      -- We use a general approach: bound c * n^(k+1) + c by n^(k+1) + n^(k+1) = 2*n^(k+1)
+      -- Then (2*n^(k+1))^2 + 3*(2*n^(k+1)) + 1 = 4*n^(2k+2) + 6*n^(k+1) + 1
+      -- For n ≥ 301 and k ≥ 2, this is < 2^n
+      -- We can use induction on n
+      sorry
 
 /-- Helper for k=0: For c ≥ 0 and n ≥ 2*c + 5, 4*c^2 + 6*c + 1 < 2^n. -/
 private theorem poly_quadratic_bound_k0 (c : Nat) (n : Nat) (hn : n ≥ 2 * c + 5) :
