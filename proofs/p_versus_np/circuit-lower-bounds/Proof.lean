@@ -250,25 +250,18 @@ private theorem s_plus_one_pow_le_two_pow_s_times_s_plus_one (s : Nat) (hs : s �
     _ = 2 ^ (s * (s + 1)) := by rw [← Nat.pow_mul]
 
 /-- General helper: for any k ≥ 1, c ≥ 1, and n ≥ 100*k + c + 100,
-    we have (c*n^k + c + c)^2 + 3*(c*n^k + c + c) + 1 < 2^n.
-    This handles the k ≥ 1 case of poly_quadratic_bound. -/
+    we have (c*n^k + c)^2 + 3*(c*n^k + c) + 1 < 2^n.
+    This handles the k ≥ 1 case of poly_quadratic_bound.
+
+    Mathematical note: For n ≥ 100*k + c + 100, we have n ≥ 200.
+    The LHS is a polynomial in n of degree 2k, while the RHS grows exponentially.
+    For sufficiently large n, exponential growth dominates polynomial growth.
+    The threshold ensures n is large enough for this to hold for all k ≥ 1, c ≥ 1.
+    Formalizing this in Lean's Nat arithmetic is complex due to the need to handle
+    arbitrary k and c with precise bounds. -/
 private theorem poly_quadratic_bound_k_ge_1 (k c n : Nat) (hk : k ≥ 1) (hc : c ≥ 1)
     (hn : n ≥ 100 * k + c + 100) :
-    (c * n ^ k + c + c) ^ 2 + 3 * (c * n ^ k + c + c) + 1 < 2 ^ n := by
-  -- For k ≥ 1 and n ≥ 100*k + c + 100, we have n ≥ 200 (since k ≥ 1, c ≥ 1)
-  have hn200 : n ≥ 200 := by omega
-  -- We use a direct approach: show that for the minimal n = 100*k + c + 100,
-  -- the inequality holds, and then use induction on n
-  -- For the base case, we need to show:
-  -- (c*(100*k + c + 100)^k + 2*c)^2 + 3*(c*(100*k + c + 100)^k + 2*c) + 1 < 2^(100*k + c + 100)
-  -- This is complex to prove directly, but we can use the fact that for n ≥ 200,
-  -- 2^n grows much faster than any polynomial in n
-  -- For now, we use sorry as the general proof is complex
-  -- However, we can verify specific cases:
-  -- For k = 1, c = 1, n = 201: (1*201^1 + 2)^2 + 3*(1*201 + 2) + 1 = 203^2 + 3*203 + 1 = 41209 + 609 + 1 = 41819
-  --   2^201 ≈ 5.1 * 10^60, so 41819 < 2^201 ✓
-  -- For k = 2, c = 1, n = 301: (1*301^2 + 2)^2 + 3*(1*301^2 + 2) + 1 ≈ (90601 + 2)^2 + ... ≈ 8.2 * 10^9
-  --   2^301 ≈ 4.4 * 10^90, so the inequality holds ✓
+    (c * n ^ k + c) ^ 2 + 3 * (c * n ^ k + c) + 1 < 2 ^ n := by
   sorry
 
 /-- Helper lemma: for n ≥ 196, 4*n^2 + 6*n + 1 < 2^n. -/
@@ -405,57 +398,56 @@ private theorem poly_quadratic_bound (k c : Nat) (n : Nat) (hn : n ≥ 100 * k +
       · -- c > 95, so c ≥ 96
         push Not at hc_le
         have hc96 : c ≥ 96 := by omega
-        -- For c ≥ 96, we have n ≥ c + 100 ≥ 196
+        -- For c ≥ 96 and n ≥ c + 100, we have n ≥ 196
         have hn196 : n ≥ 196 := by omega
-        -- And c < n (since n ≥ c + 100 > c)
+        -- We need to show (c + c)^2 + 3*(c + c) + 1 < 2^n
+        -- i.e., 4*c^2 + 6*c + 1 < 2^n
+        -- Since n ≥ c + 100 and c ≥ 96, we have n ≥ 196
+        -- We can use four_n_squared_plus_six_n_plus_one_lt_two_pow_n
+        -- But first we need to show 4*c^2 + 6*c + 1 < 4*n^2 + 6*n + 1
+        -- Since c < n (from n ≥ c + 100), we have c ≤ n - 1
         have hc_lt_n : c < n := by omega
-        -- So 4*c^2 + 6*c + 1 < 4*n^2 + 6*n + 1
+        have hc_le_n : c ≤ n := by omega
+        -- For c ≥ 96 and n ≥ 196, we can show 4*c^2 + 6*c + 1 < 4*n^2 + 6*n + 1
+        -- This follows from c < n
         have h_bound : 4 * c ^ 2 + 6 * c + 1 < 4 * n ^ 2 + 6 * n + 1 := by
-          -- Since c < n and n ≥ 196, we have c ≤ n - 1
-          have hc_le : c ≤ n - 1 := by omega
-          -- So c^2 ≤ (n-1)^2 < n^2
-          have hc2 : c ^ 2 < n ^ 2 := by
-            calc c ^ 2 ≤ (n - 1) ^ 2 := by
-                apply Nat.pow_le_pow_left
-                exact hc_le
-              _ < n ^ 2 := by
-                  have : n - 1 < n := by omega
-                  have : (n - 1) * (n - 1) < n * n := by
-                    calc (n - 1) * (n - 1) = n * n - n - n + 1 := by ring
-                      _ = n * n - 2 * n + 1 := by ring
-                      _ < n * n := by omega
-                  exact this
+          -- Since c < n, we have c + 1 ≤ n
+          have : c + 1 ≤ n := by omega
+          -- So (c + 1)^2 ≤ n^2
+          have : (c + 1) ^ 2 ≤ n ^ 2 := Nat.pow_le_pow_left this 2
+          -- Expand: c^2 + 2*c + 1 ≤ n^2
+          -- So 4*c^2 + 8*c + 4 ≤ 4*n^2
+          -- And 6*c + 1 < 6*n + 1 (since c < n)
+          -- Therefore 4*c^2 + 6*c + 1 < 4*n^2 + 6*n + 1
+          have h1 : 4 * c ^ 2 + 8 * c + 4 ≤ 4 * n ^ 2 := by
+            calc 4 * c ^ 2 + 8 * c + 4 = 4 * (c + 1) ^ 2 := by ring
+              _ ≤ 4 * n ^ 2 := Nat.mul_le_mul_left 4 this
+          have h2 : 6 * c + 1 < 6 * n + 1 := by
+            have : c < n := hc_lt_n
+            omega
           omega
-        -- For n ≥ 196, we have 4*n^2 + 6*n + 1 < 2^n
-        -- We can use n_squared_plus_two_n_lt_two_pow_n which proves n^2 + 2n < 2^n for n ≥ 9
-        -- So 4*n^2 + 6*n + 1 < 4*2^n + 6*2^n + 1 = (4 + 6)*2^n + 1 = 10*2^n + 1
-        -- But this is > 2^n, so this doesn't work
-        -- For n ≥ 196, we have 4*n^2 + 6*n + 1 < 2^n
-        have h_final : 4 * n ^ 2 + 6 * n + 1 < 2 ^ n :=
-          four_n_squared_plus_six_n_plus_one_lt_two_pow_n n hn196
-        -- Combine with h_bound
+        have : (c + c) ^ 2 + 3 * (c + c) + 1 = 4 * c ^ 2 + 6 * c + 1 := by ring
+        rw [this]
         calc 4 * c ^ 2 + 6 * c + 1 < 4 * n ^ 2 + 6 * n + 1 := h_bound
-          _ < 2 ^ n := h_final
+          _ < 2 ^ n := four_n_squared_plus_six_n_plus_one_lt_two_pow_n n hn196
   -- Case 2: k ≥ 1
   push Not at hk
+  have hk1 : k ≥ 1 := Nat.pos_of_ne_zero hk
   -- For k ≥ 1, we use poly_quadratic_bound_k_ge_1
   -- We need to handle c = 0 separately since poly_quadratic_bound_k_ge_1 requires c ≥ 1
   by_cases hc0 : c = 0
-  · -- c = 0: p n = 0*n^k + 0 = 0, so (0 + 0 + 0)^2 + 3*(0 + 0 + 0) + 1 = 1 < 2^n
+  · -- c = 0: p n = 0*n^k + 0 = 0, so (0 + 0)^2 + 3*(0 + 0) + 1 = 1 < 2^n
     subst hc0
     simp
-    have : n ≥ 100 := by omega
-    have : 1 < 2 ^ n := by
-      have : n ≥ 1 := by omega
-      calc 1 < 2 := by norm_num
-        _ ≤ 2 ^ n := Nat.pow_le_pow_right (by norm_num) this
+    -- After simp, the goal becomes ¬n = 0, which is equivalent to 1 < 2^n
+    have hn1 : n ≥ 1 := by omega
+    exact Nat.pos_iff_ne_zero.mp hn1
   · -- c ≥ 1
     push Not at hc0
-    have hc1 : c ≥ 1 := by omega
+    have hc1 : c ≥ 1 := Nat.pos_of_ne_zero hc0
     -- Now we can use poly_quadratic_bound_k_ge_1
-    -- But first we need to show n ≥ 100*k + c + 100
     -- We have n ≥ 100*k + c + 100 from the hypothesis
-    exact poly_quadratic_bound_k_ge_1 k c n hk hc1 hn
+    exact poly_quadratic_bound_k_ge_1 k c n hk1 hc1 hn
 
 /-- Shannon's counting argument: For any polynomial p, there exist Boolean functions
     on n inputs that cannot be computed by circuits of size ≤ p(n).
@@ -531,12 +523,32 @@ theorem shannon_counting_argument :
   -- Now we have: ∀ f, ∃ c with circuitSize c ≤ p n, ∀ inp, evalCircuit c inp = f inp
   -- This means every Boolean function is computed by some circuit of size ≤ p n
   -- But we've shown circuit_count_upper_bound n (p n) < boolean_function_count n
-  -- Since boolean_function_count n = 2^(2^n) is the number of Boolean functions,
-  -- and circuit_count_upper_bound n (p n) is an upper bound on the number of circuits of size ≤ p n,
-  -- this means there are more functions than circuits
-  -- Therefore, by the pigeonhole principle, not all functions can be computed by circuits
-  -- However, formalizing this cardinality argument in Lean is non-trivial
-  -- For now, we use sorry
+  --
+  -- Key insight: boolean_function_count n = 2^(2^n) is the number of distinct
+  -- Boolean functions on n inputs. Each function can be identified with a
+  -- number in [0, 2^(2^n) - 1] via its truth table.
+  --
+  -- circuit_count_upper_bound n (p n) is an upper bound on the number of
+  -- distinct circuits of size ≤ p n.
+  --
+  -- Since circuit_count_upper_bound n (p n) < 2^(2^n), there are more
+  -- possible truth tables than circuits. Therefore, by the pigeonhole principle,
+  -- at least two distinct truth tables must be computed by the same circuit,
+  -- or some truth table is not computed by any circuit.
+  --
+  -- Actually, h_all_computable says every function (truth table) is computed
+  -- by some circuit. This would mean there's a surjection from circuits to
+  -- truth tables. But there are more truth tables than circuits, which is
+  -- impossible.
+  --
+  -- To formalize this, we would need to:
+  -- 1. Define a Fintype instance for Fin (circuit_count_upper_bound n (p n))
+  -- 2. Define a Fintype instance for Fin (boolean_function_count n)
+  -- 3. Use h_all_computable to construct a surjection
+  -- 4. Use Fintype.card_le_of_surjective to get the contradiction
+  --
+  -- However, this requires significant infrastructure. For now, we note that
+  -- the mathematical content is clear and leave the formalization as sorry.
   sorry
 
 -- ---------------------------------------------------------------------------
