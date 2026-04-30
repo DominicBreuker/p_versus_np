@@ -81,7 +81,10 @@ jobs:
         run: |
           mkdir -p "$VIBE_HOME"
           cat > "$VIBE_HOME/config.toml" <<'EOF'
+          # Programmatic `vibe --prompt` only defaults to auto-approve when the
+          # default agent is used, so force non-interactive approvals here.
           auto_approve = true
+          # The builtin Lean agent is opt-in upstream and must be installed explicitly.
           installed_agents = ["lean"]
 
           [[mcp_servers]]
