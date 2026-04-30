@@ -124,6 +124,383 @@ def circuit_count_upper_bound (_n s : Nat) : Nat := (s + 1) ^ (s + 1) * 2 ^ s
 /-- The number of distinct Boolean functions on n inputs is 2^(2^n). -/
 def boolean_function_count (n : Nat) : Nat := 2 ^ (2 ^ n)
 
+
+/-- Finite node codes used for normalized counting. -/
+inductive NodeCode (n s : Nat) where
+  | const : Bool → NodeCode n s
+  | var : Fin n → NodeCode n s
+  | not : Fin s → NodeCode n s
+  | and : Finset (Fin s) → NodeCode n s
+  | or : Finset (Fin s) → NodeCode n s
+  deriving DecidableEq, Fintype
+
+/-- A normalized circuit of size exactly `s`, with a finite node code at each position. -/
+abbrev NormalizedCircuit (n s : Nat) := Option (Fin s) × (Fin s → NodeCode n s)
+
+private def falseNode : CircuitNode := ⟨Gate.Const false, []⟩
+
+private def boundedChildren (s : Nat) (children : List Nat) : Finset (Fin s) :=
+  (children.filterMap (fun child => if h : child < s then some ⟨child, h⟩ else none)).toFinset
+
+private theorem mem_boundedChildren {s : Nat} {children : List Nat} {x : Fin s} :
+    x ∈ boundedChildren s children ↔ x.val ∈ children := by
+  simp [boundedChildren]
+  constructor
+  · intro h
+    rcases h with ⟨a, ha, ha_lt, hax⟩
+    cases hax
+    simpa using ha
+  · intro hx
+    refine ⟨x.val, hx, x.isLt, ?_⟩
+    ext
+    simp
+
+private noncomputable def nodeCodeToRaw {n s : Nat} : NodeCode n s → CircuitNode
+  | .const b => ⟨Gate.Const b, []⟩
+  | .var v => ⟨Gate.Var v.val, []⟩
+  | .not child => ⟨Gate.Not, [child.val]⟩
+  | .and children => ⟨Gate.And, children.toList.map Fin.val⟩
+  | .or children => ⟨Gate.Or, children.toList.map Fin.val⟩
+
+private noncomputable def normalizedToRaw {n s : Nat} (c : NormalizedCircuit n s) : BoolCircuit n :=
+  { nodes := Array.ofFn (fun i => nodeCodeToRaw (c.2 i))
+    output := match c.1 with
+      | some out => out.val
+      | none => s }
+
+private def normalizeNodeCode (n s : Nat) (node : CircuitNode) : NodeCode n s :=
+  match node.gate with
+  | Gate.Const b => .const b
+  | Gate.Var i => if h : i < n then .var ⟨i, h⟩ else .const false
+  | Gate.Not =>
+      match node.children with
+      | [child] => if h : child < s then .not ⟨child, h⟩ else .const true
+      | _ => .const false
+  | Gate.And => .and (boundedChildren s node.children)
+  | Gate.Or => .or (boundedChildren s node.children)
+
+private def normalizeCircuit {n s : Nat} (c : BoolCircuit n) (hsize : circuitSize c ≤ s) :
+    NormalizedCircuit n s :=
+  let pre : Fin c.nodes.size → NodeCode n s := fun i => normalizeNodeCode n s (c.nodes[i]);
+  let suf : Fin (s - c.nodes.size) → NodeCode n s := fun _ => .const false;
+  let hsplit : c.nodes.size + (s - c.nodes.size) = s := Nat.add_sub_of_le hsize;
+  let nodes : Fin s → NodeCode n s := fun i => Fin.append pre suf (Fin.cast hsplit.symm i);
+  let output : Option (Fin s) :=
+    if h : c.output < c.nodes.size then some ⟨c.output, lt_of_lt_of_le h hsize⟩ else none;
+  (output, nodes)
+
+private theorem foldl_and_false {α : Type} (l : List α) (f : α → Bool) :
+    l.foldl (fun b x => b && f x) false = false := by
+  induction l with
+  | nil => simp
+  | cons x xs ih => simp [List.foldl, ih]
+
+private theorem foldl_or_true {α : Type} (l : List α) (f : α → Bool) :
+    l.foldl (fun b x => b || f x) true = true := by
+  induction l with
+  | nil => simp
+  | cons x xs ih => simp [List.foldl, ih]
+
+private theorem foldl_and_true_iff {α : Type} (l : List α) (f : α → Bool) :
+    l.foldl (fun b x => b && f x) true = true ↔ ∀ x ∈ l, f x = true := by
+  induction l with
+  | nil => simp
+  | cons x xs ih =>
+      cases hfx : f x
+      · simp [List.foldl, hfx, foldl_and_false]
+      · simp [List.foldl, hfx, ih]
+
+private theorem foldl_or_true_iff {α : Type} (l : List α) (f : α → Bool) :
+    l.foldl (fun b x => b || f x) false = true ↔ ∃ x ∈ l, f x = true := by
+  induction l with
+  | nil => simp
+  | cons x xs ih =>
+      cases hfx : f x
+      · simp [List.foldl, hfx, ih]
+      · simp [List.foldl, hfx, foldl_or_true]
+
+private theorem foldl_and_map_val {s : Nat} (vals : Array Bool) (l : List (Fin s)) :
+    List.foldl (fun (acc : Bool) c => acc && vals.getD c true) true (l.map Fin.val) =
+      List.foldl (fun (acc : Bool) (child : Fin s) => acc && vals.getD child.val true) true l := by
+  induction l with
+  | nil => simp
+  | cons child rest ih => simpa using ih
+
+private theorem foldl_or_map_val {s : Nat} (vals : Array Bool) (l : List (Fin s)) :
+    List.foldl (fun (acc : Bool) c => acc || vals.getD c false) false (l.map Fin.val) =
+      List.foldl (fun (acc : Bool) (child : Fin s) => acc || vals.getD child.val false) false l := by
+  induction l with
+  | nil => simp
+  | cons child rest ih => simpa using ih
+
+private theorem foldl_and_map_eval {s : Nat} (vals : Array Bool) (l : List (Fin s)) :
+    List.foldl (fun (acc : Bool) (child : Fin s) => acc && vals.getD child.val true) true l =
+      List.foldl (fun (acc : Bool) b => acc && b) true (l.map (fun child => vals.getD child.val true)) := by
+  induction l with
+  | nil => simp
+  | cons child rest ih => simpa using ih
+
+private theorem foldl_or_map_eval {s : Nat} (vals : Array Bool) (l : List (Fin s)) :
+    List.foldl (fun (acc : Bool) (child : Fin s) => acc || vals.getD child.val false) false l =
+      List.foldl (fun (acc : Bool) b => acc || b) false (l.map (fun child => vals.getD child.val false)) := by
+  induction l with
+  | nil => simp
+  | cons child rest ih => simpa using ih
+
+private theorem and_fold_preserved (vals : Array Bool) (s : Nat) (hs : vals.size ≤ s)
+    (children : List Nat) :
+    children.foldl (fun acc c => acc && vals.getD c true) true =
+      ((boundedChildren s children).toList.map (fun child => vals.getD child.val true)).foldl (· && ·) true := by
+  apply (Bool.eq_iff_iff).2
+  constructor <;> intro h
+  · rw [foldl_and_true_iff] at h
+    rw [foldl_and_true_iff]
+    intro b hb
+    rcases List.mem_map.mp hb with ⟨child, hchild, rfl⟩
+    have hmem : child.val ∈ children := (mem_boundedChildren).mp (Finset.mem_toList.mp hchild)
+    exact h child.val hmem
+  · rw [foldl_and_true_iff] at h
+    rw [foldl_and_true_iff]
+    intro c hc
+    by_cases hcs : c < s
+    · let child : Fin s := ⟨c, hcs⟩
+      have hchild : child ∈ (boundedChildren s children).toList := by
+        exact Finset.mem_toList.mpr ((mem_boundedChildren).2 hc)
+      have hbool : vals.getD child.val true ∈
+          (boundedChildren s children).toList.map (fun child => vals.getD child.val true) := by
+        exact List.mem_map.mpr ⟨child, hchild, rfl⟩
+      have hval : vals.getD child.val true = true := h _ hbool
+      simpa [child] using hval
+    · have hge : vals.size ≤ c := le_trans hs (Nat.le_of_not_gt hcs)
+      simp [Array.getD, hge]
+
+private theorem or_fold_preserved (vals : Array Bool) (s : Nat) (hs : vals.size ≤ s)
+    (children : List Nat) :
+    children.foldl (fun acc c => acc || vals.getD c false) false =
+      ((boundedChildren s children).toList.map (fun child => vals.getD child.val false)).foldl (· || ·) false := by
+  apply (Bool.eq_iff_iff).2
+  constructor <;> intro h
+  · rw [foldl_or_true_iff] at h
+    rw [foldl_or_true_iff]
+    rcases h with ⟨c, hc, hval⟩
+    by_cases hcs : c < s
+    · let child : Fin s := ⟨c, hcs⟩
+      refine ⟨vals.getD child.val false, ?_, ?_⟩
+      · exact List.mem_map.mpr ⟨child, Finset.mem_toList.mpr ((mem_boundedChildren).2 hc), rfl⟩
+      · simpa [child] using hval
+    · have hge : vals.size ≤ c := le_trans hs (Nat.le_of_not_gt hcs)
+      simp [Array.getD, hge] at hval
+  · rw [foldl_or_true_iff] at h
+    rw [foldl_or_true_iff]
+    rcases h with ⟨b, hb, htrue⟩
+    rcases List.mem_map.mp hb with ⟨child, hchild, hbdef⟩
+    refine ⟨child.val, (mem_boundedChildren).mp (Finset.mem_toList.mp hchild), ?_⟩
+    simpa [hbdef] using htrue
+
+private theorem evalNode_normalizeNodeCode {n s : Nat} (inp : Fin n → Bool) (vals : Array Bool)
+    (hs : vals.size ≤ s) (node : CircuitNode) :
+    evalNode inp vals (nodeCodeToRaw (normalizeNodeCode n s node)) = evalNode inp vals node := by
+  cases hgate : node.gate with
+  | And =>
+      let l := (boundedChildren s node.children).toList
+      calc
+        evalNode inp vals (nodeCodeToRaw (normalizeNodeCode n s node))
+            = List.foldl (fun acc c => acc && vals.getD c true) true
+                (List.map Fin.val l) := by simp [normalizeNodeCode, nodeCodeToRaw, hgate, evalNode, l]
+        _ = List.foldl (fun acc b : Fin s => acc && vals.getD b.val true) true l := foldl_and_map_val vals l
+        _ = List.foldl (fun acc b => acc && b) true (l.map (fun child => vals.getD child.val true)) := foldl_and_map_eval vals l
+        _ = evalNode inp vals node := by
+              simpa [hgate, evalNode, l] using (and_fold_preserved vals s hs node.children).symm
+  | Or =>
+      let l := (boundedChildren s node.children).toList
+      calc
+        evalNode inp vals (nodeCodeToRaw (normalizeNodeCode n s node))
+            = List.foldl (fun acc c => acc || vals.getD c false) false
+                (List.map Fin.val l) := by simp [normalizeNodeCode, nodeCodeToRaw, hgate, evalNode, l]
+        _ = List.foldl (fun acc b : Fin s => acc || vals.getD b.val false) false l := foldl_or_map_val vals l
+        _ = List.foldl (fun acc b => acc || b) false (l.map (fun child => vals.getD child.val false)) := foldl_or_map_eval vals l
+        _ = evalNode inp vals node := by
+              simpa [hgate, evalNode, l] using (or_fold_preserved vals s hs node.children).symm
+  | Not =>
+      cases hchildren : node.children with
+      | nil => simp [normalizeNodeCode, nodeCodeToRaw, hgate, hchildren, evalNode]
+      | cons child rest =>
+          cases rest with
+          | nil =>
+              by_cases hchild : child < s
+              · simp [normalizeNodeCode, nodeCodeToRaw, hgate, hchildren, hchild, evalNode]
+              · have hge : vals.size ≤ child := le_trans hs (Nat.le_of_not_gt hchild)
+                simp [normalizeNodeCode, nodeCodeToRaw, hgate, hchildren, hchild, evalNode, Array.getD, hge]
+          | cons child' rest' =>
+              simp [normalizeNodeCode, nodeCodeToRaw, hgate, hchildren, evalNode]
+  | Var i =>
+      by_cases hi : i < n
+      · simp [normalizeNodeCode, nodeCodeToRaw, hgate, hi, evalNode]
+      · simp [normalizeNodeCode, nodeCodeToRaw, hgate, hi, evalNode]
+  | Const b => simp [normalizeNodeCode, nodeCodeToRaw, hgate, evalNode]
+
+private def evalStep {n : Nat} (inp : Fin n → Bool) (acc : Array Bool) (node : CircuitNode) : Array Bool :=
+  acc.push (evalNode inp acc node)
+
+private theorem evalStep_fold_size {n : Nat} (inp : Fin n → Bool) (vals : Array Bool)
+    (nodes : List CircuitNode) :
+    (List.foldl (evalStep inp) vals nodes).size = vals.size + nodes.length := by
+  induction nodes generalizing vals with
+  | nil => simp [evalStep]
+  | cons node rest ih => simp [List.foldl, evalStep, ih, Array.size_push, Nat.add_assoc, Nat.add_left_comm, Nat.add_comm]
+
+private theorem evalStep_fold_getElem?_preserve {n : Nat} (inp : Fin n → Bool) (vals : Array Bool)
+    (extra : List CircuitNode) (i : Nat) (hi : i < vals.size) :
+    (List.foldl (evalStep inp) vals extra)[i]? = vals[i]? := by
+  induction extra generalizing vals with
+  | nil => simp
+  | cons node rest ih =>
+      simp [List.foldl, evalStep]
+      rw [ih (vals := vals.push (evalNode inp vals node))]
+      · rw [Array.getElem?_eq_getElem hi]
+        exact Array.getElem?_push_lt hi
+      · rw [Array.size_push]
+        exact Nat.lt_succ_of_lt hi
+
+private theorem evalStep_fold_normalized_eq {n s : Nat} (inp : Fin n → Bool)
+    (vals : Array Bool) (nodes : List CircuitNode) (hbound : vals.size + nodes.length ≤ s) :
+    List.foldl (evalStep inp) vals (nodes.map (fun node => nodeCodeToRaw (normalizeNodeCode n s node))) =
+      List.foldl (evalStep inp) vals nodes := by
+  induction nodes generalizing vals with
+  | nil => simp [evalStep]
+  | cons node rest ih =>
+      have hs : vals.size ≤ s := by omega
+      have hnode : evalNode inp vals (nodeCodeToRaw (normalizeNodeCode n s node)) = evalNode inp vals node :=
+        evalNode_normalizeNodeCode inp vals hs node
+      simp [List.foldl, evalStep, hnode]
+      apply ih
+      simpa [Array.size_push, Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using hbound
+
+private theorem normalizeCircuit_nodes_list {n s : Nat} (c : BoolCircuit n) (hsize : circuitSize c ≤ s) :
+    List.ofFn (normalizeCircuit c hsize).2 =
+      List.ofFn (fun i : Fin c.nodes.size => normalizeNodeCode n s (c.nodes[i])) ++
+        List.replicate (s - c.nodes.size) (NodeCode.const false) := by
+  dsimp [normalizeCircuit]
+  let pre : Fin c.nodes.size → NodeCode n s := fun i => normalizeNodeCode n s (c.nodes[i])
+  let suf : Fin (s - c.nodes.size) → NodeCode n s := fun _ => NodeCode.const false
+  have hsplit : c.nodes.size + (s - c.nodes.size) = s := Nat.add_sub_of_le hsize
+  calc
+    List.ofFn (fun i : Fin s => Fin.append pre suf (Fin.cast hsplit.symm i))
+        = List.ofFn (Fin.append pre suf) := by
+            simpa [hsplit] using (List.ofFn_congr hsplit (Fin.append pre suf)).symm
+    _ = List.ofFn pre ++ List.ofFn suf := List.ofFn_fin_append pre suf
+    _ = List.ofFn pre ++ List.replicate (s - c.nodes.size) (NodeCode.const false) := by
+          simp [suf, List.ofFn_const]
+
+private theorem evalCircuit_normalizeCircuit {n s : Nat} (c : BoolCircuit n) (hsize : circuitSize c ≤ s)
+    (inp : Fin n → Bool) :
+    evalCircuit (normalizedToRaw (normalizeCircuit c hsize)) inp = evalCircuit c inp := by
+  let rawVals : Array Bool := List.foldl (evalStep inp) #[] c.nodes.toList
+  let canonVals : Array Bool :=
+    List.foldl (evalStep inp) #[]
+      (c.nodes.toList.map (fun node => nodeCodeToRaw (normalizeNodeCode n s node)))
+  have hcanon : canonVals = rawVals := by
+    dsimp [canonVals, rawVals]
+    exact evalStep_fold_normalized_eq inp #[] c.nodes.toList (by simpa)
+  have hnodeListCodes : List.ofFn (normalizeCircuit c hsize).2 =
+      List.ofFn (fun i : Fin c.nodes.size => normalizeNodeCode n s (c.nodes[i])) ++
+        List.replicate (s - c.nodes.size) (NodeCode.const false) := normalizeCircuit_nodes_list c hsize
+  have hnodeList : List.ofFn (fun i => nodeCodeToRaw ((normalizeCircuit c hsize).2 i)) =
+      (c.nodes.toList.map (fun node => nodeCodeToRaw (normalizeNodeCode n s node))) ++
+        List.replicate (s - c.nodes.size) falseNode := by
+    simpa [falseNode, nodeCodeToRaw, List.map_append, List.ofFn_eq_map, Function.comp_def] using
+      congrArg (List.map nodeCodeToRaw) hnodeListCodes
+  have hnormVals :
+      Array.foldl (fun acc node => acc.push (evalNode inp acc node)) #[]
+          (normalizedToRaw (normalizeCircuit c hsize)).nodes =
+        List.foldl (evalStep inp) #[] ((c.nodes.toList.map (fun node => nodeCodeToRaw (normalizeNodeCode n s node))) ++
+          List.replicate (s - c.nodes.size) falseNode) := by
+    simp [normalizedToRaw, evalStep, Array.foldl_toList, Array.toList_ofFn, hnodeList]
+  have hrawVals :
+      Array.foldl (fun acc node => acc.push (evalNode inp acc node)) #[] c.nodes = rawVals := by
+    simp [rawVals, evalStep, Array.foldl_toList]
+  unfold evalCircuit
+  rw [hnormVals, hrawVals, List.foldl_append]
+  simp only [canonVals, rawVals]
+  rw [hcanon]
+  by_cases houtput : c.output < c.nodes.size
+  · have hsizeVals : rawVals.size = c.nodes.size := by
+      dsimp [rawVals]
+      simpa using evalStep_fold_size inp #[] c.nodes.toList
+    have hprefix : (List.foldl (evalStep inp) rawVals (List.replicate (s - c.nodes.size) falseNode))[c.output]? =
+        rawVals[c.output]? := by
+      apply evalStep_fold_getElem?_preserve inp rawVals (List.replicate (s - c.nodes.size) falseNode) c.output
+      simpa [hsizeVals] using houtput
+    simp [normalizedToRaw, normalizeCircuit, houtput, hsizeVals, hprefix]
+  · have hsizeVals : rawVals.size = c.nodes.size := by
+      dsimp [rawVals]
+      simpa using evalStep_fold_size inp #[] c.nodes.toList
+    simp [normalizedToRaw, normalizeCircuit, houtput, hsizeVals, Array.getD]
+
+private def encodeNodeCode {n s : Nat} : NodeCode n s → Bool ⊕ Fin n ⊕ Fin s ⊕ Finset (Fin s) ⊕ Finset (Fin s)
+  | .const b => Sum.inl b
+  | .var v => Sum.inr <| Sum.inl v
+  | .not child => Sum.inr <| Sum.inr <| Sum.inl child
+  | .and children => Sum.inr <| Sum.inr <| Sum.inr <| Sum.inl children
+  | .or children => Sum.inr <| Sum.inr <| Sum.inr <| Sum.inr children
+
+private theorem encodeNodeCode_injective {n s : Nat} : Function.Injective (@encodeNodeCode n s) := by
+  intro a b h
+  cases a <;> cases b <;> cases h <;> rfl
+
+private theorem node_code_card_sum_bound (n s : Nat) :
+    Fintype.card (NodeCode n s) ≤ 2 + n + s + 2 ^ s + 2 ^ s := by
+  let β := Bool ⊕ Fin n ⊕ Fin s ⊕ Finset (Fin s) ⊕ Finset (Fin s)
+  have hle := Fintype.card_le_of_injective (@encodeNodeCode n s) encodeNodeCode_injective
+  simpa [β, Fintype.card_sum, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using hle
+
+private theorem node_code_card_le (n s : Nat) :
+    Fintype.card (NodeCode n s) ≤ 2 ^ (n + s + 4) := by
+  have hcard := node_code_card_sum_bound n s
+  have hpow : 2 ^ s ≤ 2 ^ (n + s + 1) := by
+    apply Nat.pow_le_pow_right
+    · norm_num
+    · omega
+  have hn : n ≤ 2 ^ (n + s + 1) := by
+    calc n ≤ 2 ^ n := Nat.le_of_lt n.lt_two_pow_self
+      _ ≤ 2 ^ (n + s + 1) := by
+        apply Nat.pow_le_pow_right
+        · norm_num
+        · omega
+  have hs : s ≤ 2 ^ (n + s + 1) := by
+    calc s ≤ 2 ^ s := Nat.le_of_lt s.lt_two_pow_self
+      _ ≤ 2 ^ (n + s + 1) := by
+        apply Nat.pow_le_pow_right
+        · norm_num
+        · omega
+  have htwo : 2 ≤ 2 ^ (n + s + 1) := by
+    have h1 : 1 ≤ n + s + 1 := by omega
+    calc 2 = 2 ^ 1 := by norm_num
+      _ ≤ 2 ^ (n + s + 1) := Nat.pow_le_pow_right (by norm_num) h1
+  calc
+    Fintype.card (NodeCode n s) ≤ 2 + n + s + 2 ^ s + 2 ^ s := hcard
+    _ ≤ 2 ^ (n + s + 1) + 2 ^ (n + s + 1) + 2 ^ (n + s + 1) + 2 ^ (n + s + 1) + 2 ^ (n + s + 1) := by omega
+    _ = 5 * 2 ^ (n + s + 1) := by ring
+    _ ≤ 8 * 2 ^ (n + s + 1) := by omega
+    _ = 2 ^ (n + s + 4) := by
+      rw [show 8 = 2 ^ 3 by norm_num, ← Nat.pow_add]
+      congr 1
+      omega
+
+/-- A sound upper bound on the number of normalized circuits of size `s`. -/
+def normalized_circuit_count_upper_bound (n s : Nat) : Nat := (s + 1) * (2 ^ (n + s + 4)) ^ s
+
+private theorem normalized_circuit_card_le (n s : Nat) :
+    Fintype.card (NormalizedCircuit n s) ≤ normalized_circuit_count_upper_bound n s := by
+  dsimp [NormalizedCircuit, normalized_circuit_count_upper_bound]
+  calc
+    Fintype.card (Option (Fin s) × (Fin s → NodeCode n s))
+        = (s + 1) * Fintype.card (NodeCode n s) ^ s := by
+            simp [Fintype.card_prod, Fintype.card_option, Nat.mul_comm]
+    _ ≤ (s + 1) * (2 ^ (n + s + 4)) ^ s := by
+          apply Nat.mul_le_mul_left
+          exact Nat.pow_le_pow_left (node_code_card_le n s) s
+
 -- Arithmetic helper lemmas for the counting argument
 
 /-- For n ≥ 1, n + 1 ≤ 2^n. -/
