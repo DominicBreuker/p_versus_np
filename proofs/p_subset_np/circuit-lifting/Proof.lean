@@ -108,6 +108,59 @@ theorem liftCircuitTo_size {n m : Nat} (h : n ≤ m) (c : BoolCircuit n) :
 def IsWellFormed {n : Nat} (c : BoolCircuit n) : Prop :=
   ∀ i < c.nodes.size, ∀ j, c.nodes[i]!.gate = Gate.Var j → j < n
 
+/-- Replace out-of-bounds variable gates by `false`, preserving semantics for `BoolCircuit n`. -/
+def sanitizeGate (n : Nat) : Gate → Gate
+  | Gate.Var i => if i < n then Gate.Var i else Gate.Const false
+  | g => g
+
+/-- Node-level sanitization for the well-formedness side condition. -/
+def sanitizeNode (n : Nat) (node : CircuitNode) : CircuitNode :=
+  { node with gate := sanitizeGate n node.gate }
+
+/-- Circuit-level sanitization preserves the node graph and output index. -/
+def sanitizeCircuit {n : Nat} (c : BoolCircuit n) : BoolCircuit n :=
+  { nodes := c.nodes.map (sanitizeNode n), output := c.output }
+
+@[simp] theorem evalNode_sanitizeNode {n : Nat} (inp : Fin n → Bool) (vals : Array Bool)
+    (node : CircuitNode) :
+    evalNode inp vals (sanitizeNode n node) = evalNode inp vals node := by
+  cases h_gate : node.gate with
+  | And => simp [sanitizeNode, sanitizeGate, evalNode, h_gate]
+  | Or => simp [sanitizeNode, sanitizeGate, evalNode, h_gate]
+  | Not => simp [sanitizeNode, sanitizeGate, evalNode, h_gate]
+  | Const b => simp [sanitizeNode, sanitizeGate, evalNode, h_gate]
+  | Var i =>
+      by_cases hi : i < n
+      · simp [sanitizeNode, sanitizeGate, evalNode, h_gate, hi]
+      · simp [sanitizeNode, sanitizeGate, evalNode, h_gate, hi]
+
+@[simp] theorem sanitizeCircuit_size {n : Nat} (c : BoolCircuit n) :
+    circuitSize (sanitizeCircuit c) = circuitSize c := by
+  simp [sanitizeCircuit, circuitSize]
+
+theorem sanitizeCircuit_wf {n : Nat} (c : BoolCircuit n) :
+    IsWellFormed (sanitizeCircuit c) := by
+  intro i hi j hj
+  have hi' : i < c.nodes.size := by simpa [sanitizeCircuit] using hi
+  have hj' : (sanitizeNode n c.nodes[i]!).gate = Gate.Var j := by
+    simpa [sanitizeCircuit, hi'] using hj
+  cases h_gate : (c.nodes[i]!).gate with
+  | And => simp [sanitizeNode, sanitizeGate, h_gate] at hj'
+  | Or => simp [sanitizeNode, sanitizeGate, h_gate] at hj'
+  | Not => simp [sanitizeNode, sanitizeGate, h_gate] at hj'
+  | Const b => simp [sanitizeNode, sanitizeGate, h_gate] at hj'
+  | Var idx =>
+      by_cases hidx : idx < n
+      · simp [sanitizeNode, sanitizeGate, h_gate, hidx] at hj'
+        omega
+      · simp [sanitizeNode, sanitizeGate, h_gate, hidx] at hj'
+
+@[simp] theorem evalCircuit_sanitizeCircuit {n : Nat} (c : BoolCircuit n) (inp : Fin n → Bool) :
+    evalCircuit (sanitizeCircuit c) inp = evalCircuit c inp := by
+  unfold sanitizeCircuit evalCircuit
+  rw [Array.foldl_map]
+  simp
+
 /-- LiftCircuitTo preserves evaluation when restricted to the first n inputs.
     The proof is identical to liftCircuit_eval (same node array, different phantom type). -/
 theorem liftCircuitTo_eval {n m : Nat} (h : n ≤ m) (c : BoolCircuit n) (inp : Fin m → Bool)
@@ -350,12 +403,14 @@ theorem p_subset_np {L : Language} (hL : inP L) : inNP L := by
       obtain ⟨k, hk⟩ := this
       subst hk
       obtain ⟨c, hc_size, hc_correct⟩ := h_circuits k
-      use liftCircuit c
+      let c' : BoolCircuit k := sanitizeCircuit c
+      use liftCircuit c'
       constructor
       · -- circuitSize (liftCircuit c) ≤ p (m / 2) + 1
         have h_div : (2 * k) / 2 = k := by omega
-        have h_size : circuitSize (liftCircuit c) = circuitSize c := liftCircuit_size c
+        have h_size : circuitSize (liftCircuit c') = circuitSize c' := liftCircuit_size c'
         rw [h_size]
+        rw [sanitizeCircuit_size]
         have : (fun m => p (m / 2) + 1) (2 * k) = p k + 1 := by
           simp [h_div]
         rw [this]
@@ -363,12 +418,8 @@ theorem p_subset_np {L : Language} (hL : inP L) : inNP L := by
       · -- evalCircuit (liftCircuit c) inp = true ↔ V (2 * k) inp
         intro inp
         have h_div : (2 * k) / 2 = k := by omega
-        -- Use liftCircuit_eval with well-formedness
-        have h_wf : IsWellFormed c := by
-          -- Can't prove in general, but we can use the same approach as the odd case
-          -- For now, leave as sorry
-          sorry
-        have h_eval := liftCircuit_eval c inp h_wf
+        have h_wf : IsWellFormed c' := sanitizeCircuit_wf c
+        have h_eval := liftCircuit_eval c' inp h_wf
         rw [h_eval]
         -- Now: evalCircuit c (fun i => inp ⟨i.val, by omega⟩) = true ↔ V (2 * k) inp
         -- V (2 * k) inp = L ((2*k)/2) (fun i => inp ⟨i.val, by omega⟩)
@@ -393,9 +444,9 @@ theorem p_subset_np {L : Language} (hL : inP L) : inNP L := by
         -- Now h_verifier : L ((2 * k) / 2) (fun i => inp ⟨i.val, _⟩) ↔ L k (fun i => inp ⟨i.val, _⟩)
         -- The goal is: (evalCircuit c fun i => inp ⟨↑i, ⋯⟩) = true ↔ (fun m inp => L (m / 2) fun i => inp ⟨↑i, ⋯⟩) (2 * k) inp
         -- Simplify the RHS of the goal
-        show (evalCircuit c (fun i => inp ⟨i.val, by omega⟩)) = true ↔ L ((2 * k) / 2) (fun i => inp ⟨i.val, by omega⟩)
+        show (evalCircuit c' (fun i => inp ⟨i.val, by omega⟩)) = true ↔ L ((2 * k) / 2) (fun i => inp ⟨i.val, by omega⟩)
         rw [h_verifier]
-        exact hc_correct (fun i => inp ⟨i.val, by omega⟩)
+        simpa [c'] using hc_correct (fun i => inp ⟨i.val, by omega⟩)
     · -- m is odd: m = 2k + 1 for some k
       have : ∃ k, m = 2 * k + 1 := by
         use m / 2
@@ -405,11 +456,13 @@ theorem p_subset_np {L : Language} (hL : inP L) : inNP L := by
       -- For odd m, use liftCircuitTo to lift circuit for size k to size 2k+1
       obtain ⟨c, hc_size, hc_correct⟩ := h_circuits k
       have h_le : k ≤ 2 * k + 1 := by omega
-      use liftCircuitTo h_le c
+      let c' : BoolCircuit k := sanitizeCircuit c
+      use liftCircuitTo h_le c'
       constructor
       · -- circuitSize (liftCircuitTo h_le c) ≤ p (m / 2) + 1
-        have h_size : circuitSize (liftCircuitTo h_le c) = circuitSize c := liftCircuitTo_size h_le c
+        have h_size : circuitSize (liftCircuitTo h_le c') = circuitSize c' := liftCircuitTo_size h_le c'
         rw [h_size]
+        rw [sanitizeCircuit_size]
         have h_div : (2 * k + 1) / 2 = k := by omega
         have : (fun m => p (m / 2) + 1) (2 * k + 1) = p k + 1 := by
           simp [h_div]
@@ -422,13 +475,8 @@ theorem p_subset_np {L : Language} (hL : inP L) : inNP L := by
         -- V (2*k+1) inp = L ((2*k+1)/2) (fun i => inp ⟨i.val, by omega⟩) = L k (fun i => inp ⟨i.val, by omega⟩)
         -- From hc_correct: evalCircuit c (fun i => inp ⟨i.val, by omega⟩) = true ↔ L k (fun i => inp ⟨i.val, by omega⟩)
         -- So we need: evalCircuit (liftCircuitTo h_le c) inp = evalCircuit c (fun i => inp ⟨i.val, by omega⟩)
-        -- Use liftCircuitTo_eval with well-formedness
-        -- For now, assume well-formedness
-        have h_wf : IsWellFormed c := by
-          -- Can't prove in general, but we can use the same approach as the even case
-          -- For now, leave as sorry
-          sorry
-        have h_eval := liftCircuitTo_eval h_le c inp h_wf
+        have h_wf : IsWellFormed c' := sanitizeCircuit_wf c
+        have h_eval := liftCircuitTo_eval h_le c' inp h_wf
         rw [h_eval]
         -- Now: evalCircuit c (fun i => inp ⟨i.val, by omega⟩) = true ↔ V (2*k+1) inp
         -- V (2*k+1) inp = L ((2*k+1)/2) (fun i => inp ⟨i.val, by omega⟩)
@@ -466,9 +514,9 @@ theorem p_subset_np {L : Language} (hL : inP L) : inNP L := by
             exact h_motive' (m / 2) this
           exact h_motive (2 * k + 1) h_div
         -- Now rewrite the goal to use h_L_eq
-        show (evalCircuit c (fun i => inp ⟨i.val, by omega⟩)) = true ↔ L ((2 * k + 1) / 2) (fun i => inp ⟨i.val, by omega⟩)
+        show (evalCircuit c' (fun i => inp ⟨i.val, by omega⟩)) = true ↔ L ((2 * k + 1) / 2) (fun i => inp ⟨i.val, by omega⟩)
         rw [h_L_eq]
-        exact hc_correct (fun i => inp ⟨i.val, by omega⟩)
+        simpa [c'] using hc_correct (fun i => inp ⟨i.val, by omega⟩)
   · -- Witness direction: use verifier_iff
     constructor
     · -- L n inp → ∃ w, V (2*n) (combined inp w)
