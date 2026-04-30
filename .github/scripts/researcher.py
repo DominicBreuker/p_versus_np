@@ -410,6 +410,7 @@ def strip_markdown_link(value: str) -> str:
 
 
 def normalized_status_head(status: str) -> str:
+    """Return the normalized leading status marker from a target table status cell."""
     cleaned = re.sub(r"^[^\w]+", "", status).strip().casefold()
     if not cleaned:
         return ""
@@ -417,14 +418,17 @@ def normalized_status_head(status: str) -> str:
 
 
 def is_dead_status(status: str) -> bool:
+    """Return whether the status marks a target as retired, archived, or otherwise dead."""
     return normalized_status_head(status) in DEAD_STATUS_HEADS
 
 
 def is_solved_status(status: str) -> bool:
+    """Return whether the status marks a target as complete, solved, or frozen."""
     return normalized_status_head(status).startswith(SOLVED_STATUS_HEAD_PREFIXES)
 
 
 def find_priority_inconsistencies(targets: list[dict[str, str | float]]) -> list[str]:
+    """Return warnings for solved/frozen targets that still carry a positive priority."""
     warnings: list[str] = []
     for target in targets:
         status = str(target["status"])
