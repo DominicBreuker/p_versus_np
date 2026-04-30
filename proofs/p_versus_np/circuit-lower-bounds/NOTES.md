@@ -85,13 +85,18 @@
   - ✅ Created and proved `n_squared_plus_n_quartic_lt_two_pow_n_200` helper lemma
   - ✅ Completed k=1 case in `poly_quadratic_bound_k_ge_1` by fixing type mismatch with `simp at hn ⊢`
   - ✅ Proved polynomial bounding `c * n + c ≤ n^2 + n` for k=1 case
+  - ✅ Updated pigeonhole principle documentation with injection argument
 - **`sorry`/`admit` count:** 2 total (1 admit in `poly_quadratic_bound_k_ge_1` k≥2 case, 1 sorry in `shannon_counting_argument`)
 - **File builds:** Yes, with `lake env lean` (only warnings for the 2 theorems with admits/sorries)
 
 ## Next Steps for the Next Researcher
 
-1. **Priority 1:** Complete the k≥2 case in `poly_quadratic_bound_k_ge_1` (line 543) by proving the polynomial vs exponential inequality for higher-degree polynomials
-2. **Priority 2:** Complete the pigeonhole principle cardinality inequality in `shannon_counting_argument` (line 868) using the injection argument from functions to circuits
+1. **Priority 1:** Complete the k≥2 case in `poly_quadratic_bound_k_ge_1` (line 543) by proving the polynomial vs exponential inequality for higher-degree polynomials using induction on n, similar to `n_quartic_plus_lt_two_pow_n_200`
+2. **Priority 2:** Complete the pigeonhole principle cardinality inequality in `shannon_counting_argument` (line ~870) using `Nat.card_le_card_of_injective` or a direct injection argument showing that if every Boolean function has a circuit of size ≤ p n, then boolean_function_count n ≤ circuit_count_upper_bound n (p n)
 3. **Once all admits/sorries are resolved:** Verify the full proof chain by running `lake build`
 
 The `p_neq_np` theorem already compiles conditionally on the axioms, so once these final lemmas are proven, the main result will be unconditional.
+
+---
+
+**Note:** The pigeonhole principle step (Priority 2) requires establishing that the number of Boolean functions on n inputs is at most the number of circuits of size ≤ p n, when every function has such a circuit. This is a direct application of the pigeonhole principle and cardinality theory. The injection `f ↦ c_f` (where `c_f` computes `f`) gives us `|functions| ≤ |circuits of size ≤ p n| ≤ circuit_count_upper_bound n (p n)`.

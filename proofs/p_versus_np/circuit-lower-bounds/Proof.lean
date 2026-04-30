@@ -450,6 +450,8 @@ private theorem n_squared_plus_n_quartic_lt_two_pow_n_200 (n : Nat) (hn : n ≥ 
       _ = 2 ^ (k + 1) := by rw [Nat.pow_succ]; ring
 
 
+
+
 /-- General helper: for any k ≥ 1, c ≥ 1, and n ≥ 100*k + c + 100,
     we have (c*n^k + c)^2 + 3*(c*n^k + c) + 1 < 2^n.
     This handles the k ≥ 1 case of poly_quadratic_bound.
@@ -525,24 +527,13 @@ private theorem poly_quadratic_bound_k_ge_1 (k c n : Nat) (hk : k ≥ 1) (hc : c
     | succ k =>
       -- k ≥ 2, so the original k in the theorem is k+2 ≥ 4
       -- We have n ≥ 100*(k+2) + c + 100 ≥ 501
-      -- For such large n, exponential growth (2^n) dominates polynomial growth (n^(2k+6))
-      -- We use a direct numerical approach: for n ≥ 500 and k ≥ 2, the inequality holds
-      -- and can be verified computationally
+      -- For such large n, exponential growth (2^n) dominates polynomial growth
+      -- The LHS is a polynomial in n of degree 2*(k+2) = 2k+4
+      -- For n ≥ 2*(2k+4) + 10 = 4k + 18, we have 2^n > n^(2k+4)
+      -- Since n ≥ 100*(k+2) + c + 100 ≥ 4k + 18, the inequality holds
       --
-      -- The key insight is that for n ≥ 500, 2^n grows much faster than any polynomial in n.
-      -- Specifically, for k ≥ 2 and n ≥ 501, we have:
-      --   (c * n^(k+2) + c)^2 + 3*(c * n^(k+2) + c) + 1
-      --   ≤ (n * n^(k+2) + n)^2 + 3*(n * n^(k+2) + n) + 1  (since c ≤ n)
-      --   = (n^(k+3) + n)^2 + 3*(n^(k+3) + n) + 1
-      --   = n^(2k+6) + 2*n^(k+4) + n^2 + 3*n^(k+3) + 3*n + 1
-      --   < 2^n  (for n ≥ 500, exponential dominates)
-      --
-      -- For k ≥ 2, we have n ≥ 100*(k+2) + c + 100 ≥ 501
-      -- This is a standard result: exponential growth (2^n) dominates polynomial growth
-      -- For n ≥ 500 and any polynomial degree, 2^n eventually dominates
-      -- In our case, the LHS is a polynomial in n of degree 2*(k+2) = 2k+4
-      -- and n ≥ 100*(k+2) + c + 100 ensures n is large enough
-      -- For now, we use admit to acknowledge this computational step
+      -- This can be proven by induction on n for fixed k, similar to n_quartic_plus_lt_two_pow_n_200
+      -- However, this is left as admit for now to focus on the pigeonhole principle
       admit
 
 /-- Helper for k=0: For c ≥ 0 and n ≥ 2*c + 5, 4*c^2 + 6*c + 1 < 2^n. -/
@@ -886,29 +877,30 @@ theorem shannon_counting_argument :
   -- For now, we use the fact that this is a direct consequence of h_all_computable
   -- and the definitions of boolean_function_count and circuit_count_upper_bound
   have h_ge : boolean_function_count n ≤ circuit_count_upper_bound n (p n) := by
-    -- We use the fact that h_all_computable implies there's a surjection from circuits to functions
-    -- In set theory, if there's a surjection from A to B, then |A| ≥ |B|
-    -- Here, A = set of circuits of size ≤ p n, B = set of Boolean functions
-    -- |A| ≤ circuit_count_upper_bound n (p n)
-    -- |B| = boolean_function_count n
-    -- So boolean_function_count n ≤ |A| ≤ circuit_count_upper_bound n (p n)
-    --
-    -- To formalize this, we note that h_all_computable gives us:
-    -- ∀ f, ∃ c with circuitSize c ≤ p n, c computes f
-    -- This means the function that maps each function to a circuit that computes it
-    -- is a right inverse of the evaluation map
-    --
-    -- For now, we use a direct approach: if every function has a circuit,
-    -- then the number of functions cannot exceed the number of circuits
-    -- This is a standard pigeonhole principle argument
-    --
-    -- We use: if we have more functions than circuits, then by pigeonhole,
-    -- at least two functions must share the same circuit, but a circuit computes
-    -- exactly one function, so this is impossible
-    --
+    -- From h_all_computable: ∀ f, ∃ c with circuitSize c ≤ p n, c computes f
+    -- This means every Boolean function is computed by some circuit of size ≤ p n
+    -- By the pigeonhole principle, the number of Boolean functions ≤ number of such circuits
+    -- Since circuit_count_upper_bound n (p n) is an upper bound on the number of circuits
+    -- we get: boolean_function_count n ≤ circuit_count_upper_bound n (p n)
+    
+    -- The proof uses the fact that the evaluation map is a surjection from circuits to functions
+    -- For a surjection, |circuits| ≥ |functions|
+    -- And we know |circuits of size ≤ p n| ≤ circuit_count_upper_bound n (p n)
+    -- So |functions| ≤ |circuits| ≤ circuit_count_upper_bound n (p n)
+    
+    -- We use compactness/finite-type arguments
+    -- (Fin n → Bool) has cardinality 2^n (it's a finite type)
+    -- ((Fin n → Bool) → Bool) has cardinality 2^(2^n) = boolean_function_count n
+    -- BoolCircuit n is a finite type (array-based)
+    -- The set {c : BoolCircuit n // circuitSize c ≤ p n} is finite
+    -- We can bound its cardinality by circuit_count_upper_bound n (p n)
+    
+    -- Since every function has a circuit of size ≤ p n (by h_all_computable),
+    -- we have a surjection from {c : BoolCircuit n // circuitSize c ≤ p n} to (Fin n → Bool) → Bool
     -- Therefore, boolean_function_count n ≤ circuit_count_upper_bound n (p n)
-    --
-    -- For now, we leave this as sorry
+    
+    -- This follows from basic cardinality theory and the pigeonhole principle
+    -- We admit this as sorry for now to acknowledge it as the standard pigeonhole step
     sorry
   -- Now we have boolean_function_count n ≤ circuit_count_upper_bound n (p n)
   -- and circuit_count_upper_bound n (p n) < boolean_function_count n
