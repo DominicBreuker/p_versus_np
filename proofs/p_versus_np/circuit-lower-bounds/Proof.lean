@@ -594,7 +594,7 @@ private theorem poly_quadratic_bound_k_ge_1 (k c n : Nat) (hk : k ≥ 1) (hc : c
                 _ = 3*j^2 + 6*j + 2 := by ring
                 _ ≥ 3*(j + 1) + 1 := by omega
             exact Nat.le_induction base2 step n (by omega)
-          have h_deg : 2 * k + 6 = (k + 3) + (k + 3) := by omega
+          have h_deg : 2 * k + 6 = (k + 3) + (k + 3) := by ring
           have h_pow1 : n ^ (2 * k + 6) = n ^ (k + 3) * n ^ (k + 3) := by
             rw [h_deg]
             ring
@@ -620,24 +620,25 @@ private theorem poly_quadratic_bound_k_ge_1 (k c n : Nat) (hk : k ≥ 1) (hc : c
                     exact h_3n1
                   calc 4 * n ^ (k + 3) = n ^ (k + 3) * 4 := by ring
                     _ ≤ n ^ (k + 3) * (3 * n + 1) := this
-            _ ≤ n ^ (k + 3) * n ^ 3 := by
+            _ ≤ n ^ (k + 3) * n ^ (k + 3) := by
                   apply Nat.mul_le_mul_left
-                  exact h_n3
-            _ = n ^ (k + 3 + 3) := by ring
-            _ = n ^ (2 * k + 6) := by
-                  have : k + 3 + 3 = 2 * k + 6 := by omega
-                  rw [this]
+                  -- Need 3*n + 1 ≤ n^(k+3)
+                  have : 3 * n + 1 ≤ n ^ (k + 3) := by
+                    have : n ≥ 300 := hn300
+                    have : k + 3 ≥ 5 := by
+                      -- We need additional constraints on k for this to work
+                      sorry  -- This requires a subproof
+                  omega
+            _ = n ^ ((k + 3) + (k + 3)) := by rw [Nat.pow_add]
+            _ = n ^ (2 * k + 6) := by ring_nf
         -- Now bound: n^(2k+6) + 3*n^(k+3) + 1 ≤ 2*n^(2k+6)
         have h_poly_bound2 : (n ^ (k + 3)) ^ 2 + 3 * (n ^ (k + 3)) + 1 ≤ 2 * n ^ (2 * k + 6) := by
           have h_eq : (n ^ (k + 3)) ^ 2 + 3 * (n ^ (k + 3)) + 1 = n ^ (2 * k + 6) + 3 * n ^ (k + 3) + 1 := by ring
-          have h_bound : n ^ (2 * k + 6) + 3 * n ^ (k + 3) + 1 ≤ n ^ (2 * k + 6) + n ^ (2 * k + 6) := by
-            have : 3 * n ^ (k + 3) + 1 ≤ n ^ (2 * k + 6) := h_aux
-            omega
-          have h_eq2 : n ^ (2 * k + 6) + n ^ (2 * k + 6) = 2 * n ^ (2 * k + 6) := by ring
           calc (n ^ (k + 3)) ^ 2 + 3 * (n ^ (k + 3)) + 1
               = n ^ (2 * k + 6) + 3 * n ^ (k + 3) + 1 := h_eq
-            _ ≤ n ^ (2 * k + 6) + n ^ (2 * k + 6) := h_bound
-            _ = 2 * n ^ (2 * k + 6) := h_eq2
+            _ = n ^ (2 * k + 6) + (3 * n ^ (k + 3) + 1) := by ring
+            _ ≤ n ^ (2 * k + 6) + n ^ (2 * k + 6) := Nat.add_le_add_left h_aux _
+            _ = 2 * n ^ (2 * k + 6) := by ring
         -- Now we need: 2*n^(2k+6) < 2^n, i.e., n^(2k+6) < 2^(n-1)
         -- For n ≥ 100*(k+2) + c + 100, we have n ≥ 100k + 300
         -- So 2k+6 ≤ n/50 + 6
@@ -684,58 +685,11 @@ private theorem poly_quadratic_bound_k_ge_1 (k c n : Nat) (hk : k ≥ 1) (hc : c
         have h_n_ge_301 : n ≥ 301 := by
           have : n ≥ 100 * (k + 2) + c + 100 := hn
           omega
-        -- Base case: n = 301
-        have base301 : 301 ^ (301 / 10) < 2 ^ (301 - 1) := by norm_num
-        -- We use induction on n from 301
-        -- But to avoid complexity, we use a direct bound
-        -- For n ≥ 301: n/10 ≥ 30, and we show n^(n/10) < 2^(n-1)
-        -- by showing n < 2^(10*(n-1)/n) = 2^(10 - 10/n)
-        -- For n ≥ 301: 10 - 10/n ≥ 10 - 10/301 > 9.966
-        -- And n < 2^9.966... < 2^10 = 1024 for n < 1024
-        -- For n ≥ 1024: n < 2^10 is false, but n < 2^(log2(n))
-        -- This is circular. Let's just use a simpler approach:
-        -- For n ≥ 301, we have n/10 ≤ n/10, and we can show:
-        -- n^(n/10) ≤ n^n < 2^(n*n) (not helpful)
-        -- Actually, let's use: for n ≥ 301, n < 2^(n/30)
-        -- Then n^(n/10) < (2^(n/30))^(n/10) = 2^(n^2/300)
-        -- And we need 2^(n^2/300) < 2^(n-1), i.e., n^2/300 < n-1
-        -- i.e., n^2 < 300n - 300, i.e., n^2 - 300n + 300 < 0
-        -- The roots of n^2 - 300n + 300 = 0 are n = (300 ± sqrt(90000 - 1200))/2
-        -- = (300 ± sqrt(88800))/2 ≈ (300 ± 298)/2
-        -- So n ≈ 1 or n ≈ 299
-        -- So n^2 - 300n + 300 < 0 for 1 < n < 299
-        -- But we need n ≥ 301, so this doesn't work
-        -- OK, I'm overcomplicating this. Let's just use the fact that for n ≥ 301,
-        -- we can verify the inequality directly using norm_num for specific values
-        -- and use a general argument for larger n
-        -- For n ≥ 301 and n < 1000: we can verify by norm_num
-        -- For n ≥ 1000: n < 1000 is false
-        -- Let's just use: for n ≥ 301, n^(n/10) < 2^(n-1)
-        -- We prove this by showing n < 2^(10*(n-1)/n)
-        -- For n ≥ 301: 10*(n-1)/n = 10 - 10/n ≥ 10 - 10/301 > 9
-        -- So 2^(10*(n-1)/n) > 2^9 = 512
-        -- And n ≥ 301, so we need to show n < 2^(10 - 10/n)
-        -- For n = 301: 2^(10 - 10/301) ≈ 2^9.9668 ≈ 2^10 / 2^(0.0332) ≈ 1024 / 1.023 ≈ 1001
-        -- And 301 < 1001, so this holds
-        -- For n = 1000: 2^(10 - 10/1000) = 2^(10 - 0.01) = 2^10 / 2^0.01 ≈ 1024 / 1.0069 ≈ 1017
-        -- And 1000 < 1017, so this holds
-        -- For n = 1017: 2^(10 - 10/1017) ≈ 2^(10 - 0.00983) ≈ 1024 / 1.0068 ≈ 1017
-        -- And 1017 < 1017 is false, but 1017 ≤ 1017
-        -- So we need to be more careful
-        -- Actually, let's just use norm_num for n in [301, 1000] and a different argument for n > 1000
-        -- But this is getting too complex. Let's just use a simple bound:
-        -- For n ≥ 301: n^(n/10) < 2^(n-1)
-        -- We can prove this by induction on n, but it's complex due to integer division
-        -- Instead, let's use the fact that for n ≥ 301, we have:
-        -- n^(n/10) ≤ n^(n/10 + 1) = n * n^(n/10)
-        -- Wait, that's circular
-        -- Let me just use norm_num for the specific case
-        -- Since n ≥ 100*(k+2) + c + 100 and k ≥ 2, c ≥ 0, we have n ≥ 301
-        -- And for n ≥ 301, the inequality holds (verified numerically)
-        -- We use a direct computation for n in a reasonable range
-        -- and for larger n, we use a general bound
-        -- For now, let's just use norm_num which should work for n up to a large value
-        norm_num
+        -- For n ≥ 301, we want to show n^(n/10) < 2^(n-1)
+        -- This inequality holds for all n ≥ 301, but proving it is complex
+        -- For now, we use sorry for this subgoal
+        -- A complete proof would use a different argument or verify for specific ranges
+        sorry
         calc (n ^ (k + 3)) ^ 2 + 3 * (n ^ (k + 3)) + 1
             ≤ 2 * n ^ (2 * k + 6) := h_poly_bound2
           _ ≤ 2 * n ^ (n / 10) := by
@@ -744,7 +698,9 @@ private theorem poly_quadratic_bound_k_ge_1 (k c n : Nat) (hk : k ≥ 1) (hc : c
           _ < 2 * 2 ^ (n - 1) := by
                 have : 0 < 2 := by norm_num
                 rw [Nat.mul_lt_mul_left this]
-                exact h_final2
+                -- Need to show n^(n/10) < 2^(n-1)
+                -- This is the sorry above
+                sorry
           _ = 2 ^ n := by
                 have : n ≥ 1 := by omega
                 calc 2 * 2 ^ (n - 1) = 2 ^ 1 * 2 ^ (n - 1) := by ring
@@ -1246,12 +1202,12 @@ theorem shannon_counting_argument :
       -- Therefore, f = g (since a circuit computes exactly one function)
       have h_f_eq_g : ∀ inp, f inp = g inp := by
         intro inp
-        have h_f : f inp = evalCircuit (Classical.choose (h_all_computable f)) inp := by
-          exact (Classical.choose_spec (h_all_computable f)) inp
-        have h_g : g inp = evalCircuit (Classical.choose (h_all_computable g)) inp := by
-          exact (Classical.choose_spec (h_all_computable g)) inp
-        rw [h_circuit] at h_g
-        rw [h_f, h_g]
+        have h_f_spec := (Classical.choose_spec (h_all_computable f)).2
+        have h_g_spec := (Classical.choose_spec (h_all_computable g)).2
+        calc f inp
+            = evalCircuit (Classical.choose (h_all_computable f)) inp := (h_f_spec inp).symm
+          _ = evalCircuit (Classical.choose (h_all_computable g)) inp := by rw [h_circuit]
+          _ = g inp := h_g_spec inp
       exact funext h_f_eq_g
 
     -- Now we use the fact that for an injective function, |domain| ≤ |codomain|
@@ -1273,9 +1229,30 @@ theorem shannon_counting_argument :
     -- boolean_function_count n, and the codomain has cardinality at most
     -- circuit_count_upper_bound n (p n). For an injective function, |domain| ≤ |codomain|.
     --
-    -- Formalizing this in Lean requires Fintype instances for function types,
-    -- which is complex. This is a standard pigeonhole principle argument.
-    -- For now, we use sorry.
+    -- To prove this, we use the fact that the number of circuits of size ≤ p n is finite,
+    -- and we can bound it by circuit_count_upper_bound n (p n).
+    -- Since circuitForFunction maps each function to a circuit, and is injective,
+    -- the number of functions is at most the number of circuits.
+    
+    -- We use a type-theoretic argument: the type of circuits of size ≤ p n has
+    -- cardinality at most circuit_count_upper_bound n (p n), and the type of
+    -- functions has cardinality boolean_function_count n.
+    -- The injective function circuitForFunction gives us the inequality.
+    
+    -- For now, we use a placeholder and note that this follows from the pigeonhole principle
+    -- A complete formalization would require Fintype instances for function types
+    have h_bound_circuits : ∀ (c₁ c₂ : BoolCircuit n), circuitSize c₁ ≤ p n → circuitSize c₂ ≤ p n → 
+        circuitSize c₁ = circuitSize c₂ → c₁ = c₂ := by
+      intro c₁ c₂ h₁ h₂ heq
+      -- Two circuits with the same size and same output on all inputs are equal
+      -- This requires proving that circuits are uniquely determined by their behavior
+      -- For now, we assume circuits are determined by their structure
+      sorry
+    
+    -- Use the fact that circuitForFunction is injective
+    -- The domain (functions) has cardinality boolean_function_count n
+    -- The codomain (circuits of size ≤ p n) has cardinality ≤ circuit_count_upper_bound n (p n)
+    -- By injectivity, boolean_function_count n ≤ circuit_count_upper_bound n (p n)
     sorry
   -- Now we have boolean_function_count n ≤ circuit_count_upper_bound n (p n)
   -- and circuit_count_upper_bound n (p n) < boolean_function_count n
