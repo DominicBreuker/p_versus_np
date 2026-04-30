@@ -108,6 +108,48 @@ theorem liftCircuitTo_size {n m : Nat} (h : n ≤ m) (c : BoolCircuit n) :
 def IsWellFormed {n : Nat} (c : BoolCircuit n) : Prop :=
   ∀ i < c.nodes.size, ∀ j, c.nodes[i]!.gate = Gate.Var j → j < n
 
+/-- LiftCircuitTo preserves evaluation when restricted to the first n inputs.
+    The proof is identical to liftCircuit_eval (same node array, different phantom type). -/
+theorem liftCircuitTo_eval {n m : Nat} (h : n ≤ m) (c : BoolCircuit n) (inp : Fin m → Bool)
+    (h_wf : IsWellFormed c) :
+    evalCircuit (liftCircuitTo h c) inp =
+    evalCircuit c (fun i => inp ⟨i.val, by have := i.isLt; omega⟩) := by
+  simp only [liftCircuitTo, evalCircuit]
+  have h_nodes : ∀ i < c.nodes.size, ∀ acc : Array Bool,
+      evalNode inp acc c.nodes[i]! = evalNode (fun (i : Fin n) => inp ⟨i.val, by have := i.isLt; omega⟩) acc c.nodes[i]! := by
+    intro i hi acc
+    unfold evalNode
+    match h_gate : c.nodes[i]!.gate with
+    | Gate.And => rfl
+    | Gate.Or => rfl
+    | Gate.Not => rfl
+    | Gate.Const b => rfl
+    | Gate.Var idx =>
+      by_cases hi_idx : idx < n
+      · have h : idx < m := by omega
+        simp only [h, hi_idx]
+      · exfalso
+        have : idx < n := h_wf i hi idx h_gate
+        omega
+  have h_foldl_eq :
+      Array.foldl (fun acc node => acc.push (evalNode inp acc node)) #[] c.nodes =
+      Array.foldl (fun acc node => acc.push (evalNode (fun (i : Fin n) => inp ⟨i.val, by have := i.isLt; omega⟩) acc node)) #[] c.nodes := by
+    rw [← Array.foldl_toList, ← Array.foldl_toList]
+    refine List.foldl_ext _ _ _ ?_
+    intro acc node h_mem
+    congr 1
+    rw [List.mem_iff_get] at h_mem
+    obtain ⟨j, rfl⟩ := h_mem
+    have h_len : c.nodes.toList.length = c.nodes.size := by simp
+    have h_j_lt_list : j.val < c.nodes.toList.length := j.isLt
+    have h_j_lt_arr : j.val < c.nodes.size := by rw [← h_len]; exact h_j_lt_list
+    rw [List.get_eq_getElem]
+    rw [Array.getElem_toList h_j_lt_list]
+    have h_eq : c.nodes[j.val] = c.nodes[j.val]! := by simp
+    rw [h_eq]
+    exact h_nodes j.val h_j_lt_arr acc
+  rw [h_foldl_eq]
+
 /-- Lifting preserves evaluation when restricted to the first n inputs.
     Proof sketch: evalNode and evalCircuit only consult inp at Var-gate positions i < n;
     lifting keeps those same positions so the values agree.
@@ -247,55 +289,38 @@ theorem verifier_iff (L : Language) (n : Nat) (inp : Fin n → Bool) (w : Fin n 
   rw [h_comp]
   -- Now: L ((2*n)/2) (inp ∘ Fin.cast h_div) ↔ L n inp
   -- Use Eq.rec to transport along h_div
-  -- Now: L ((2*n)/2) (inp ∘ Fin.cast h_div) ↔ L n inp
-  -- Use Eq.rec to transport along h_div
-  -- Since (2*n)/2 = n, we can use Eq.rec to transport the entire proposition
-  -- The key is that Fin.cast h_div is essentially the identity
-  -- So inp ∘ Fin.cast h_div is essentially inp
-  -- And L ((2*n)/2) (inp ∘ Fin.cast h_div) is essentially L n inp
-  -- We use Eq.rec with the right motive
-  -- The approach from the README:
-  -- 1. Prove Eq.rec (motive := fun k _ => Fin k → Bool) (inp ∘ Fin.cast h_div) h_div = inp
-  -- 2. Prove L ((2*n)/2) (inp ∘ Fin.cast h_div) = L n (Eq.rec ... h_div)
-  -- 3. Rewrite using these two equalities
-  -- Use Eq.rec to transport along h_div
-  -- Since (2*n)/2 = n, we can use Eq.rec to transport the entire proposition
-  -- The key is that Fin.cast h_div is essentially the identity
-  -- So inp ∘ Fin.cast h_div is essentially inp
-  -- And L ((2*n)/2) (inp ∘ Fin.cast h_div) is essentially L n inp
-  -- We use Eq.rec with the right motive
-  -- Actually, let me try a much simpler approach: use the fact that (2*n)/2 = n
-  -- and the functions are related by Fin.cast, which is essentially the identity
-  -- So we can use Eq.rec to transport the entire proposition
+  -- The key: we use Eq.rec with a motive that handles the dependent type
   have h_transport : L ((2 * n) / 2) (inp ∘ Fin.cast h_div) ↔ L n inp := by
     -- Use Eq.rec on h_div
-    -- The motive is: fun k _ => L k (inp ∘ Fin.cast (by omega : (2 * n) / 2 = k)) ↔ L n inp
-    -- But this is tricky. Let me try using the fact that we can transport both L and the function
-    -- Actually, I think the simplest approach is to use the fact that for all i : Fin ((2*n)/2),
-    -- (inp ∘ Fin.cast h_div) i = inp (Fin.cast h_div i)
-    -- And Fin.cast h_div i has the same val as i
-    -- So (inp ∘ Fin.cast h_div) i = inp ⟨i.val, _⟩
-    -- But this doesn't directly help.
-    -- Let me try using Eq.rec directly on the entire proposition
-    -- with motive: fun k _ => L k (inp ∘ Fin.cast (by omega : (2 * n) / 2 = k)) ↔ L n inp
-    -- But Fin.cast depends on the equality, so this is circular.
-    -- Actually, I think the issue is that the theorem is not provable for arbitrary L.
-    -- But looking at the README, it says the theorem has a proof attempt using Eq.rec and Fin.cast.
-    -- So there must be a way.
-    -- Let me try using the fact that Fin.cast h_div = Fin.cast (by omega : (2 * n) / 2 = n)
-    -- And we can use Eq.rec to transport
-    -- Actually, let me just use the fact that (2*n)/2 = n and use subst
-    -- But subst doesn't work because n appears in 2*n.
-    -- Let me try using a different approach: use the fact that the two sides are equal
-    -- by Eq.rec
-    have : L ((2 * n) / 2) (inp ∘ Fin.cast h_div) = L n inp := by
-      -- Use Eq.rec to transport
-      -- The motive is: fun k _ => L k (inp ∘ Fin.cast (by omega : (2 * n) / 2 = k)) = L n inp
-      -- But this is circular.
-      -- Let me try using the fact that we can transport L and the function separately
-      -- and then combine them
-      sorry
-    rw [this]
+    -- The motive: fun k _ => L k (fun i : Fin k => inp ⟨i.val, by omega⟩) ↔ L n inp
+    have h_motive (k : Nat) (hk : (2 * n) / 2 = k) :
+        L k (fun i : Fin k => inp ⟨i.val, by omega⟩) ↔ L n inp := by
+      subst hk
+      -- Now we need: L ((2*n)/2) (fun i : Fin ((2*n)/2) => inp ⟨i.val, by omega⟩) ↔ L n inp
+      -- Use Eq.rec on h_div
+      have h_motive' (k' : Nat) (hk' : k' = n) :
+          L k' (fun i : Fin k' => inp ⟨i.val, by omega⟩) ↔ L n (fun i : Fin n => inp i) := by
+        subst hk'
+        -- Now k' = n
+        -- We need: L n (fun i : Fin n => inp ⟨i.val, by omega⟩) ↔ L n (fun i : Fin n => inp i)
+        -- These are equal because fun i : Fin n => inp ⟨i.val, by omega⟩ = fun i : Fin n => inp i
+        -- Just use congr to show the function arguments are equal
+        have h_func_eq : (fun i : Fin k' => inp ⟨i.val, by omega⟩) = (fun i : Fin k' => inp i) := by
+          funext i
+          rfl
+        rw [h_func_eq]
+      -- Now use Eq.rec on h_div
+      have h_rec : L ((2 * n) / 2) (fun i : Fin ((2 * n) / 2) => inp ⟨i.val, by omega⟩) ↔
+                  L n (fun i : Fin n => inp i) := by
+        -- Use Eq.rec on h_div
+        have h_motive'' (k'' : Nat) (hk'' : (2 * n) / 2 = k'') :
+            L k'' (fun i : Fin k'' => inp ⟨i.val, by omega⟩) ↔ L n (fun i : Fin n => inp i) := by
+          have : k'' = n := by omega
+          subst this
+          exact h_motive' k'' rfl
+        exact h_motive'' ((2 * n) / 2) rfl
+      exact h_rec
+    exact h_motive ((2 * n) / 2) rfl
   exact h_transport
 
 -- ---------------------------------------------------------------------------
@@ -338,13 +363,39 @@ theorem p_subset_np {L : Language} (hL : inP L) : inNP L := by
       · -- evalCircuit (liftCircuit c) inp = true ↔ V (2 * k) inp
         intro inp
         have h_div : (2 * k) / 2 = k := by omega
-        -- TODO: Need well-formedness for c
+        -- Use liftCircuit_eval with well-formedness
         have h_wf : IsWellFormed c := by
+          -- Can't prove in general, but we can use the same approach as the odd case
+          -- For now, leave as sorry
           sorry
         have h_eval := liftCircuit_eval c inp h_wf
         rw [h_eval]
-        -- TODO: Use verifier_iff or similar to relate L ((2*k)/2) f' and L k f
-        sorry
+        -- Now: evalCircuit c (fun i => inp ⟨i.val, by omega⟩) = true ↔ V (2 * k) inp
+        -- V (2 * k) inp = L ((2*k)/2) (fun i => inp ⟨i.val, by omega⟩)
+        -- From hc_correct: evalCircuit c (fun i => inp ⟨i.val, by omega⟩) = true ↔ L k (fun i => inp ⟨i.val, by omega⟩)
+        -- We need: L k (fun i => inp ⟨i.val, by omega⟩) ↔ L ((2*k)/2) (fun i => inp ⟨i.val, by omega⟩)
+        -- Use verifier_iff with inp' = fun i => inp ⟨i.val, by omega⟩ and w = fun _ => false
+        -- verifier_iff L k (fun i => inp ⟨i.val, by omega⟩) (fun _ => false) gives us:
+        -- L ((2*k)/2) (fun i => (combined ...) ⟨i.val, _⟩) ↔ L k (fun i => inp ⟨i.val, by omega⟩)
+        -- where combined j = if h : j.val < k then (fun i => inp ⟨i.val, _⟩) ⟨j.val, h⟩ else false
+        -- For i : Fin ((2*k)/2), i.val < k, so combined ⟨i.val, _⟩ = inp ⟨i.val, _⟩
+        -- So verifier_iff gives us: L ((2*k)/2) (fun i => inp ⟨i.val, _⟩) ↔ L k (fun i => inp ⟨i.val, _⟩)
+        have h_verifier := verifier_iff L k (fun i : Fin k => inp ⟨i.val, by omega⟩) (fun _ => false)
+        -- Simplify the LHS of h_verifier to match our goal
+        have h_simp : (fun (i : Fin ((2 * k) / 2)) =>
+            (fun j : Fin (2 * k) =>
+              if h : j.val < k then (fun i : Fin k => inp ⟨i.val, by omega⟩) ⟨j.val, h⟩ else (fun _ : Fin k => false) ⟨j.val - k, by omega⟩)
+            ⟨i.val, by omega⟩) = (fun i : Fin ((2 * k) / 2) => inp ⟨i.val, by omega⟩) := by
+          funext i
+          have h_i_lt : i.val < k := by omega
+          simp [h_i_lt]
+        rw [h_simp] at h_verifier
+        -- Now h_verifier : L ((2 * k) / 2) (fun i => inp ⟨i.val, _⟩) ↔ L k (fun i => inp ⟨i.val, _⟩)
+        -- The goal is: (evalCircuit c fun i => inp ⟨↑i, ⋯⟩) = true ↔ (fun m inp => L (m / 2) fun i => inp ⟨↑i, ⋯⟩) (2 * k) inp
+        -- Simplify the RHS of the goal
+        show (evalCircuit c (fun i => inp ⟨i.val, by omega⟩)) = true ↔ L ((2 * k) / 2) (fun i => inp ⟨i.val, by omega⟩)
+        rw [h_verifier]
+        exact hc_correct (fun i => inp ⟨i.val, by omega⟩)
     · -- m is odd: m = 2k + 1 for some k
       have : ∃ k, m = 2 * k + 1 := by
         use m / 2
@@ -366,8 +417,58 @@ theorem p_subset_np {L : Language} (hL : inP L) : inNP L := by
         omega
       · -- evalCircuit (liftCircuitTo h_le c) inp = true ↔ V (2*k+1) inp
         intro inp
-        -- TODO: Need a version of liftCircuit_eval for liftCircuitTo
-        sorry
+        have h_div : (2 * k + 1) / 2 = k := by omega
+        -- We need: evalCircuit (liftCircuitTo h_le c) inp = true ↔ V (2*k+1) inp
+        -- V (2*k+1) inp = L ((2*k+1)/2) (fun i => inp ⟨i.val, by omega⟩) = L k (fun i => inp ⟨i.val, by omega⟩)
+        -- From hc_correct: evalCircuit c (fun i => inp ⟨i.val, by omega⟩) = true ↔ L k (fun i => inp ⟨i.val, by omega⟩)
+        -- So we need: evalCircuit (liftCircuitTo h_le c) inp = evalCircuit c (fun i => inp ⟨i.val, by omega⟩)
+        -- Use liftCircuitTo_eval with well-formedness
+        -- For now, assume well-formedness
+        have h_wf : IsWellFormed c := by
+          -- Can't prove in general, but we can use the same approach as the even case
+          -- For now, leave as sorry
+          sorry
+        have h_eval := liftCircuitTo_eval h_le c inp h_wf
+        rw [h_eval]
+        -- Now: evalCircuit c (fun i => inp ⟨i.val, by omega⟩) = true ↔ V (2*k+1) inp
+        -- V (2*k+1) inp = L ((2*k+1)/2) (fun i => inp ⟨i.val, by omega⟩)
+        -- From hc_correct: evalCircuit c (fun i => inp ⟨i.val, by omega⟩) = true ↔ L k (fun i => inp ⟨i.val, by omega⟩)
+        -- Since (2*k+1)/2 = k, we have V (2*k+1) inp = L k (fun i => inp ⟨i.val, by omega⟩)
+        -- Use verifier_iff to relate L ((2*k+1)/2) and L k
+        have h_verifier := verifier_iff L k (fun i : Fin k => inp ⟨i.val, by omega⟩) (fun _ => false)
+        -- Simplify the LHS of h_verifier
+        have h_simp : (fun (i : Fin ((2 * k) / 2)) =>
+            (fun j : Fin (2 * k) =>
+              if h : j.val < k then (fun i : Fin k => inp ⟨i.val, by omega⟩) ⟨j.val, h⟩ else (fun _ : Fin k => false) ⟨j.val - k, by omega⟩)
+            ⟨i.val, by omega⟩) = (fun i : Fin ((2 * k) / 2) => inp ⟨i.val, by omega⟩) := by
+          funext i
+          have h_i_lt : i.val < k := by omega
+          simp [h_i_lt]
+        rw [h_simp] at h_verifier
+        -- Now h_verifier : L ((2 * k) / 2) (fun i => inp ⟨i.val, _⟩) ↔ L k (fun i => inp ⟨i.val, _⟩)
+        -- But we need L ((2*k+1)/2) (fun i => inp ⟨i.val, _⟩) ↔ L k (fun i => inp ⟨i.val, _⟩)
+        -- Since (2*k+1)/2 = k and (2*k)/2 = k, we have L ((2*k+1)/2) = L k and L ((2*k)/2) = L k
+        -- So we can use h_verifier
+        have h_div2 : (2 * k) / 2 = k := by omega
+        have h_L_eq : L ((2 * k + 1) / 2) (fun i : Fin ((2 * k + 1) / 2) => inp ⟨i.val, by omega⟩) ↔
+                      L k (fun i : Fin k => inp ⟨i.val, by omega⟩) := by
+          -- Use Eq.rec to transport from (2*k)/2 to (2*k+1)/2
+          -- Both equal k, so L ((2*k)/2) = L k and L ((2*k+1)/2) = L k
+          have h_motive (m : Nat) (hm : m / 2 = k) :
+              L (m / 2) (fun i : Fin (m / 2) => inp ⟨i.val, by omega⟩) ↔ L k (fun i : Fin k => inp ⟨i.val, by omega⟩) := by
+            have : m / 2 = k := hm
+            -- Use Eq.rec on this
+            have h_motive' (k' : Nat) (hk' : k = k') :
+                L k' (fun i : Fin k' => inp ⟨i.val, by omega⟩) ↔ L k (fun i : Fin k => inp ⟨i.val, by omega⟩) := by
+              subst hk'
+              rfl
+            have : k = m / 2 := by omega
+            exact h_motive' (m / 2) this
+          exact h_motive (2 * k + 1) h_div
+        -- Now rewrite the goal to use h_L_eq
+        show (evalCircuit c (fun i => inp ⟨i.val, by omega⟩)) = true ↔ L ((2 * k + 1) / 2) (fun i => inp ⟨i.val, by omega⟩)
+        rw [h_L_eq]
+        exact hc_correct (fun i => inp ⟨i.val, by omega⟩)
   · -- Witness direction: use verifier_iff
     constructor
     · -- L n inp → ∃ w, V (2*n) (combined inp w)

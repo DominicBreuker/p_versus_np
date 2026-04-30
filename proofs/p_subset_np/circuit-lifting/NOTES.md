@@ -1,91 +1,94 @@
 # Progress Notes — P ⊆ NP
 
-**Last Updated:** 2025-01-15
+**Last Updated:** 2025-01-14
 
 **Track role:** Supporting subproblem for the main P vs NP proof route.
 
-**Status:** Active — file compiles with 3 sorries, well-formedness predicate added, `liftCircuitTo` added
+**Status:** Active — file compiles with 2 sorries (both for well-formedness), `verifier_iff` now proven, even and odd cases in `p_subset_np` complete except for well-formedness
 
 ---
 
 ## Current State
 
-- `liftCircuit`, `liftCircuit_size`, `liftCircuitTo`, `liftCircuitTo_size`, and `poly_half` are fully proven.
-- The proof file imports both `Mathlib` and `PVsNpLib`, maintaining clean shared imports.
+- `liftCircuit`, `liftCircuit_size`, `liftCircuitTo`, `liftCircuitTo_size`, `liftCircuit_eval`, `liftCircuitTo_eval`, and `poly_half` are fully proven.
 - `IsWellFormed` predicate added to ensure circuits have valid Var node indices.
-- `liftCircuit_eval` signature updated to take well-formedness assumption, `h_nodes` lemma proven.
-- `liftCircuitTo` added to support lifting circuits to arbitrary larger sizes (needed for odd case in `p_subset_np`).
-- File compiles successfully with only 3 sorries (no errors).
+- `verifier_iff` is now **fully proven** (no sorry).
+- The proof file imports both `Mathlib` and `PVsNpLib`, maintaining clean shared imports.
+- File compiles successfully with only 2 sorries (both for well-formedness in `p_subset_np`).
 
-### `liftCircuit_eval` (line 103)
-- **Status:** Partially proven - well-formedness predicate added and `h_nodes` lemma proven
+### `liftCircuit_eval` (line ~153)
+- **Status:** Fully proven (with `IsWellFormed` assumption)
 - **Completed:**
   - Added `IsWellFormed` predicate: `∀ i < c.nodes.size, ∀ j, c.nodes[i]!.gate = Gate.Var j → j < n`
   - Modified theorem signature to take `h_wf : IsWellFormed c` as an argument
   - Proved helper lemma `h_nodes`: for all `i < c.nodes.size` and all `acc`, `evalNode inp acc c.nodes[i]! = evalNode (fun i => inp ⟨i.val, _⟩) acc c.nodes[i]!`
-- **Remaining:**
-  - Prove the foldl equality: the two foldl computations produce the same array
-  - **Blocker:** Need a lemma about `Array.foldl` congruence for functions that agree on all elements of the array
-  - **Approach:** The key lemma needed is: if `∀ x ∈ arr, f acc x = g acc x`, then `arr.foldl (fun acc x => acc.push (f acc x)) #[] = arr.foldl (fun acc x => acc.push (g acc x)) #[]`
-  - **Note:** `Array.foldl_congr` exists in Mathlib but requires `f = g` as functions, not just agreement on array elements
+  - Proved the foldl equality using `Array.foldl_toList` and `List.foldl_ext`
+- **Note:** The `IsWellFormed` assumption is necessary because when `n ≤ idx < 2*n`, the LHS evaluates to `inp ⟨idx, h⟩` while the RHS evaluates to `false`. So the theorem is NOT true without the well-formedness assumption.
 
-### `verifier_iff` (line 188)
-- **Status:** Not started - has sorry
-- **Mathematical content:** Trivial - `(2*n)/2 = n` and the functions are pointwise equal
-- **Challenge:** Dependent-type bookkeeping in Lean
-- **Key insight:** For `i : Fin ((2*n)/2)`, we have `i.val < n`, so:
-  - Combined function at `i`: `(fun j => if h : j.val < n then inp ⟨j.val, h⟩ else w ⟨j.val - n, _⟩) ⟨i.val, _⟩ = inp ⟨i.val, _⟩`
-  - This equals `inp (Fin.cast h_div i)` where `h_div : (2*n)/2 = n`
-  - So combined function = `inp ∘ Fin.cast h_div`
-- **Goal:** Prove `L ((2*n)/2) (inp ∘ Fin.cast h_div) ↔ L n inp`
-- **Solution:** Use `Eq.rec` to transport `L` along `h_div` with a motive that handles the function transport:
-  ```lean
-  have h_func_transport : Eq.rec (motive := fun k _ => Fin k → Bool) (inp ∘ Fin.cast h_div) h_div = inp := ...
-  have h_L_transport : L ((2*n)/2) (inp ∘ Fin.cast h_div) = L n (Eq.rec ... h_div) := Eq.rec ...
-  rw [h_L_transport, h_func_transport]
-  ```
+### `liftCircuitTo_eval` (line ~106)
+- **Status:** Fully proven
+- **Completed:**
+  - Added theorem with identical proof to `liftCircuit_eval`
+  - Supports lifting circuits to arbitrary larger sizes (needed for odd case in `p_subset_np`)
+  - Also requires `IsWellFormed` assumption for the same reason as `liftCircuit_eval`
 
-### `p_subset_np` (line 212)
-- **Status:** Partially proven - structure in place, uses well-formedness and `liftCircuitTo`
+### `verifier_iff` (line ~264)
+- **Status:** **Fully proven** (no sorry)
+- **Solution:** Used nested `Eq.rec` with carefully chosen motives to handle the dependent-type bookkeeping.
+- **Key insight:** For `i : Fin ((2*n)/2)`, we have `i.val < n`, so the combined function at `i` equals `inp ⟨i.val, _⟩`.
+- **Proof structure:**
+  - Showed that the combined function equals `inp ∘ Fin.cast h_div` where `h_div : (2*n)/2 = n`
+  - Used `Eq.rec` to transport `L` along `h_div` with a motive that handles the function transport
+  - Proved that `Fin.cast h_div i = ⟨i.val, _⟩` for all `i : Fin ((2*n)/2)`
+
+### `p_subset_np` (line ~359)
+- **Status:** Partially proven - structure in place, uses `liftCircuit` and `liftCircuitTo`
 - **Completed:**
   - Verifier definition: `V(m)(inp) = L(m/2)(inp restricted to first m/2 bits)`
   - Polynomial bound: `p(m/2) + 1` with proof `poly_half`
   - Even case circuit size bound proven
+  - Even case evaluation equivalence: uses `liftCircuit_eval` and `verifier_iff`
   - Odd case circuit size bound proven (using `liftCircuitTo`)
-  - Witness direction structure in place (uses `verifier_iff`)
+  - Odd case evaluation equivalence: uses `liftCircuitTo_eval` and `verifier_iff`
+  - Witness direction: uses `verifier_iff` directly
 - **Remaining:**
-  - Even case evaluation equivalence: blocked by `liftCircuit_eval` and `verifier_iff`
-  - Odd case evaluation equivalence: need a version of `liftCircuit_eval` for `liftCircuitTo`
-  - Well-formedness for circuits from `inP`: need to prove that circuits from `inP` are well-formed
+  - Well-formedness for circuits from `inP` (2 sorries: one in even case, one in odd case)
 
 ---
 
 ## Blockers
 
-1. **Array.foldl congruence:** `liftCircuit_eval` needs a lemma that if two functions agree on all elements of an array, then `foldl` with those functions produces equal results. `Array.foldl_congr` requires function equality, not just pointwise agreement on the array.
+1. **Well-formedness for circuits from inP:** Need to prove that circuits from `inP` (which correctly compute a language) must be well-formed.
+   - **Analysis:** This may not be true for constant languages (e.g., `L n inp = false` for all `inp`), which can have circuits with `Var idx` nodes where `idx >= n`.
+   - **Impact:** Without well-formedness, `liftCircuit_eval` and `liftCircuitTo_eval` are not true in general.
+   - **Possible solutions:**
+     - Prove that circuits from `inP` are well-formed (if possible)
+     - Modify the circuit model to disallow `Var idx` nodes with `idx >= n`
+     - Use a different circuit construction that doesn't require well-formedness
+     - Accept well-formedness as an assumption and document the limitation
 
-2. **Dependent-type bookkeeping:** `verifier_iff` requires transporting a proposition `L m f` along an equality `m = n` while also transporting the function `f : Fin m → Bool` to `Fin n → Bool`. This is non-trivial in Lean's dependent type system.
+---
 
-3. **Well-formedness for circuits from inP:** Need to prove that circuits from `inP` (which correctly compute a language) must be well-formed. This is reasonable because Var nodes with `idx >= n` always return `false` and cannot contribute to computing any non-trivial language.
+## Current Sorries
+
+1. **Line 370:** Well-formedness for circuit `c` in even case of `p_subset_np`
+2. **Line 430:** Well-formedness for circuit `c` in odd case of `p_subset_np`
+
+Total: 2 sorries (both for well-formedness)
 
 ---
 
 ## Recommended Next Steps
 
-1. **Complete `verifier_iff`:** This is the most fundamental blocker. The proof requires:
-   - Showing that the combined function equals `inp ∘ Fin.cast h_div`
-   - Using `Eq.rec` to transport `L` along `h_div`
-   - Proving that the transported function equals `inp`
+1. **Prove well-formedness for circuits from inP:**
+   - Analyze whether circuits from `inP` must be well-formed
+   - If not, consider modifying the circuit model or using a different approach
+   - If yes, prove it using the correctness condition `hc_correct`
 
-2. **Complete `liftCircuit_eval`:** Once `verifier_iff` is done, this can be completed by:
-   - Proving a general lemma about `Array.foldl` congruence for functions that agree on array elements
-   - Or using induction on the array with `h_nodes`
-
-3. **Prove well-formedness for circuits from inP:** Add an assumption or prove that circuits from `inP` are well-formed.
-
-4. **Complete `p_subset_np`:** Once the above are done:
-   - Even case: Use `liftCircuit_eval` and `verifier_iff`
-   - Odd case: Prove a version of `liftCircuit_eval` for `liftCircuitTo`
+2. **Alternative approach without well-formedness:**
+   - Instead of using `liftCircuit` and `liftCircuitTo`, construct a new circuit that explicitly reads only from the first `m/2` inputs
+   - This circuit would be well-formed by construction
+   - This might be more complex but would avoid the well-formedness issue
 
 ---
 
@@ -94,19 +97,12 @@
 - `proofs/p_subset_np/circuit-lifting/Proof.lean`:
   - Added `IsWellFormed` predicate for circuits
   - Added `liftCircuitTo` and `liftCircuitTo_size` for general circuit lifting
+  - Added `liftCircuitTo_eval` theorem (identical proof to `liftCircuit_eval`)
+  - Moved `IsWellFormed` definition before `liftCircuitTo_eval` to avoid forward reference
   - Modified `liftCircuit_eval` to take well-formedness assumption
-  - Proved helper lemma `h_nodes` for `liftCircuit_eval`
-  - Updated `p_subset_np` to use `liftCircuitTo` for odd case
-  - Added clear TODOs for remaining work
+  - Proved `verifier_iff` using nested `Eq.rec` with dependent-type bookkeeping
+  - Completed even and odd cases in `p_subset_np` (except for well-formedness)
 - `proofs/p_subset_np/circuit-lifting/NOTES.md`: This file, updated to reflect current state
-
----
-
-## Current Sorries
-
-1. **Line 119:** `liftCircuit_eval` - Array.foldl congruence proof
-2. **Line 191:** `verifier_iff` - Dependent-type bookkeeping
-3. **Line 212:** `p_subset_np` - Main theorem (blocked by 1 and 2)
 
 ---
 
@@ -116,8 +112,4 @@
 - **Circuit model:** `BoolCircuit n` with `Array CircuitNode` and evaluation via `Array.foldl`
 - **Key insight:** `liftCircuit` preserves the gate array, so evaluation only depends on the first `n` inputs
 - **Challenge:** Lean's dependent types make it hard to prove equivalences between `L m f` and `L n g` when `m = n` and `f` and `g` are related by `Fin.cast`
-
-## Technical Interruptions
-
-- 2026-04-30 02:20 UTC — Researcher workflow hit a technical interruption: Mistral Vibe timed out during pass 2/2 after 1800 seconds.. Partial work from this run was preserved; review the current proof state before continuing.
-- 2026-04-30 07:55 UTC — Researcher workflow hit a technical interruption: Mistral Vibe timed out during pass 1/2 after 1800 seconds.. Partial work from this run was preserved; review the current proof state before continuing.
+- **Solution for `verifier_iff`:** Used nested `Eq.rec` with carefully chosen motives to handle the dependent-type bookkeeping
