@@ -70,7 +70,8 @@ Go to **Settings → Secrets and variables → Actions → Secrets** and add:
 
 | Secret name | Value |
 |---|---|
-| `MISTRAL_VIBE_KEY` | Optional: your Mistral API key when overriding the default mock `vibe` CLI |
+| `MISTRAL_VIBE_KEY` | Mistral API key for the Devstral/auto-approve researcher run |
+| `MISTRAL_LABS_KEY` | Mistral API key for the Lean researcher run |
 | `GH_PAT` | GitHub token/PAT with permission to create issues and assign Copilot |
 
 ### 3. (Optional) Add Repository Variables
@@ -80,6 +81,8 @@ Go to **Settings → Secrets and variables → Actions → Variables** and optio
 | Variable name | Default | Description |
 |---|---|---|
 | `MISTRAL_MODEL` | *(Vibe default)* | Optional Mistral Vibe model override for Researcher |
+| `RESEARCHER_RUN_COUNT` | `2` | Optional default number of Vibe passes per researcher invocation |
+| `RESEARCHER_OVERALL_TIMEOUT_MINUTES` | `0` | Optional default cumulative Vibe runtime limit in minutes before later passes are skipped (`0` disables the limit) |
 
 ### 4. Enable GitHub Actions
 
@@ -96,6 +99,7 @@ The repository includes `.github/workflows/copilot-setup-steps.yml`, which prein
 ### 6. Trigger the first run
 
 - Go to **Actions → Project Leader → Run workflow** to create and assign the first Copilot Project Leader issue.
+- Go to **Actions → Researcher → Run workflow** to override the per-run Vibe pass count or cumulative runtime limit for a manual researcher run.
 - After that, the scheduled workflows will run automatically.
 
 ---

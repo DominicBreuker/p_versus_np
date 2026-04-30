@@ -2,12 +2,24 @@ name: Researcher
 
 on:
   workflow_dispatch:
+    inputs:
+      researcher_run_count:
+        description: Number of Vibe passes to run per researcher invocation
+        required: false
+        default: '2'
+      vibe_overall_timeout_minutes:
+        description: Cumulative Vibe runtime limit in minutes before skipping later passes (0 disables)
+        required: false
+        default: '0'
 
 jobs:
   run_researcher:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      RESEARCHER_RUN_COUNT: ${{ inputs.researcher_run_count || vars.RESEARCHER_RUN_COUNT || '2' }}
+      RESEARCHER_OVERALL_TIMEOUT_MINUTES: ${{ inputs.vibe_overall_timeout_minutes || vars.RESEARCHER_OVERALL_TIMEOUT_MINUTES || '0' }}
 
     steps:
       - uses: actions/checkout@v6
@@ -40,7 +52,13 @@ jobs:
           echo "VIBE_HOME=$RUNNER_TEMP/vibe-home" >> "$GITHUB_ENV"
           mkdir -p "$RUNNER_TEMP/vibe-home"
 
-      - name: Require Mistral API key
+      - name: Require Lean Mistral API key
+        env:
+          MISTRAL_VIBE_KEY: ${{ secrets.MISTRAL_LABS_KEY }}
+        run: |
+          test -n "$MISTRAL_VIBE_KEY"
+
+      - name: Require Devstral Mistral API key
         env:
           MISTRAL_VIBE_KEY: ${{ secrets.MISTRAL_VIBE_KEY }}
         run: |
@@ -106,28 +124,27 @@ jobs:
           test -f lake-manifest.json
           uvx --from "lean-lsp-mcp==0.26.1" lean-lsp-mcp --help >/dev/null
 
+      - name: Configure Lean researcher git identity
+        run: |
+          git config user.name "Lean Researcher"
+          git config user.email "lean-researcher@p-vs-np.github"
+
       - name: Run Lean Researcher Agent
         id: researcher-lean
         env:
           MISTRAL_VIBE_KEY: ${{ secrets.MISTRAL_LABS_KEY }}
           MISTRAL_MODEL: ${{ vars.MISTRAL_MODEL }}
           MISTRAL_AGENT: "lean"
-        run: python .github/scripts/researcher.py
+          RESEARCHER_LABEL: "Lean Researcher"
+        run: >
+          python .github/scripts/researcher.py
+          --run-count "${RESEARCHER_RUN_COUNT}"
+          --overall-timeout-minutes "${RESEARCHER_OVERALL_TIMEOUT_MINUTES}"
 
-      - name: Commit and push lean changes
-        if: always()
+      - name: Configure Devstral researcher git identity
         run: |
-          git config --global user.name "Lean-Researcher"
-          git config --global user.email "lean-researcher@p-vs-np.github"
-          git add .
-          if ! git diff --quiet || ! git diff --staged --quiet; then
-            if [ "${{ steps.researcher-lean.outputs.run_outcome }}" = "success" ]; then
-              git commit -m "Lean Researcher update: work on ${{ steps.researcher-lean.outputs.target_label || 'proof target' }}"
-            else
-              git commit -m "Lean Researcher update (interrupted): work on ${{ steps.researcher-lean.outputs.target_label || 'proof target' }}"
-            fi
-            git push
-          fi
+          git config user.name "Devstral Researcher"
+          git config user.email "devstral-researcher@p-vs-np.github"
 
       - name: Run Devstral Researcher Agent
         id: researcher-devstral
@@ -135,7 +152,11 @@ jobs:
           MISTRAL_VIBE_KEY: ${{ secrets.MISTRAL_VIBE_KEY }}
           MISTRAL_MODEL: ${{ vars.MISTRAL_MODEL }}
           MISTRAL_AGENT: "auto-approve"
-        run: python .github/scripts/researcher.py
+          RESEARCHER_LABEL: "Devstral Researcher"
+        run: >
+          python .github/scripts/researcher.py
+          --run-count "${RESEARCHER_RUN_COUNT}"
+          --overall-timeout-minutes "${RESEARCHER_OVERALL_TIMEOUT_MINUTES}"
 
       - name: Clean up trailing whitespace
         if: always()
@@ -156,21 +177,6 @@ jobs:
             echo "Checking executable Lean file: $f"
             lake env lean "$f"
           done
-
-      - name: Commit and push devstral changes
-        if: always()
-        run: |
-          git config --global user.name "Devstral Researcher"
-          git config --global user.email "devstral-researcher@p-vs-np.github"
-          git add .
-          if ! git diff --quiet || ! git diff --staged --quiet; then
-            if [ "${{ steps.researcher-devstral.outputs.run_outcome }}" = "success" ]; then
-              git commit -m "Devstral Researcher update: work on ${{ steps.researcher-devstral.outputs.target_label || 'proof target' }}"
-            else
-              git commit -m "Devstral Researcher update (interrupted): work on ${{ steps.researcher-devstral.outputs.target_label || 'proof target' }}"
-            fi
-            git push
-          fi
 
       - name: Fail workflow if researcher or validation failed
         if: always()
