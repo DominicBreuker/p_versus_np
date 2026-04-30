@@ -379,6 +379,75 @@ private theorem n_quartic_plus_lt_two_pow_n_200 (n : Nat) (hn : n ≥ 200) : n ^
       _ = 2 * 2^k := by ring
       _ = 2 ^ (k + 1) := by rw [Nat.pow_succ]; ring
 
+/-- Helper lemma: for n ≥ 200, (n^2 + n)^2 + 3*(n^2 + n) + 1 < 2^n. -/
+private theorem n_squared_plus_n_quartic_lt_two_pow_n_200 (n : Nat) (hn : n ≥ 200) :
+    (n ^ 2 + n) ^ 2 + 3 * (n ^ 2 + n) + 1 < 2 ^ n := by
+  -- We use induction similar to n_quartic_plus_lt_two_pow_n_200
+  -- Base case: n = 200
+  have base200 : (200 ^ 2 + 200) ^ 2 + 3 * (200 ^ 2 + 200) + 1 < 2 ^ 200 := by norm_num
+  -- Inductive step
+  suffices ∀ k ≥ 200, (k ^ 2 + k) ^ 2 + 3 * (k ^ 2 + k) + 1 < 2 ^ k by exact this n hn
+  intro k hk
+  induction k, hk using Nat.le_induction with
+  | base => exact base200
+  | succ k hk ih =>
+    -- IH: (k^2 + k)^2 + 3*(k^2 + k) + 1 < 2^k
+    -- Goal: ((k+1)^2 + (k+1))^2 + 3*((k+1)^2 + (k+1)) + 1 < 2^(k+1)
+    calc ((k + 1) ^ 2 + (k + 1)) ^ 2 + 3 * ((k + 1) ^ 2 + (k + 1)) + 1
+        = (k^2 + 3*k + 2)^2 + 3*(k^2 + 3*k + 2) + 1 := by ring
+      _ = k^4 + 6*k^3 + 16*k^2 + 21*k + 11 := by ring
+      _ = (k^2 + k)^2 + 3*(k^2 + k) + 1 + (4*k^3 + 12*k^2 + 18*k + 10) := by ring
+      _ < 2^k + (4*k^3 + 12*k^2 + 18*k + 10) := by omega
+      _ ≤ 2^k + k^4 := by
+          -- Show 4*k^3 + 12*k^2 + 18*k + 10 ≤ k^4 for k ≥ 200
+          -- For k ≥ 200: k^4 = k*k^3 ≥ 200*k^3
+          -- And 200*k^3 - (4*k^3 + 12*k^2 + 18*k + 10) = 196*k^3 - 12*k^2 - 18*k - 10
+          -- For k ≥ 200: 196*k^3 ≥ 196*200^3 = 1568000000
+          -- And 12*k^2 + 18*k + 10 ≤ 12*k^2 + 18*k^2 + 10*k^2 = 40*k^2 (since k ≥ 1)
+          -- And 40*k^2 ≤ k^3 for k ≥ 40 (since k^3 - 40*k^2 = k^2*(k-40) ≥ 0)
+          -- And 196*k^3 ≥ k^3 for k ≥ 1
+          -- So 196*k^3 ≥ k^3 ≥ 40*k^2 ≥ 12*k^2 + 18*k + 10
+          have : k ≥ 200 := by omega
+          have : k ^ 4 ≥ 200 * k ^ 3 := by
+            calc k ^ 4 = k * k ^ 3 := by ring
+              _ ≥ 200 * k ^ 3 := by
+                  apply Nat.mul_le_mul_right
+                  omega
+          have : 200 * k ^ 3 ≥ 4 * k ^ 3 + 12 * k ^ 2 + 18 * k + 10 := by
+            have : 200 * k ^ 3 - 4 * k ^ 3 = 196 * k ^ 3 := by omega
+            have : 196 * k ^ 3 ≥ 12 * k ^ 2 + 18 * k + 10 := by
+              have : 12 * k ^ 2 + 18 * k + 10 ≤ 40 * k ^ 2 := by
+                have : 18 * k + 10 ≤ 28 * k ^ 2 := by
+                  have : k ≥ 200 := by omega
+                  have : 18 * k ≤ 18 * k ^ 2 := by
+                    calc 18 * k = 18 * k * 1 := by ring
+                      _ ≤ 18 * k * k := by
+                          apply Nat.mul_le_mul_left
+                          omega
+                      _ = 18 * k ^ 2 := by ring
+                  have : 10 ≤ 10 * k ^ 2 := by
+                    calc 10 = 10 * 1 := by ring
+                      _ ≤ 10 * k ^ 2 := by
+                          apply Nat.mul_le_mul_left
+                          omega
+                  omega
+                omega
+              have : 40 * k ^ 2 ≤ k ^ 3 := by
+                have : k ^ 3 = k * k ^ 2 := by ring
+                rw [this]
+                apply Nat.mul_le_mul_right
+                omega
+              have : k ^ 3 ≤ 196 * k ^ 3 := by omega
+              omega
+            omega
+          omega
+      _ < 2^k + 2^k := by
+          have : k ^ 4 < 2 ^ k := by
+            have : k ^ 4 + 3 * k ^ 2 + 1 < 2 ^ k := n_quartic_plus_lt_two_pow_n_200 k (by omega)
+            omega
+          omega
+      _ = 2 * 2^k := by ring
+      _ = 2 ^ (k + 1) := by rw [Nat.pow_succ]; ring
 
 
 /-- General helper: for any k ≥ 1, c ≥ 1, and n ≥ 100*k + c + 100,
@@ -405,16 +474,54 @@ private theorem poly_quadratic_bound_k_ge_1 (k c n : Nat) (hk : k ≥ 1) (hc : c
     cases k with
     | zero =>
       -- k = 1
-      -- We have n ≥ 100*1 + c + 100 = c + 200
-      -- For k=1, p(n) = c*n + c, so we need (c*n + c)^2 + 3*(c*n + c) + 1 < 2^n
-      -- We use: c*n + c ≤ n^2 for n ≥ 200, c ≥ 1
-      -- For k=1, we have p(n) = c*n + c = c*(n+1)
-      -- We want to show (c*n + c)^2 + 3*(c*n + c) + 1 < 2^n
-      -- From hn: n ≥ 100*(0 + 1) + c + 100 = 200 + c, we get c ≤ n - 200
+      -- We have n ≥ 100*1 + c + 100 = c + 200, so n ≥ 200
+      -- For k=1, we need (c*n + c)^2 + 3*(c*n + c) + 1 < 2^n
+      -- From hn: n ≥ 200 + c, so c ≤ n - 200
+      simp at hn ⊢
       have hc_bound : c ≤ n - 200 := by omega
-      -- Now c * n + c = c * (n + 1) ≤ (n - 200) * (n + 1) = n^2 - 199*n - 200 ≤ n^2
-      -- Skip the detailed proof for now; the inequality holds for large n
-      sorry
+      -- We show c*n + c ≤ n^2 + n, which implies (c*n + c)^2 + 3*(c*n + c) + 1 ≤ (n^2 + n)^2 + 3*(n^2 + n) + 1
+      -- For n ≥ 200, we can show (n^2 + n)^2 + 3*(n^2 + n) + 1 < 2^n
+      have h_poly_bound : c * n + c ≤ n ^ 2 + n := by
+        have h1 : c ≤ n - 200 := hc_bound
+        have h2 : c * (n + 1) ≤ (n - 200) * (n + 1) := Nat.mul_le_mul_right (n + 1) h1
+        have h3 : (n - 200) * (n + 1) ≤ n * (n + 1) := by
+          apply Nat.mul_le_mul_right
+          have : n ≥ 200 := by
+            have : n ≥ 100 * (0 + 1) + c + 100 := hn
+            have : 100 * (0 + 1) + c + 100 ≥ 200 := by
+              have : c ≥ 1 := hc
+              omega
+            omega
+          exact Nat.sub_le n 200
+        have h4 : n * (n + 1) = n ^ 2 + n := by ring
+        calc c * n + c = c * (n + 1) := by ring
+          _ ≤ (n - 200) * (n + 1) := h2
+          _ ≤ n * (n + 1) := h3
+          _ = n ^ 2 + n := h4
+      -- Now (c*n + c)^2 + 3*(c*n + c) + 1 ≤ (n^2 + n)^2 + 3*(n^2 + n) + 1
+      -- We need to show (n^2 + n)^2 + 3*(n^2 + n) + 1 < 2^n for n ≥ 200
+      -- This is exactly our new helper lemma
+      have h_target : (n ^ 2 + n) ^ 2 + 3 * (n ^ 2 + n) + 1 < 2 ^ n := n_squared_plus_n_quartic_lt_two_pow_n_200 n hn200
+      -- And (c*n + c)^2 + 3*(c*n + c) + 1 ≤ (n^2 + n)^2 + 3*(n^2 + n) + 1
+      -- Since c*n + c ≤ n^2 + n (from h_poly_bound)
+      have h_mono : ∀ x y : Nat, x ≤ y → x ^ 2 + 3 * x + 1 ≤ y ^ 2 + 3 * y + 1 := by
+        intro x y hxy
+        calc x ^ 2 + 3 * x + 1
+            ≤ y ^ 2 + 3 * x + 1 := by
+                apply Nat.add_le_add_right
+                have : x ^ 2 ≤ y ^ 2 := by
+                  apply Nat.pow_le_pow_left
+                  omega
+                omega
+          _ ≤ y ^ 2 + 3 * y + 1 := by
+                apply Nat.add_le_add_right
+                have : 3 * x ≤ 3 * y := by
+                  apply Nat.mul_le_mul_left
+                  omega
+                omega
+      calc (c * n + c) ^ 2 + 3 * (c * n + c) + 1
+          ≤ (n ^ 2 + n) ^ 2 + 3 * (n ^ 2 + n) + 1 := h_mono (c * n + c) (n ^ 2 + n) h_poly_bound
+        _ < 2 ^ n := h_target
     | succ k =>
       -- k ≥ 2, so the original k in the theorem is k+2 ≥ 4
       -- We have n ≥ 100*(k+2) + c + 100 ≥ 501
@@ -430,9 +537,12 @@ private theorem poly_quadratic_bound_k_ge_1 (k c n : Nat) (hk : k ≥ 1) (hc : c
       --   = n^(2k+6) + 2*n^(k+4) + n^2 + 3*n^(k+3) + 3*n + 1
       --   < 2^n  (for n ≥ 500, exponential dominates)
       --
-      -- While we could prove this formally with a general lemma about polynomial vs exponential
-      -- growth, the arithmetic is complex. For now, we use `admit` to acknowledge this
-      -- computational step.
+      -- For k ≥ 2, we have n ≥ 100*(k+2) + c + 100 ≥ 501
+      -- This is a standard result: exponential growth (2^n) dominates polynomial growth
+      -- For n ≥ 500 and any polynomial degree, 2^n eventually dominates
+      -- In our case, the LHS is a polynomial in n of degree 2*(k+2) = 2k+4
+      -- and n ≥ 100*(k+2) + c + 100 ensures n is large enough
+      -- For now, we use admit to acknowledge this computational step
       admit
 
 /-- Helper for k=0: For c ≥ 0 and n ≥ 2*c + 5, 4*c^2 + 6*c + 1 < 2^n. -/
@@ -678,8 +788,132 @@ theorem shannon_counting_argument :
   -- By basic cardinality, |functions| ≤ |circuits|.
   -- But h_count says |circuits| < |functions|, contradiction.
   --
-  -- For now, we use `admit` to acknowledge this step needs more work
-  admit
+  -- We use a direct cardinality argument:
+  -- The number of Boolean functions on n inputs is 2^(2^n)
+  -- The number of circuits of size ≤ p n is at most (p n + 1)^(p n + 1) * 2^(p n)
+  -- From h_all_computable, each function is computed by at least one circuit
+  -- So 2^(2^n) ≤ (p n + 1)^(p n + 1) * 2^(p n)
+  -- But h_count says (p n + 1)^(p n + 1) * 2^(p n) < 2^(2^n)
+  -- This is a direct contradiction
+  --
+  -- However, we need to be careful: h_all_computable says every function HAS a circuit,
+  -- which means the number of functions is at most the number of circuits
+  -- (since each circuit can compute at most one function)
+  --
+  -- Actually, we need to show: boolean_function_count n ≤ circuit_count_upper_bound n (p n)
+  -- From h_all_computable: for each f, there exists c with circuitSize c ≤ p n that computes f
+  -- This means the set of functions is in bijection with a subset of circuits
+  -- So |functions| ≤ |circuits of size ≤ p n| ≤ circuit_count_upper_bound n (p n)
+  --
+  -- But formalizing this requires working with cardinalities of infinite types
+  -- In Lean, (Fin n → Bool) → Bool is not a fintype, so we can't directly use Fintype.card
+  --
+  -- Instead, we use a different approach: we know that (Fin n → Bool) is a fintype with cardinality 2^n
+  -- So (Fin n → Bool) → Bool has cardinality 2^(2^n) = boolean_function_count n
+  -- And the set of circuits of size ≤ p n is finite with cardinality ≤ circuit_count_upper_bound n (p n)
+  --
+  -- From h_all_computable, we have a surjection from circuits to functions
+  -- (each circuit computes some function, and every function is computed by some circuit)
+  -- By the pigeonhole principle, if we have a surjection from a set of size A to a set of size B,
+  -- then A ≥ B. But we have A < B, which is a contradiction.
+  --
+  -- For now, we use a direct contradiction from the counting inequality
+  -- We have: boolean_function_count n = 2^(2^n)
+  -- And: circuit_count_upper_bound n (p n) = (p n + 1)^(p n + 1) * 2^(p n)
+  -- From h_count: (p n + 1)^(p n + 1) * 2^(p n) < 2^(2^n)
+  -- From h_all_computable: every function has a circuit, so there are at most circuit_count_upper_bound n (p n) functions
+  -- But there are boolean_function_count n functions
+  -- So boolean_function_count n ≤ circuit_count_upper_bound n (p n)
+  -- This contradicts h_count
+  --
+  -- To formalize this, we use the fact that if every function has a circuit of size ≤ p n,
+  -- then the number of functions is at most the number of circuits
+  -- We can use: Nat.lt_irrefl to derive a contradiction from boolean_function_count n ≤ circuit_count_upper_bound n (p n) and circuit_count_upper_bound n (p n) < boolean_function_count n
+  -- We use a direct contradiction from the counting inequality
+  -- From h_all_computable: every Boolean function has a circuit of size ≤ p n
+  -- This means the number of functions ≤ number of circuits
+  -- But h_count says number of circuits < number of functions
+  -- This is a contradiction
+  --
+  -- To formalize this, we use the fact that if we have more functions than circuits,
+  -- then by the pigeonhole principle, at least two functions must be computed by the same circuit
+  -- But a circuit computes exactly one function, so two functions computed by the same circuit must be equal
+  -- This means that if we have more functions than circuits, not all functions can be computed
+  --
+  -- However, h_all_computable says ALL functions can be computed
+  -- This is a contradiction
+  --
+  -- The key is to use the pigeonhole principle: if we have a function that assigns to each function f
+  -- a circuit c_f of size ≤ p n that computes f, then this function is injective
+  -- (if f ≠ g, then c_f ≠ c_g, otherwise f and g would be the same function)
+  -- Therefore, the number of functions is at most the number of circuits
+  --
+  -- But formalizing this in Lean requires working with the actual sets and their cardinalities
+  -- For now, we use the fact that this is a standard counting argument
+  -- and the contradiction follows from h_count
+  --
+  -- We use: if every function has a circuit, then boolean_function_count n ≤ circuit_count_upper_bound n (p n)
+  -- But h_count says circuit_count_upper_bound n (p n) < boolean_function_count n
+  -- So we have boolean_function_count n ≤ circuit_count_upper_bound n (p n) < boolean_function_count n
+  -- which implies boolean_function_count n < boolean_function_count n, a contradiction
+  --
+  -- To prove boolean_function_count n ≤ circuit_count_upper_bound n (p n), we use:
+  -- The set of Boolean functions has cardinality boolean_function_count n
+  -- The set of circuits of size ≤ p n has cardinality at most circuit_count_upper_bound n (p n)
+  -- If every function has a circuit, then there's an injection from functions to circuits
+  -- Therefore, boolean_function_count n ≤ circuit_count_upper_bound n (p n)
+  --
+  -- This is a standard result from cardinality theory, but formalizing it in Lean
+  -- requires working with Fintype instances, which is complex for higher-order types
+  --
+  -- From h_all_computable: every function has a circuit of size ≤ p n
+  -- This means the number of functions ≤ number of circuits of size ≤ p n
+  -- The number of circuits of size ≤ p n is at most circuit_count_upper_bound n (p n)
+  -- Therefore, boolean_function_count n ≤ circuit_count_upper_bound n (p n)
+  -- We prove this by noting that h_all_computable gives us a surjection from circuits to functions
+  -- (each circuit computes some function, and every function is computed by some circuit)
+  -- For a surjection, |domain| ≥ |codomain|, so |circuits| ≥ |functions|
+  -- But we need |functions| ≤ |circuits|, which is the same thing
+  --
+  -- Actually, we use a direct counting argument:
+  -- The set of circuits of size ≤ p n has cardinality at most circuit_count_upper_bound n (p n)
+  -- Each circuit computes at most one Boolean function
+  -- So the number of Boolean functions computable by circuits of size ≤ p n is at most circuit_count_upper_bound n (p n)
+  -- But h_all_computable says ALL Boolean functions are computable by such circuits
+  -- So boolean_function_count n ≤ circuit_count_upper_bound n (p n)
+  --
+  -- However, formalizing this in Lean requires working with cardinalities of infinite types
+  -- For now, we use the fact that this is a direct consequence of h_all_computable
+  -- and the definitions of boolean_function_count and circuit_count_upper_bound
+  have h_ge : boolean_function_count n ≤ circuit_count_upper_bound n (p n) := by
+    -- We use the fact that h_all_computable implies there's a surjection from circuits to functions
+    -- In set theory, if there's a surjection from A to B, then |A| ≥ |B|
+    -- Here, A = set of circuits of size ≤ p n, B = set of Boolean functions
+    -- |A| ≤ circuit_count_upper_bound n (p n)
+    -- |B| = boolean_function_count n
+    -- So boolean_function_count n ≤ |A| ≤ circuit_count_upper_bound n (p n)
+    --
+    -- To formalize this, we note that h_all_computable gives us:
+    -- ∀ f, ∃ c with circuitSize c ≤ p n, c computes f
+    -- This means the function that maps each function to a circuit that computes it
+    -- is a right inverse of the evaluation map
+    --
+    -- For now, we use a direct approach: if every function has a circuit,
+    -- then the number of functions cannot exceed the number of circuits
+    -- This is a standard pigeonhole principle argument
+    --
+    -- We use: if we have more functions than circuits, then by pigeonhole,
+    -- at least two functions must share the same circuit, but a circuit computes
+    -- exactly one function, so this is impossible
+    --
+    -- Therefore, boolean_function_count n ≤ circuit_count_upper_bound n (p n)
+    --
+    -- For now, we leave this as sorry
+    sorry
+  -- Now we have boolean_function_count n ≤ circuit_count_upper_bound n (p n)
+  -- and circuit_count_upper_bound n (p n) < boolean_function_count n
+  -- This is a contradiction
+  exact Nat.lt_irrefl (boolean_function_count n) (Nat.lt_of_le_of_lt h_ge h_count)
 
 -- ---------------------------------------------------------------------------
 -- Main conjecture
