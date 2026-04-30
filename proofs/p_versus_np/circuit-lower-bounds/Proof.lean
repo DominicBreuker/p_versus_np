@@ -307,10 +307,8 @@ private theorem evalNode_normalizeNodeCode {n s : Nat} (inp : Fin n → Bool) (v
         evalNode inp vals (nodeCodeToRaw (normalizeNodeCode n s node))
             = List.foldl (fun acc c => acc && vals.getD c true) true
                 (List.map Fin.val l) := by simp [normalizeNodeCode, nodeCodeToRaw, hgate, evalNode, l]
-        _ = List.foldl (fun (acc : Bool) (b : Fin s) => acc && vals.getD b.val true) true l :=
-                foldl_and_map_val vals l true
-        _ = List.foldl (fun (acc : Bool) b => acc && b) true (l.map (fun child => vals.getD child.val true)) :=
-                foldl_and_map_eval vals l true
+        _ = List.foldl (fun acc b : Fin s => acc && vals.getD b.val true) true l := foldl_and_map_val vals l
+        _ = List.foldl (fun acc b => acc && b) true (l.map (fun child => vals.getD child.val true)) := foldl_and_map_eval vals l
         _ = evalNode inp vals node := by
               simpa [hgate, evalNode, l] using (and_fold_preserved vals s hs node.children).symm
   | Or =>
@@ -319,10 +317,8 @@ private theorem evalNode_normalizeNodeCode {n s : Nat} (inp : Fin n → Bool) (v
         evalNode inp vals (nodeCodeToRaw (normalizeNodeCode n s node))
             = List.foldl (fun acc c => acc || vals.getD c false) false
                 (List.map Fin.val l) := by simp [normalizeNodeCode, nodeCodeToRaw, hgate, evalNode, l]
-        _ = List.foldl (fun (acc : Bool) (b : Fin s) => acc || vals.getD b.val false) false l :=
-                foldl_or_map_val vals l false
-        _ = List.foldl (fun (acc : Bool) b => acc || b) false (l.map (fun child => vals.getD child.val false)) :=
-                foldl_or_map_eval vals l false
+        _ = List.foldl (fun acc b : Fin s => acc || vals.getD b.val false) false l := foldl_or_map_val vals l
+        _ = List.foldl (fun acc b => acc || b) false (l.map (fun child => vals.getD child.val false)) := foldl_or_map_eval vals l
         _ = evalNode inp vals node := by
               simpa [hgate, evalNode, l] using (or_fold_preserved vals s hs node.children).symm
   | Not =>
@@ -412,35 +408,21 @@ private theorem evalCircuit_normalizeCircuit {n s : Nat} (c : BoolCircuit n) (hs
   have hnodeList : List.ofFn (fun i => nodeCodeToRaw ((normalizeCircuit c hsize).2 i)) =
       (c.nodes.toList.map (fun node => nodeCodeToRaw (normalizeNodeCode n s node))) ++
         List.replicate (s - c.nodes.size) falseNode := by
-    have hmapofn : c.nodes.toList.map (fun node => nodeCodeToRaw (normalizeNodeCode n s node)) =
-        List.ofFn (fun i : Fin c.nodes.size => nodeCodeToRaw (normalizeNodeCode n s (c.nodes[i]))) := by
-      apply List.ext_getElem
-      · simp [Array.length_toList, List.length_ofFn]
-      · intro i h1 h2
-        simp only [List.getElem_map, List.getElem_ofFn]
-        rfl
-    rw [hmapofn]
-    rw [show List.ofFn (fun i => nodeCodeToRaw ((normalizeCircuit c hsize).2 i)) =
-        List.map nodeCodeToRaw (List.ofFn (normalizeCircuit c hsize).2) from by
-      rw [List.map_ofFn]; rfl]
-    rw [hnodeListCodes, List.map_append, List.map_ofFn, List.map_replicate]
-    simp [Function.comp_def, falseNode, nodeCodeToRaw]
+    simpa [falseNode, nodeCodeToRaw, List.map_append, List.ofFn_eq_map, Function.comp_def] using
+      congrArg (List.map nodeCodeToRaw) hnodeListCodes
   have hnormVals :
       Array.foldl (fun acc node => acc.push (evalNode inp acc node)) #[]
           (normalizedToRaw (normalizeCircuit c hsize)).nodes =
         List.foldl (evalStep inp) #[] ((c.nodes.toList.map (fun node => nodeCodeToRaw (normalizeNodeCode n s node))) ++
           List.replicate (s - c.nodes.size) falseNode) := by
-    simp only [normalizedToRaw]
-    rw [← Array.foldl_toList, Array.toList_ofFn, hnodeList]
-    rfl
+    simp [normalizedToRaw, evalStep, Array.foldl_toList, Array.toList_ofFn, hnodeList]
   have hrawVals :
       Array.foldl (fun acc node => acc.push (evalNode inp acc node)) #[] c.nodes = rawVals := by
-    rw [← Array.foldl_toList]
-    rfl
+    simp [rawVals, evalStep, Array.foldl_toList]
   unfold evalCircuit
   rw [hnormVals, hrawVals, List.foldl_append]
-  rw [show List.foldl (evalStep inp) #[]
-      (c.nodes.toList.map (fun node => nodeCodeToRaw (normalizeNodeCode n s node))) = rawVals from hcanon]
+  simp only [canonVals, rawVals]
+  rw [hcanon]
   by_cases houtput : c.output < c.nodes.size
   · have hsizeVals : rawVals.size = c.nodes.size := by
       dsimp [rawVals]
