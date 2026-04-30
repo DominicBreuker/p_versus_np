@@ -5,7 +5,7 @@ This is the main problem the repository exists to solve.
 
 | Approach | Priority | Status | Relationships |
 |----------|----------|--------|---------------|
-| [circuit-lower-bounds](circuit-lower-bounds/) | 90 | Active — Task 6 complete; Task 7 in progress; 2 `sorry`s remain (`poly_quadratic_bound_k_ge_1` n≥67108864 case; pigeonhole step in `shannon_counting_argument`); `p_neq_np` compiles conditionally on two axioms | Main proof track; supporting work under `proofs/p_subset_np/` is now complete and frozen |
+| [circuit-lower-bounds](circuit-lower-bounds/) | 90 | Active — Task 6 complete; Task 7 in progress; **3 `sorry`s remain** (`evalCircuit_normalizeCircuit` line 389; `poly_quadratic_bound_k_ge_1` line 797; pigeonhole step line 1140); `evalNode_normalizeNodeCode` closed 2026-04-30; `p_neq_np` compiles conditionally on two axioms | Main proof track; supporting work under `proofs/p_subset_np/` is now complete and frozen |
 
 ## Project-Leader Notes
 
