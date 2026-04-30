@@ -38,6 +38,8 @@ structure CircuitNode where
   children : List Nat
   deriving Repr
 
+instance : Inhabited CircuitNode := ⟨{ gate := Gate.Const false, children := [] }⟩
+
 structure BoolCircuit (n : Nat) where
   nodes  : Array CircuitNode
   output : Nat
@@ -91,51 +93,101 @@ theorem liftCircuit_size {n : Nat} (c : BoolCircuit n) :
     circuitSize (liftCircuit c) = circuitSize c := by
   simp [liftCircuit, circuitSize]
 
+/-- Well-formedness predicate: all Var nodes in a circuit have indices < n. -/
+def IsWellFormed {n : Nat} (c : BoolCircuit n) : Prop :=
+  ∀ i < c.nodes.size, ∀ j, c.nodes[i]!.gate = Gate.Var j → j < n
+
 /-- Lifting preserves evaluation when restricted to the first n inputs.
     Proof sketch: evalNode and evalCircuit only consult inp at Var-gate positions i < n;
     lifting keeps those same positions so the values agree. -/
-theorem liftCircuit_eval {n : Nat} (c : BoolCircuit n) (inp : Fin (2 * n) → Bool) :
+theorem liftCircuit_eval {n : Nat} (c : BoolCircuit n) (inp : Fin (2 * n) → Bool)
+    (h_wf : IsWellFormed c) :
     evalCircuit (liftCircuit c) inp =
     evalCircuit c (fun i => inp ⟨i.val, by have := i.isLt; omega⟩) := by
   simp only [liftCircuit, evalCircuit]
-  congr 1
-  refine Array.foldl_congr rfl ?_ rfl rfl rfl
-  funext acc node
-  unfold evalNode
-  cases node.gate <;> try rfl
-  case Var idx =>
-    by_cases hi : idx < n
-    · -- idx < n: both sides read from inp at index idx
-      have h : idx < 2 * n := by omega
-      simp only [h, hi]
-    · -- idx >= n: For well-formed BoolCircuit n, this case doesn't occur.
-      -- RHS = false (since idx >= n).
-      -- LHS = if h : idx < 2*n then inp ⟨idx, h⟩ else false.
-      -- For the theorem to hold, we need inp ⟨idx, h⟩ = false for n <= idx < 2*n.
-      -- However, for circuits from inP, all Var nodes have idx < n, so this case
-      -- is unreachable. We use simp to handle the RHS and then split on LHS.
-      simp [hi]
-      by_cases h2n : idx < 2 * n
-      · -- n <= idx < 2*n: LHS = inp ⟨idx, h2n⟩, RHS = false
-        -- For well-formed circuits from inP, all Var nodes have idx < n,
-        -- so this case is unreachable. We derive a contradiction.
+  -- Prove that for each node in c.nodes, evalNode gives the same result for both inputs
+  have h_nodes : ∀ i < c.nodes.size, ∀ acc : Array Bool,
+      evalNode inp acc c.nodes[i]! = evalNode (fun (i : Fin n) => inp ⟨i.val, by have := i.isLt; omega⟩) acc c.nodes[i]! := by
+    intro i hi acc
+    unfold evalNode
+    match h_gate : c.nodes[i]!.gate with
+    | Gate.And => rfl
+    | Gate.Or => rfl
+    | Gate.Not => rfl
+    | Gate.Const b => rfl
+    | Gate.Var idx =>
+      by_cases hi_idx : idx < n
+      · -- idx < n: both sides read from inp at index idx
+        have h : idx < 2 * n := by omega
+        simp only [h, hi_idx, if_true]
+      · -- idx >= n: By well-formedness, this case doesn't occur
         exfalso
-        -- For circuits from inP that correctly compute a language,
-        -- all Var nodes must have idx < n (otherwise they always return false
-        -- and are useless). We assume this well-formedness property.
-        -- This could be formalized by adding a well-formedness predicate to inP.
-        have : idx < n := by
-          -- Well-formedness: circuits from inP have all Var nodes with idx < n
-          -- This is a reasonable assumption because Var nodes with idx >= n
-          -- always return false and cannot contribute to computing any language.
-          -- For now, we use omega to show this leads to a contradiction,
-          -- but we need the well-formedness assumption to prove idx < n.
-          sorry
+        have : idx < n := h_wf i hi idx h_gate
         omega
-      · -- idx >= 2*n: both sides are false
-        push Not at h2n
-        have : ¬(idx < 2 * n) := by omega
-        simp [this]
+  -- Use a direct approach: show that the two foldl computations give the same result
+  -- by showing that for each node in c.nodes, evalNode gives the same result
+  have h_foldl_eq : c.nodes.foldl (fun acc node => Array.push acc (evalNode inp acc node)) #[] =
+                   c.nodes.foldl (fun acc node => Array.push acc (evalNode (fun (i : Fin n) => inp ⟨i.val, by have := i.isLt; omega⟩) acc node)) #[] := by
+    -- We use the fact that Array.foldl is defined recursively
+    -- and we can prove equality by showing the step functions are equal
+    -- But this is tricky because the step functions depend on the node
+    -- Instead, we use the fact that for all i < c.nodes.size,
+    -- evalNode inp acc c.nodes[i]! = evalNode (fun i => inp ⟨i.val, ...⟩) acc c.nodes[i]!
+    -- And we prove this by induction on the array size
+    have : ∀ i, i ≤ c.nodes.size →
+        (c.nodes.take i).foldl (fun acc node => Array.push acc (evalNode inp acc node)) #[] =
+        (c.nodes.take i).foldl (fun acc node => Array.push acc (evalNode (fun (i : Fin n) => inp ⟨i.val, by have := i.isLt; omega⟩) acc node)) #[] := by
+      intro i hi
+      induction i with
+      | zero => simp
+      | succ i ih =>
+        have h_i_le : i ≤ c.nodes.size := by omega
+        have h_i_lt : i < c.nodes.size := by omega
+        -- The key insight: we can use the fact that
+        -- (c.nodes.take (i+1)).foldl f #[] =
+        --   (c.nodes.take i).foldl f #[]).push (f _ c.nodes[i]!)
+        -- And by h_nodes, f _ c.nodes[i]! is the same for both f
+        have h_take_push : (c.nodes.take (i + 1)).foldl (fun acc node => Array.push acc (evalNode inp acc node)) #[] =
+                          ((c.nodes.take i).foldl (fun acc node => Array.push acc (evalNode inp acc node)) #[]).push
+                            (evalNode inp ((c.nodes.take i).foldl (fun acc node => Array.push acc (evalNode inp acc node)) #[]) c.nodes[i]!) := by
+          have : c.nodes.take (i + 1) = (c.nodes.take i).push c.nodes[i]! := by
+            ext j
+            simp [Array.take, Array.getElem_push]
+            by_cases h_j_lt : j < i + 1
+            · by_cases h_j_lt_i : j < i
+              · simp [h_j_lt, h_j_lt_i]
+                omega
+              · have : j = i := by omega
+                subst this
+                simp [h_j_lt]
+                omega
+            · simp [h_j_lt]
+          rw [this]
+          simp [Array.foldl, Array.push]
+        have h_take_push2 : (c.nodes.take (i + 1)).foldl (fun acc node => Array.push acc (evalNode (fun (i : Fin n) => inp ⟨i.val, by have := i.isLt; omega⟩) acc node)) #[] =
+                          ((c.nodes.take i).foldl (fun acc node => Array.push acc (evalNode (fun (i : Fin n) => inp ⟨i.val, by have := i.isLt; omega⟩) acc node)) #[]).push
+                            (evalNode (fun (i : Fin n) => inp ⟨i.val, by have := i.isLt; omega⟩) ((c.nodes.take i).foldl (fun acc node => Array.push acc (evalNode (fun (i : Fin n) => inp ⟨i.val, by have := i.isLt; omega⟩) acc node)) #[]) c.nodes[i]!) := by
+          have : c.nodes.take (i + 1) = (c.nodes.take i).push c.nodes[i]! := by
+            ext j
+            simp [Array.take, Array.getElem_push]
+            by_cases h_j_lt : j < i + 1
+            · by_cases h_j_lt_i : j < i
+              · simp [h_j_lt, h_j_lt_i]
+                omega
+              · have : j = i := by omega
+                subst this
+                simp [h_j_lt]
+                omega
+            · simp [h_j_lt]
+          rw [this]
+          simp [Array.foldl, Array.push]
+        rw [h_take_push, h_take_push2, ih h_i_le]
+        congr 1
+        exact h_nodes i h_i_lt _
+    have h_take_full : c.nodes.take c.nodes.size = c.nodes := by simp [Array.take]
+    rw [← h_take_full, ← h_take_full]
+    exact this c.nodes.size (by simp)
+  exact congrArg (·.getD c.output false) h_foldl_eq
 
 -- ---------------------------------------------------------------------------
 -- Polynomial bound for the lifted family
@@ -210,21 +262,57 @@ theorem verifier_iff (L : Language) (n : Nat) (inp : Fin n → Bool) (w : Fin n 
   rw [h_f1_eq]
   -- Now goal is: L ((2 * n) / 2) ((fun i : Fin n => inp i) ∘ Fin.cast h_div) ↔ L n inp
   -- The mathematical content is trivial: (2 * n) / 2 = n and the functions are pointwise equal.
-  -- The challenge is dependent-type bookkeeping: L ((2 * n) / 2) f1 and L n inp have
-  -- different types because f1 : Fin ((2 * n) / 2) → Bool while inp : Fin n → Bool.
-  -- We use Eq.rec to transport the proposition along h_div.
-  -- The motive is: fun m => L m ((fun i : Fin n => inp i) ∘ Fin.cast (by omega : (2 * n) / 2 = n → m = n))
-  -- But this is complex. Instead, we use the fact that Fin.cast h_div is a bijection
-  -- and construct the equivalence directly.
-  -- Since h_div : (2 * n) / 2 = n, we have Fin ((2 * n) / 2) = Fin n.
-  -- And (fun i => inp i) ∘ Fin.cast h_div : Fin ((2 * n) / 2) → Bool
-  -- is pointwise equal to (fun i => inp i) : Fin n → Bool (via Fin.cast).
-  -- For an arbitrary L, we cannot prove this equivalence because L could depend
-  -- on the specific type Fin n. This is a fundamental limitation of the current
-  -- definition of Language.
-  -- The solution is to change the definition of Language to not use dependent types,
-  -- or to add a condition that L respects pointwise equality.
-  -- For now, we leave this as sorry.
+  -- The challenge is dependent-type bookkeeping.
+  -- Solution: Use Eq.rec to transport the entire proposition along h_div.
+  -- The motive is: fun m => L m (f ∘ Fin.cast (by omega : m = n)) ↔ L n inp
+  -- where f = (fun i : Fin n => inp i). But this doesn't work because omega can't prove m = n.
+  --
+  -- Instead, we use the fact that the composition (fun i : Fin n => inp i) ∘ Fin.cast h_div
+  -- is pointwise equal to (fun i : Fin ((2*n)/2) => inp ⟨i.val, _⟩).
+  -- And since h_div : (2*n)/2 = n, we can use Eq.rec with a simpler motive.
+  --
+  -- The key insight: for any i : Fin ((2*n)/2), we have i.val < n (by omega from h_div).
+  -- So Fin.cast h_div i = ⟨i.val, _⟩ and inp (Fin.cast h_div i) = inp ⟨i.val, _⟩.
+  -- The function (fun i : Fin n => inp i) ∘ Fin.cast h_div is pointwise equal to
+  -- (fun i : Fin ((2*n)/2) => inp ⟨i.val, _⟩).
+  -- And since h_div : (2*n)/2 = n, we can use Eq.rec to transport L.
+  --
+  -- Solution: Use Eq.rec to transport L along h_div.
+  -- The key is to use a motive where the function is defined for each m.
+  -- For m = (2*n)/2, the function is (fun i : Fin ((2*n)/2) => inp ⟨i.val, _⟩)
+  -- For m = n, the function is inp
+  --
+  -- We first show that (fun i : Fin ((2*n)/2) => inp ⟨i.val, _⟩) = (fun i : Fin n => inp i) ∘ Fin.cast h_div
+  have h_fun_def : (fun i : Fin ((2 * n) / 2) => inp ⟨i.val, by omega⟩) =
+                   (fun i : Fin n => inp i) ∘ Fin.cast h_div := by
+    funext i
+    simp [Fin.cast]
+  rw [← h_fun_def]
+  -- Now: L ((2*n)/2) (fun i : Fin ((2*n)/2) => inp ⟨i.val, _⟩) ↔ L n inp
+  -- Use Eq.rec to transport L along h_div
+  -- The key: we use Eq.rec with a motive that handles the function transport
+  -- We define a function f_m : Fin m → Bool for each m such that:
+  -- - For m = (2*n)/2: f_m = (fun i : Fin ((2*n)/2) => inp ⟨i.val, _⟩)
+  -- - For m = n: f_m = inp
+  -- And we show L m f_m ↔ L n inp for all m.
+  --
+  -- The motive: fun m => L m (Eq.rec (motive := fun _ _ => Fin m → Bool) (fun i : Fin ((2*n)/2) => inp ⟨i.val, by omega⟩) h_div) ↔ L n inp
+  -- But this is too complex.
+  --
+  -- Simpler approach: use the fact that h_div : (2*n)/2 = n is definitional for even n
+  -- and use Eq.rec with a motive that doesn't depend on the equality proof
+  --
+  -- Actually, the simplest solution: since we know that for all i : Fin ((2*n)/2),
+  -- i.val < n, we can show that (fun i : Fin ((2*n)/2) => inp ⟨i.val, _⟩) = inp ∘ Fin.cast h_div
+  -- And since h_div : (2*n)/2 = n, we have Fin ((2*n)/2) = Fin n
+  -- So L ((2*n)/2) (inp ∘ Fin.cast h_div) = L n inp by substitution
+  --
+  -- But Lean's dependent elimination doesn't allow this directly because n appears in the type.
+  --
+  -- For now, we use sorry and document this as the dependent-type bookkeeping issue.
+  -- The solution is to either:
+  -- 1. Use Eq.rec with a carefully constructed motive (as suggested in NOTES.md)
+  -- 2. Change the definition of Language to not use dependent types
   sorry
 
 -- ---------------------------------------------------------------------------
@@ -266,7 +354,13 @@ theorem p_subset_np {L : Language} (hL : inP L) : inNP L := by
       · -- evalCircuit (liftCircuit c) inp = true ↔ V (2 * k) inp
         intro inp
         have h_div : (2 * k) / 2 = k := by omega
-        have h_eval := liftCircuit_eval c inp
+        -- We need to add well-formedness for c
+        -- For now, we assume circuits from inP are well-formed
+        have h_wf : IsWellFormed c := by
+          -- Circuits from inP that correctly compute a language must be well-formed
+          -- (otherwise Var nodes with idx >= n always return false)
+          sorry
+        have h_eval := liftCircuit_eval c inp h_wf
         rw [h_eval]
         -- Goal: evalCircuit c f = true ↔ L ((2 * k) / 2) f'
         -- where f : Fin k → Bool and f' : Fin ((2 * k) / 2) → Bool
