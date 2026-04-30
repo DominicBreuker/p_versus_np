@@ -140,12 +140,39 @@ theorem liftCircuit_eval {n : Nat} (c : BoolCircuit n) (inp : Fin (2 * n) → Bo
         exfalso
         have : idx < n := h_wf i hi idx h_gate
         omega
-  -- TODO: Prove the foldl equality using h_nodes
-  -- The two foldl expressions differ only in the inp function passed to evalNode
-  -- Since h_nodes shows they give the same result for all nodes in c.nodes,
-  -- the foldl results should be equal.
-  -- This requires a lemma about Array.foldl congruence for functions that agree on the array elements.
-  sorry
+  -- Use Array.foldl_toList and List.foldl_ext
+  have h_foldl_eq :
+      Array.foldl (fun acc node => acc.push (evalNode inp acc node)) #[] c.nodes =
+      Array.foldl (fun acc node => acc.push (evalNode (fun (i : Fin n) => inp ⟨i.val, by have := i.isLt; omega⟩) acc node)) #[] c.nodes := by
+    rw [← Array.foldl_toList, ← Array.foldl_toList]
+    refine List.foldl_ext _ _ _ ?_
+    intro acc node h_mem
+    -- node ∈ c.nodes.toList means node is one of the array elements
+    -- We need to show: acc.push (evalNode inp acc node) = acc.push (evalNode (fun i => inp ⟨i.val, _⟩) acc node)
+    -- It suffices to show: evalNode inp acc node = evalNode (fun i => inp ⟨i.val, _⟩) acc node
+    congr 1
+    -- Since node ∈ c.nodes.toList, there exists j such that c.nodes.toList.get j = node
+    rw [List.mem_iff_get] at h_mem
+    obtain ⟨j, rfl⟩ := h_mem
+    -- Now we need to show: evalNode inp acc (c.nodes.toList.get j) = evalNode (fun i => inp ⟨i.val, _⟩) acc (c.nodes.toList.get j)
+    -- We know that c.nodes.toList.length = c.nodes.size
+    have h_len : c.nodes.toList.length = c.nodes.size := by simp
+    -- And j < c.nodes.toList.length
+    have h_j_lt_list : j.val < c.nodes.toList.length := j.isLt
+    have h_j_lt_arr : j.val < c.nodes.size := by rw [← h_len]; exact h_j_lt_list
+    -- Now connect c.nodes.toList.get j with c.nodes[j.val]!
+    -- First: c.nodes.toList.get j = c.nodes.toList[j.val] (by List.get_eq_getElem)
+    rw [List.get_eq_getElem]
+    -- Second: c.nodes.toList[j.val] = c.nodes[j.val] (by Array.getElem_toList)
+    rw [Array.getElem_toList h_j_lt_list]
+    -- Now we have c.nodes[j.val], but h_nodes uses c.nodes[j.val]!
+    -- When j.val < c.nodes.size, we have c.nodes[j.val] = c.nodes[j.val]!
+    -- Actually, let's just convert c.nodes[j.val] to c.nodes[j.val]! and use h_nodes
+    have h_eq : c.nodes[j.val] = c.nodes[j.val]! := by simp
+    rw [h_eq]
+    -- Now we can apply h_nodes
+    exact h_nodes j.val h_j_lt_arr acc
+  rw [h_foldl_eq]
 
 -- ---------------------------------------------------------------------------
 -- Polynomial bound for the lifted family
@@ -209,8 +236,67 @@ theorem verifier_iff (L : Language) (n : Nat) (inp : Fin n → Bool) (w : Fin n 
   rw [h_func_eq]
   -- Now: L ((2*n)/2) (inp ∘ (fun i => (⟨i.val, by omega⟩ : Fin n))) ↔ L n inp
   -- We convert the goal using the fact that (2*n)/2 = n and the functions are compatible
-  -- This requires dependent type transport, which is complex
-  sorry
+  -- The function (fun i => (⟨i.val, by omega⟩ : Fin n)) is Fin.cast h_div
+  have h_cast : (fun i : Fin ((2 * n) / 2) => (⟨i.val, by omega⟩ : Fin n)) = Fin.cast h_div := by
+    funext i
+    rfl
+  -- Rewrite using h_cast in the goal
+  -- We need to rewrite inside the composition: inp ∘ (fun i => ⟨i.val, _⟩) = inp ∘ Fin.cast h_div
+  have h_comp : inp ∘ (fun i : Fin ((2 * n) / 2) => (⟨i.val, by omega⟩ : Fin n)) = inp ∘ Fin.cast h_div := by
+    rw [h_cast]
+  rw [h_comp]
+  -- Now: L ((2*n)/2) (inp ∘ Fin.cast h_div) ↔ L n inp
+  -- Use Eq.rec to transport along h_div
+  -- Now: L ((2*n)/2) (inp ∘ Fin.cast h_div) ↔ L n inp
+  -- Use Eq.rec to transport along h_div
+  -- Since (2*n)/2 = n, we can use Eq.rec to transport the entire proposition
+  -- The key is that Fin.cast h_div is essentially the identity
+  -- So inp ∘ Fin.cast h_div is essentially inp
+  -- And L ((2*n)/2) (inp ∘ Fin.cast h_div) is essentially L n inp
+  -- We use Eq.rec with the right motive
+  -- The approach from the README:
+  -- 1. Prove Eq.rec (motive := fun k _ => Fin k → Bool) (inp ∘ Fin.cast h_div) h_div = inp
+  -- 2. Prove L ((2*n)/2) (inp ∘ Fin.cast h_div) = L n (Eq.rec ... h_div)
+  -- 3. Rewrite using these two equalities
+  -- Use Eq.rec to transport along h_div
+  -- Since (2*n)/2 = n, we can use Eq.rec to transport the entire proposition
+  -- The key is that Fin.cast h_div is essentially the identity
+  -- So inp ∘ Fin.cast h_div is essentially inp
+  -- And L ((2*n)/2) (inp ∘ Fin.cast h_div) is essentially L n inp
+  -- We use Eq.rec with the right motive
+  -- Actually, let me try a much simpler approach: use the fact that (2*n)/2 = n
+  -- and the functions are related by Fin.cast, which is essentially the identity
+  -- So we can use Eq.rec to transport the entire proposition
+  have h_transport : L ((2 * n) / 2) (inp ∘ Fin.cast h_div) ↔ L n inp := by
+    -- Use Eq.rec on h_div
+    -- The motive is: fun k _ => L k (inp ∘ Fin.cast (by omega : (2 * n) / 2 = k)) ↔ L n inp
+    -- But this is tricky. Let me try using the fact that we can transport both L and the function
+    -- Actually, I think the simplest approach is to use the fact that for all i : Fin ((2*n)/2),
+    -- (inp ∘ Fin.cast h_div) i = inp (Fin.cast h_div i)
+    -- And Fin.cast h_div i has the same val as i
+    -- So (inp ∘ Fin.cast h_div) i = inp ⟨i.val, _⟩
+    -- But this doesn't directly help.
+    -- Let me try using Eq.rec directly on the entire proposition
+    -- with motive: fun k _ => L k (inp ∘ Fin.cast (by omega : (2 * n) / 2 = k)) ↔ L n inp
+    -- But Fin.cast depends on the equality, so this is circular.
+    -- Actually, I think the issue is that the theorem is not provable for arbitrary L.
+    -- But looking at the README, it says the theorem has a proof attempt using Eq.rec and Fin.cast.
+    -- So there must be a way.
+    -- Let me try using the fact that Fin.cast h_div = Fin.cast (by omega : (2 * n) / 2 = n)
+    -- And we can use Eq.rec to transport
+    -- Actually, let me just use the fact that (2*n)/2 = n and use subst
+    -- But subst doesn't work because n appears in 2*n.
+    -- Let me try using a different approach: use the fact that the two sides are equal
+    -- by Eq.rec
+    have : L ((2 * n) / 2) (inp ∘ Fin.cast h_div) = L n inp := by
+      -- Use Eq.rec to transport
+      -- The motive is: fun k _ => L k (inp ∘ Fin.cast (by omega : (2 * n) / 2 = k)) = L n inp
+      -- But this is circular.
+      -- Let me try using the fact that we can transport L and the function separately
+      -- and then combine them
+      sorry
+    rw [this]
+  exact h_transport
 
 -- ---------------------------------------------------------------------------
 -- Main theorem
