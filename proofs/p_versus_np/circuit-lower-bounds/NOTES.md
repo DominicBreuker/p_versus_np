@@ -4,7 +4,7 @@
 
 **Track role:** Main P vs NP proof track.
 
-**Status:** Active — normalized-circuit refactor staged and the file compiles again with `lake build`, but 4 `sorry`s now remain in the new normalization/counting path.
+**Status:** Active — normalized-circuit refactor staged and the file compiles again with `lake build`, but 5 `sorry`s now remain in the new normalization/counting/shannon-counting path.
 
 ---
 
@@ -32,10 +32,13 @@
 
 **Current tradeoff:**
 - The file now compiles, but the hard proof obligations have been isolated behind temporary `sorry`s:
-  1. `evalNode_normalizeNodeCode`
-  2. `evalCircuit_normalizeCircuit`
-  3. `poly_quadratic_bound_k_ge_1`
-  4. the pigeonhole inequality inside `shannon_counting_argument`
+  1. `evalCircuit_normalizeCircuit` (line 389)
+  2. `pow_lt_two_pow_half` helper (line 804 - inside `pow_lt_two_pow_half`)
+  3. `pow_lt_two_pow_half` helper (line 817 - inside `pow_lt_two_pow_half`)
+  4. The final inequality in `poly_quadratic_bound_k_ge_1` for k ≥ 2 (line 944)
+  5. The pigeonhole inequality in `shannon_counting_argument` (line 1295)
+
+**Note:** `evalNode_normalizeNodeCode` was previously a sorry but has now been completed.
 
 ### 1. Completed `n_squared_plus_n_quartic_lt_two_pow_n_200` helper lemma
 **Location:** Lines 385-445
@@ -105,15 +108,24 @@ See README for the step-by-step outline.
   - ✅ Restored `Proof.lean` to a compiling intermediate checkpoint
   - ✅ Closed `evalNode_normalizeNodeCode` (sorry 1) — Project Leader 2026-04-30
   - ⏳ Three hard subproofs remain behind temporary `sorry`s
-- **`sorry`/`admit` count:** 3 total (`evalCircuit_normalizeCircuit`, `poly_quadratic_bound_k_ge_1`, pigeonhole in `shannon_counting_argument`)
+- **`sorry`/`admit` count:** 5 total (see above)
 - **File builds:** Yes (`lake env lean Proof.lean` passes — note: `Proof.lean` is not part of the `PVsNpLib` library and is not checked by plain `lake build`; use `lake env lean Proof.lean` to verify individual proof files, as done by CI)
 
 ## Next Steps for the Next Researcher
 
-1. **Priority 1:** Prove `evalCircuit_normalizeCircuit` — all sub-lemmas exist; see README for the outline
-2. **Priority 2:** Prove `poly_quadratic_bound_k_ge_1` — prove `pow_lt_two_pow_half` helper first (induction on `d`), then chain the bound; see README for step-by-step strategy
-3. **Priority 3:** Prove the pigeonhole step using `Fintype.card_le_of_injective` with the existing `circuitForFunction` injection
-4. Once these sorrys are resolved, re-run `lake env lean Proof.lean` and reassess
+### Tasks to Complete (in order of priority):
+
+1. **Priority 1:** Prove `evalCircuit_normalizeCircuit` (line 389) — all sub-lemmas (`evalNode_normalizeNodeCode`, `evalStep_fold_normalized_eq`, etc.) already exist and are proven. The README has a complete step-by-step outline.
+
+2. **Priority 2:** Complete `poly_quadratic_bound_k_ge_1` by:
+   - First proving the helper `pow_lt_two_pow_half` (lines 804 and 817 in the even/odd cases)
+   - Then using it for the main inequality (line 944) for the k ≥ 2 case
+    
+   The README provides a clear induction strategy for `pow_lt_two_pow_half`.
+
+3. **Priority 3:** Complete the pigeonhole principle step in `shannon_counting_argument` (line 1295) by showing that the number of Boolean functions is at most the number of circuits, using the fact that every function has a circuit (from `h_all_computable`) and an upper bound on the number of circuits.
+
+4. Once all sorrys are resolved, run `lake env lean Proof.lean` to verify the complete file compiles, and reassess from there.
 
 The `p_neq_np` theorem already compiles conditionally on the axioms, so once these final lemmas are proven, the main result will be unconditional.
 
