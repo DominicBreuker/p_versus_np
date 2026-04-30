@@ -1,8 +1,6 @@
 name: Researcher
 
 on:
-  schedule:
-    - cron: '0 */1 * * *'  # Every hour
   workflow_dispatch:
 
 jobs:
