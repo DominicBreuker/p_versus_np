@@ -105,3 +105,7 @@ The `p_neq_np` theorem already compiles conditionally on the axioms, so once the
 ---
 
 **Note:** The pigeonhole principle step (Priority 2) requires establishing that the number of Boolean functions on n inputs is at most the number of circuits of size ≤ p n, when every function has such a circuit. This is a direct application of the pigeonhole principle and cardinality theory. The injection `f ↦ c_f` (where `c_f` computes `f`) gives us `|functions| ≤ |circuits of size ≤ p n| ≤ circuit_count_upper_bound n (p n)`.
+
+## Technical Interruptions
+
+- 2026-04-30 15:21 UTC — Researcher workflow hit a technical interruption: Mistral Vibe timed out during pass 1/2 after 3600 seconds.. Partial work from this run was preserved; review the current proof state before continuing.
