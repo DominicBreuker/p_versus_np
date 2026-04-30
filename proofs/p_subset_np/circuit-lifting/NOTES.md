@@ -1,6 +1,6 @@
 # Progress Notes — P ⊆ NP
 
-**Last Updated:** 2026-04-30
+**Last Updated:** 2026-04-30 (Pass 2/2: Verification)
 
 **Track role:** Supporting subproblem for the main P vs NP proof route.
 
@@ -49,6 +49,26 @@
 
 1. Reuse this finished `p_subset_np` result from the main `p_versus_np/circuit-lower-bounds` track when verifier lifting is needed.
 2. If the sanitization lemmas become shared infrastructure, move them into `lib/` in a separate cleanup task.
+
+---
+
+## Pass 2/2: Verification
+
+**Date:** 2026-04-30
+
+**Action:** Verified completion of pass 1/2 work and confirmed build success.
+
+**Verification Results:**
+- ✅ `lake build`: Build completed successfully (8350 jobs, no errors or warnings)
+- ✅ `lean_diagnostic_messages`: No diagnostics for Proof.lean
+- ✅ No `sorry` statements remain in Proof.lean
+- ✅ All theorems compile without errors
+
+**Findings:**
+- The circuit-lifting proof is complete and correct
+- `p_subset_np` theorem is fully proven with no placeholders
+- All supporting lemmas (sanitization, lifting, polynomial bounds) are proven
+- Build passes cleanly with no warnings
 
 ---
 
