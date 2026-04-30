@@ -75,3 +75,4 @@ Finish by printing a short summary that lists:
 - which files you touched,
 - which validation commands you ran and whether they passed,
 - and any follow-up work the next researcher should do.
+- Important: your final summary is not available to the next researcher. Anything the next researcher should know about must be documented in NOTES.md!
