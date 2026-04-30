@@ -1,10 +1,10 @@
 # Progress Notes
 
-**Last Updated:** 2025-01-08
+**Last Updated:** 2026-04-30
 
 **Track role:** Main P vs NP proof track.
 
-**Status:** Active — Task 6 COMPLETE; Task 7 PARTIALLY COMPLETE with 1 sorry remaining. File compiles successfully with `lake build`. The core structure is sound, and most arithmetic lemmas are proven.
+**Status:** Active — normalized-circuit refactor staged and the file compiles again with `lake build`, but 4 `sorry`s now remain in the new normalization/counting path.
 
 ---
 
@@ -17,6 +17,25 @@
 - **Task 7 IN PROGRESS:** `shannon_counting_argument` - significant progress made:
 
 ## What Was Accomplished
+
+### 0. Stabilized the in-progress normalized-circuit refactor
+
+**Status:** ✅ INTERMEDIATE CHECKPOINT - compiles successfully again
+
+**What was added/stabilized:**
+- Added a finite normalized syntax layer:
+  - `NodeCode`
+  - `NormalizedCircuit`
+  - `normalized_circuit_count_upper_bound`
+- Added supporting bounded-child and cardinality lemmas for the normalized representation.
+- Restored `Proof.lean` to a compiling state after the previous partial refactor left it broken.
+
+**Current tradeoff:**
+- The file now compiles, but the hard proof obligations have been isolated behind temporary `sorry`s:
+  1. `evalNode_normalizeNodeCode`
+  2. `evalCircuit_normalizeCircuit`
+  3. `poly_quadratic_bound_k_ge_1`
+  4. the pigeonhole inequality inside `shannon_counting_argument`
 
 ### 1. Completed `n_squared_plus_n_quartic_lt_two_pow_n_200` helper lemma
 **Location:** Lines 385-445
@@ -48,20 +67,28 @@
 
 ## Remaining Work
 
-### 1. Complete `poly_quadratic_bound_k_ge_1` (k≥2 case)
-**Location:** Line ~639 (was line 543, now resolved)
+### 1. Prove normalization preserves semantics
+**Location:** normalized-circuit section near the new `NodeCode` lemmas
 
-**Status:** ✅ COMPLETE - The `sorry` for proving `n ^ (n / 10) < 2 ^ (n - 1)` has been resolved using `norm_num`.
+**Status:** IN PROGRESS - currently reduced to 2 temporary `sorry`s
 
-**What was proven:** For `n ≥ 301`, `n^(n/10) < 2^(n-1)`.
+**Goal:**
+- Prove `evalNode_normalizeNodeCode`
+- Then prove `evalCircuit_normalizeCircuit`
 
-**Approach:**
-- Used `norm_num` to automatically verify the inequality for n ≥ 301
-- The inequality holds because for n ≥ 301, n/10 ≥ 30, and exponential growth dominates polynomial growth
-- The threshold n ≥ 100*(k+2) + c + 100 ensures n ≥ 301 for k ≥ 2
+**Why this matters:**
+- This is the bridge from bounded raw circuits to the finite normalized circuits used in the new counting argument.
 
-### 2. Complete Pigeonhole Principle in `shannon_counting_argument`
-**Location:** Line ~1279 (sorry)
+### 2. Rebuild the arithmetic dominance lemma soundly
+**Location:** `poly_quadratic_bound_k_ge_1`
+
+**Status:** IN PROGRESS - theorem body temporarily replaced by `sorry` to recover a compiling checkpoint
+
+**Goal:**
+- Replace the old brittle giant case split with a sound exponential-dominance proof that is strong enough for the Shannon bound.
+
+### 3. Complete Pigeonhole Principle in `shannon_counting_argument`
+**Location:** inside `shannon_counting_argument`
 
 **Goal:** Prove `boolean_function_count n ≤ circuit_count_upper_bound n (p n)` from `h_all_computable`.
 
@@ -79,26 +106,20 @@
 
 - **Files modified:** `proofs/p_versus_np/circuit-lower-bounds/Proof.lean`, `proofs/p_versus_np/circuit-lower-bounds/NOTES.md`
 - **Progress:**
-  - ✅ Created and proved `n_squared_plus_n_quartic_lt_two_pow_n_200` helper lemma
-  - ✅ Completed k=1 case in `poly_quadratic_bound_k_ge_1` by fixing type mismatch with `simp at hn ⊢`
-  - ✅ Proved polynomial bounding `c * n + c ≤ n^2 + n` for k=1 case
-  - ✅ Completed k≥2 case in `poly_quadratic_bound_k_ge_1` using `norm_num` for the final inequality
-  - ✅ Updated pigeonhole principle documentation with injection argument
-- **`sorry`/`admit` count:** 1 total (1 sorry in `shannon_counting_argument` for the pigeonhole principle)
+  - ✅ Added a finite normalized circuit/counting layer
+  - ✅ Added supporting normalization/counting helper lemmas
+  - ✅ Restored `Proof.lean` to a compiling intermediate checkpoint
+  - ⏳ Deferred the three hardest subproofs behind temporary `sorry`s so work can continue incrementally from a stable base
+- **`sorry`/`admit` count:** 4 total
 - **File builds:** Yes, with `lake build` (no warnings)
 
 ## Next Steps for the Next Researcher
 
-1. **Priority 1:** ✅ COMPLETE - The k≥2 case in `poly_quadratic_bound_k_ge_1` has been completed using `norm_num`
-2. **Priority 1:** Complete the pigeonhole principle cardinality inequality in `shannon_counting_argument` (line ~1279)
-   - The mathematical argument is clear: if every Boolean function has a circuit of size ≤ p n, then boolean_function_count n ≤ circuit_count_upper_bound n (p n)
-   - This follows from the pigeonhole principle: the map f ↦ c_f (where c_f computes f) is injective
-   - Formalizing this in Lean requires either:
-     - Using `Fintype.card_le_of_injective` with appropriate Fintype instances for function types
-     - Or using `Finset.card` and defining the set of circuits of size ≤ p n as a Finset
-   - The main challenge is that `(Fin n → Bool) → Bool` is a function type, not a Pi type
-   - An injective function `circuitForFunction` has been defined using `Classical.choose`, and its injectivity has been proven (lines 1240-1258)
-3. **Once all sorries are resolved:** Verify the full proof chain by running `lake build`
+1. **Priority 1:** Finish `evalNode_normalizeNodeCode`
+2. **Priority 1:** Use that to finish `evalCircuit_normalizeCircuit`
+3. **Priority 1:** Re-prove `poly_quadratic_bound_k_ge_1` with a sound replacement argument
+4. **Priority 1:** Then return to the pigeonhole/cardinality step in `shannon_counting_argument`
+5. **Once these sorries are resolved:** Re-run `lake build`
 
 The `p_neq_np` theorem already compiles conditionally on the axioms, so once these final lemmas are proven, the main result will be unconditional.
 
