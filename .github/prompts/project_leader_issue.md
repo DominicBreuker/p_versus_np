@@ -63,10 +63,11 @@ Before editing anything, inspect at least:
    - If a problem does **not** clearly help an existing P vs NP route, do not keep it in `proofs/`.
 
 3. **Priority and relationship management**
-   - Update `proofs/README.md` so priorities are numerical, clear, ordered, and accompanied by a `Relationships` column.
-   - Maintain every `proofs/<problem>/README.md` table with a `Relationships` column as well.
-   - In that column, explicitly document why each non-main problem or approach exists and how it supports a P vs NP proof strategy.
-   - Promote promising tracks and demote or retire tracks that are no longer justified.
+    - Update `proofs/README.md` so priorities are numerical, clear, ordered, and accompanied by a `Relationships` column.
+    - Maintain every `proofs/<problem>/README.md` table with a `Relationships` column as well.
+    - In that column, explicitly document why each non-main problem or approach exists and how it supports a P vs NP proof strategy.
+    - Any completed, solved, or frozen track must have priority `0`.
+    - Promote promising tracks and demote or retire tracks that are no longer justified.
 
 4. **Global project state**
    - Update `OVERVIEW.md` with the current project state.

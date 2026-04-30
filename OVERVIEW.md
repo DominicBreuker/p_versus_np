@@ -15,7 +15,7 @@ Any additional problem in `proofs/` is allowed only if it is a documented materi
 | Problem | Approach | Priority | Status | Relationships |
 |---------|----------|----------|--------|---------------|
 | [p_versus_np](proofs/p_versus_np/) | [circuit-lower-bounds](proofs/p_versus_np/circuit-lower-bounds/) | 90 | Active — Task 6 complete; Task 7 in progress; 2 `sorry`s remain (`poly_quadratic_bound_k_ge_1` n≥67108864 case; pigeonhole step) | Direct attack on `P ≠ NP`; the support track exists only to finish reusable circuit-model infrastructure |
-| [p_subset_np](proofs/p_subset_np/) | [circuit-lifting](proofs/p_subset_np/circuit-lifting/) | 60 | ✅ Complete — `p_subset_np` proven; 0 `sorry`s; frozen | Supports `p_versus_np/circuit-lower-bounds`; supplies the easy inclusion `P ⊆ NP` in the shared model |
+| [p_subset_np](proofs/p_subset_np/) | [circuit-lifting](proofs/p_subset_np/circuit-lifting/) | 0 | ✅ Complete — `p_subset_np` proven; 0 `sorry`s; frozen | Supports `p_versus_np/circuit-lower-bounds`; supplies the easy inclusion `P ⊆ NP` in the shared model |
 
 ## Progress Summary
 
@@ -39,7 +39,7 @@ Any additional problem in `proofs/` is allowed only if it is a documented materi
 - The `p_neq_np` theorem compiles as a conditional result dependent on two axioms: `sat_is_np_complete` and `sat_has_superpoly_lower_bound`.
 - **Important caveat:** Shannon counting yields existential lower bounds for *some* Boolean functions; it does not by itself establish a SAT-specific lower bound. The gap between `shannon_counting_argument` and an explicit SAT circuit lower bound is the core open barrier.
 
-### p_subset_np / circuit-lifting (Priority 60) — COMPLETE
+### p_subset_np / circuit-lifting (Priority 0) — COMPLETE
 
 - **All `sorry`s resolved.** `p_subset_np` compiles with no axioms beyond the shared circuit model.
 - The key proof step was circuit sanitization: rewriting out-of-bounds `Gate.Var idx` nodes to `Gate.Const false`, then lifting the sanitized circuit. See `NOTES.md` for details.

@@ -68,6 +68,53 @@ Problem | Approach | Priority | Status | Relationships
         self.assertEqual(chosen, targets[0])
         choices.assert_called_once_with(targets, weights=[90.0, 10.0], k=1)
 
+    def test_pick_target_skips_completed_targets_even_with_nonzero_priority(self):
+        completed = {
+            "problem": "p_subset_np",
+            "approach": "circuit-lifting",
+            "priority": "60",
+            "priority_value": 60.0,
+            "status": "✅ Complete — `p_subset_np` proven; 0 `sorry`s; frozen",
+        }
+        active = {
+            "problem": "p_versus_np",
+            "approach": "circuit-lower-bounds",
+            "priority": "10",
+            "priority_value": 10.0,
+            "status": "Active — Task 7 in progress; Task 6 complete",
+        }
+        with mock.patch.object(researcher.random, "choices", return_value=[active]) as choices:
+            chosen = researcher.pick_target([completed, active])
+        self.assertEqual(chosen, active)
+        choices.assert_called_once_with([active], weights=[10.0], k=1)
+
+    def test_status_helpers_use_leading_status_marker(self):
+        self.assertFalse(researcher.is_solved_status("Active — Task 7 in progress; Task 6 complete"))
+        self.assertTrue(researcher.is_solved_status("✅ Complete — `p_subset_np` proven; frozen"))
+        self.assertTrue(researcher.is_dead_status("Archived — kept only for history"))
+
+    def test_find_priority_inconsistencies_flags_solved_nonzero_priority(self):
+        warnings = researcher.find_priority_inconsistencies(
+            [
+                {
+                    "problem": "p_subset_np",
+                    "approach": "circuit-lifting",
+                    "priority": "60",
+                    "priority_value": 60.0,
+                    "status": "✅ Complete — `p_subset_np` proven; 0 `sorry`s; frozen",
+                },
+                {
+                    "problem": "p_versus_np",
+                    "approach": "circuit-lower-bounds",
+                    "priority": "90",
+                    "priority_value": 90.0,
+                    "status": "Active — Task 7 in progress",
+                },
+            ]
+        )
+        self.assertEqual(len(warnings), 1)
+        self.assertIn("p_subset_np/circuit-lifting", warnings[0])
+
     def test_parse_args_accepts_run_count_and_overall_timeout(self):
         args = researcher.parse_args(["--run-count", "5", "--overall-timeout-minutes", "12.5"])
         self.assertEqual(args.run_count, 5)
@@ -314,6 +361,16 @@ class GitPushTests(unittest.TestCase):
         remote_branches = self.git(primary, "branch", "-r").stdout
         self.assertIn(f"origin/{result.branch_name}", remote_branches)
         self.assertEqual(self.git(primary, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip(), result.branch_name)
+
+
+class RepositoryTargetInvariantTests(unittest.TestCase):
+    def test_completed_targets_in_repo_have_zero_priority(self):
+        offenders = [
+            f"{target['problem']}/{target['approach']}={target['priority']}"
+            for target in researcher.get_targets()
+            if researcher.is_solved_status(str(target["status"])) and float(target["priority_value"]) != 0
+        ]
+        self.assertEqual(offenders, [])
 
 
 if __name__ == "__main__":
