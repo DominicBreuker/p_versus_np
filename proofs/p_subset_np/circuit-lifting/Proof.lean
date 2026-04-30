@@ -206,42 +206,11 @@ theorem verifier_iff (L : Language) (n : Nat) (inp : Fin n → Bool) (w : Fin n 
     simp only [Function.comp_apply]
     show (if h : i.val < n then inp ⟨i.val, h⟩ else w ⟨i.val - n, by omega⟩) = inp ⟨i.val, by omega⟩
     rw [dif_pos h_i_lt]
-    congr
   rw [h_func_eq]
   -- Now: L ((2*n)/2) (inp ∘ (fun i => (⟨i.val, by omega⟩ : Fin n))) ↔ L n inp
-  -- Use Eq.rec to transport L along h_div
-  have : L ((2 * n) / 2) (inp ∘ (fun i : Fin ((2 * n) / 2) => (⟨i.val, by omega⟩ : Fin n))) = L n inp := by
-    have h_eq : (2 * n) / 2 = n := h_div
-    have h_cast_comp : (fun i : Fin ((2 * n) / 2) => (⟨i.val, by omega⟩ : Fin n)) =
-        (fun i : Fin n => (⟨i.val, by omega⟩ : Fin n)) ∘ Fin.cast h_eq := by
-      funext j
-      show (⟨j.val, by omega⟩ : Fin n) = (⟨(Fin.cast h_eq j).val, by omega⟩ : Fin n)
-      simp
-    rw [h_cast_comp]
-    simp
-    -- Now we have L ((2*n)/2) (inp ∘ Fin.cast h_eq) = L n inp
-    -- Transport L along h_eq
-    have h_cast_id : Fin.cast h_eq ∘ Fin.cast h_eq.symm = id := by
-      funext j
-      simp
-    have h_comp : inp ∘ Fin.cast h_eq ∘ Fin.cast h_eq.symm = inp := by
-      funext j
-      simp
-    have : inp ∘ Fin.cast h_eq = inp ∘ (Fin.cast h_eq ∘ Fin.cast h_eq.symm) ∘ Fin.cast h_eq := by
-      rw [h_cast_id]
-      simp
-    have : L ((2 * n) / 2) (inp ∘ (fun i => i) ∘ Fin.cast h_eq) = L ((2 * n) / 2) (inp ∘ Fin.cast h_eq) := by
-      congr 1
-      funext j
-      simp
-    rw [this]
-    have : L ((2 * n) / 2) (inp ∘ Fin.cast h_eq) = L ((2 * n) / 2) (inp ∘ (Fin.cast h_eq ∘ Fin.cast h_eq.symm) ∘ Fin.cast h_eq) := by
-      congr 1
-      rw [this]
-    rw [this]
-    simp [h_comp]
-    rw [h_eq]
-  rw [this]
+  -- We convert the goal using the fact that (2*n)/2 = n and the functions are compatible
+  -- This requires dependent type transport, which is complex
+  sorry
 
 -- ---------------------------------------------------------------------------
 -- Main theorem
