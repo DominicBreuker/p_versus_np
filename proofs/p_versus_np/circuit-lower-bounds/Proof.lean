@@ -300,7 +300,44 @@ private theorem or_fold_preserved (vals : Array Bool) (s : Nat) (hs : vals.size 
 private theorem evalNode_normalizeNodeCode {n s : Nat} (inp : Fin n → Bool) (vals : Array Bool)
     (hs : vals.size ≤ s) (node : CircuitNode) :
     evalNode inp vals (nodeCodeToRaw (normalizeNodeCode n s node)) = evalNode inp vals node := by
-  sorry
+  cases hgate : node.gate with
+  | And =>
+      let l := (boundedChildren s node.children).toList
+      calc
+        evalNode inp vals (nodeCodeToRaw (normalizeNodeCode n s node))
+            = List.foldl (fun acc c => acc && vals.getD c true) true
+                (List.map Fin.val l) := by simp [normalizeNodeCode, nodeCodeToRaw, hgate, evalNode, l]
+        _ = List.foldl (fun acc b : Fin s => acc && vals.getD b.val true) true l := foldl_and_map_val vals l
+        _ = List.foldl (fun acc b => acc && b) true (l.map (fun child => vals.getD child.val true)) := foldl_and_map_eval vals l
+        _ = evalNode inp vals node := by
+              simpa [hgate, evalNode, l] using (and_fold_preserved vals s hs node.children).symm
+  | Or =>
+      let l := (boundedChildren s node.children).toList
+      calc
+        evalNode inp vals (nodeCodeToRaw (normalizeNodeCode n s node))
+            = List.foldl (fun acc c => acc || vals.getD c false) false
+                (List.map Fin.val l) := by simp [normalizeNodeCode, nodeCodeToRaw, hgate, evalNode, l]
+        _ = List.foldl (fun acc b : Fin s => acc || vals.getD b.val false) false l := foldl_or_map_val vals l
+        _ = List.foldl (fun acc b => acc || b) false (l.map (fun child => vals.getD child.val false)) := foldl_or_map_eval vals l
+        _ = evalNode inp vals node := by
+              simpa [hgate, evalNode, l] using (or_fold_preserved vals s hs node.children).symm
+  | Not =>
+      cases hchildren : node.children with
+      | nil => simp [normalizeNodeCode, nodeCodeToRaw, hgate, hchildren, evalNode]
+      | cons child rest =>
+          cases rest with
+          | nil =>
+              by_cases hchild : child < s
+              · simp [normalizeNodeCode, nodeCodeToRaw, hgate, hchildren, hchild, evalNode]
+              · have hge : vals.size ≤ child := le_trans hs (Nat.le_of_not_gt hchild)
+                simp [normalizeNodeCode, nodeCodeToRaw, hgate, hchildren, hchild, evalNode, Array.getD, hge]
+          | cons child' rest' =>
+              simp [normalizeNodeCode, nodeCodeToRaw, hgate, hchildren, evalNode]
+  | Var i =>
+      by_cases hi : i < n
+      · simp [normalizeNodeCode, nodeCodeToRaw, hgate, hi, evalNode]
+      · simp [normalizeNodeCode, nodeCodeToRaw, hgate, hi, evalNode]
+  | Const b => simp [normalizeNodeCode, nodeCodeToRaw, hgate, evalNode]
 
 private def evalStep {n : Nat} (inp : Fin n → Bool) (acc : Array Bool) (node : CircuitNode) : Array Bool :=
   acc.push (evalNode inp acc node)
@@ -358,7 +395,47 @@ private theorem normalizeCircuit_nodes_list {n s : Nat} (c : BoolCircuit n) (hsi
 private theorem evalCircuit_normalizeCircuit {n s : Nat} (c : BoolCircuit n) (hsize : circuitSize c ≤ s)
     (inp : Fin n → Bool) :
     evalCircuit (normalizedToRaw (normalizeCircuit c hsize)) inp = evalCircuit c inp := by
-  sorry
+  let rawVals : Array Bool := List.foldl (evalStep inp) #[] c.nodes.toList
+  let canonVals : Array Bool :=
+    List.foldl (evalStep inp) #[]
+      (c.nodes.toList.map (fun node => nodeCodeToRaw (normalizeNodeCode n s node)))
+  have hcanon : canonVals = rawVals := by
+    dsimp [canonVals, rawVals]
+    exact evalStep_fold_normalized_eq inp #[] c.nodes.toList (by simpa)
+  have hnodeListCodes : List.ofFn (normalizeCircuit c hsize).2 =
+      List.ofFn (fun i : Fin c.nodes.size => normalizeNodeCode n s (c.nodes[i])) ++
+        List.replicate (s - c.nodes.size) (NodeCode.const false) := normalizeCircuit_nodes_list c hsize
+  have hnodeList : List.ofFn (fun i => nodeCodeToRaw ((normalizeCircuit c hsize).2 i)) =
+      (c.nodes.toList.map (fun node => nodeCodeToRaw (normalizeNodeCode n s node))) ++
+        List.replicate (s - c.nodes.size) falseNode := by
+    simpa [falseNode, nodeCodeToRaw, List.map_append, List.ofFn_eq_map, Function.comp_def] using
+      congrArg (List.map nodeCodeToRaw) hnodeListCodes
+  have hnormVals :
+      Array.foldl (fun acc node => acc.push (evalNode inp acc node)) #[]
+          (normalizedToRaw (normalizeCircuit c hsize)).nodes =
+        List.foldl (evalStep inp) #[] ((c.nodes.toList.map (fun node => nodeCodeToRaw (normalizeNodeCode n s node))) ++
+          List.replicate (s - c.nodes.size) falseNode) := by
+    simp [normalizedToRaw, evalStep, Array.foldl_toList, Array.toList_ofFn, hnodeList]
+  have hrawVals :
+      Array.foldl (fun acc node => acc.push (evalNode inp acc node)) #[] c.nodes = rawVals := by
+    simp [rawVals, evalStep, Array.foldl_toList]
+  unfold evalCircuit
+  rw [hnormVals, hrawVals, List.foldl_append]
+  simp only [canonVals, rawVals]
+  rw [hcanon]
+  by_cases houtput : c.output < c.nodes.size
+  · have hsizeVals : rawVals.size = c.nodes.size := by
+      dsimp [rawVals]
+      simpa using evalStep_fold_size inp #[] c.nodes.toList
+    have hprefix : (List.foldl (evalStep inp) rawVals (List.replicate (s - c.nodes.size) falseNode))[c.output]? =
+        rawVals[c.output]? := by
+      apply evalStep_fold_getElem?_preserve inp rawVals (List.replicate (s - c.nodes.size) falseNode) c.output
+      simpa [hsizeVals] using houtput
+    simp [normalizedToRaw, normalizeCircuit, houtput, hsizeVals, hprefix]
+  · have hsizeVals : rawVals.size = c.nodes.size := by
+      dsimp [rawVals]
+      simpa using evalStep_fold_size inp #[] c.nodes.toList
+    simp [normalizedToRaw, normalizeCircuit, houtput, hsizeVals, Array.getD]
 
 private def encodeNodeCode {n s : Nat} : NodeCode n s → Bool ⊕ Fin n ⊕ Fin s ⊕ Finset (Fin s) ⊕ Finset (Fin s)
   | .const b => Sum.inl b
@@ -766,7 +843,114 @@ private theorem n_squared_plus_n_quartic_lt_two_pow_n_200 (n : Nat) (hn : n ≥ 
 private theorem poly_quadratic_bound_k_ge_1 (k c n : Nat) (hk : k ≥ 1) (hc : c ≥ 1)
     (hn : n ≥ 100 * k + c + 100) :
     (c * n ^ k + c) ^ 2 + 3 * (c * n ^ k + c) + 1 < 2 ^ n := by
-  sorry
+  -- For n ≥ 100*k + c + 100, we have n ≥ 200
+  have hn200 : n ≥ 200 := by omega
+  -- For k = 1, we can bound c * n + c ≤ n^2 and use n_quartic_plus_lt_two_pow_n_200
+  -- For k ≥ 2, we need a different approach
+  cases k with
+  | zero =>
+    -- k = 0, but we have k ≥ 1, so this case is impossible
+    omega
+  | succ k =>
+    cases k with
+    | zero =>
+      -- k = 1
+      -- We have n ≥ 100*1 + c + 100 = c + 200, so n ≥ 200
+      -- For k=1, we need (c*n + c)^2 + 3*(c*n + c) + 1 < 2^n
+      -- From hn: n ≥ 200 + c, so c ≤ n - 200
+      simp at hn ⊢
+      have hc_bound : c ≤ n - 200 := by omega
+      -- We show c*n + c ≤ n^2 + n, which implies (c*n + c)^2 + 3*(c*n + c) + 1 ≤ (n^2 + n)^2 + 3*(n^2 + n) + 1
+      -- For n ≥ 200, we can show (n^2 + n)^2 + 3*(n^2 + n) + 1 < 2^n
+      have h_poly_bound : c * n + c ≤ n ^ 2 + n := by
+        have h1 : c ≤ n - 200 := hc_bound
+        have h2 : c * (n + 1) ≤ (n - 200) * (n + 1) := Nat.mul_le_mul_right (n + 1) h1
+        have h3 : (n - 200) * (n + 1) ≤ n * (n + 1) := by
+          apply Nat.mul_le_mul_right
+          have : n ≥ 200 := by
+            have : n ≥ 100 * (0 + 1) + c + 100 := hn
+            have : 100 * (0 + 1) + c + 100 ≥ 200 := by
+              have : c ≥ 1 := hc
+              omega
+            omega
+          exact Nat.sub_le n 200
+        have h4 : n * (n + 1) = n ^ 2 + n := by ring
+        calc c * n + c = c * (n + 1) := by ring
+          _ ≤ (n - 200) * (n + 1) := h2
+          _ ≤ n * (n + 1) := h3
+          _ = n ^ 2 + n := h4
+      -- Now (c*n + c)^2 + 3*(c*n + c) + 1 ≤ (n^2 + n)^2 + 3*(n^2 + n) + 1
+      -- We need to show (n^2 + n)^2 + 3*(n^2 + n) + 1 < 2^n for n ≥ 200
+      -- This is exactly our new helper lemma
+      have h_target : (n ^ 2 + n) ^ 2 + 3 * (n ^ 2 + n) + 1 < 2 ^ n := n_squared_plus_n_quartic_lt_two_pow_n_200 n hn200
+      -- And (c*n + c)^2 + 3*(c*n + c) + 1 ≤ (n^2 + n)^2 + 3*(n^2 + n) + 1
+      -- Since c*n + c ≤ n^2 + n (from h_poly_bound)
+      have h_mono : ∀ x y : Nat, x ≤ y → x ^ 2 + 3 * x + 1 ≤ y ^ 2 + 3 * y + 1 := by
+        intro x y hxy
+        calc x ^ 2 + 3 * x + 1
+            ≤ y ^ 2 + 3 * x + 1 := by
+                apply Nat.add_le_add_right
+                have : x ^ 2 ≤ y ^ 2 := by
+                  apply Nat.pow_le_pow_left
+                  omega
+                omega
+          _ ≤ y ^ 2 + 3 * y + 1 := by
+                apply Nat.add_le_add_right
+                have : 3 * x ≤ 3 * y := by
+                  apply Nat.mul_le_mul_left
+                  omega
+                omega
+      calc (c * n + c) ^ 2 + 3 * (c * n + c) + 1
+          ≤ (n ^ 2 + n) ^ 2 + 3 * (n ^ 2 + n) + 1 := h_mono (c * n + c) (n ^ 2 + n) h_poly_bound
+        _ < 2 ^ n := h_target
+    | succ k =>
+      -- k ≥ 2, so the original k in the theorem is k+2 ≥ 2
+      -- We have n ≥ 100*(k+2) + c + 100 ≥ 301
+      -- Use the same approach as k=1: bound by n^(k+3) and use exponential dominance
+      simp at hn ⊢
+      have hn300 : n ≥ 300 := by omega
+      have hc_bound : c + 1 ≤ n := by omega
+      -- Bound: c*n^(k+2) + c ≤ n^(k+3)
+      have h_poly_bound : c * n ^ (k + 2) + c ≤ n ^ (k + 3) := by
+        have hc_le_n : c ≤ n := by omega
+        have hc_le_nk2 : c ≤ n ^ (k + 2) := by
+          have : n ≥ 1 := by omega
+          have : n ≤ n ^ (k + 2) := by
+            have : k + 2 ≥ 1 := by omega
+            have : 1 ≤ k + 2 := by omega
+            have h_n_pos : n > 0 := by omega
+            have h_pow : n ^ 1 ≤ n ^ (k + 2) := Nat.pow_le_pow_right h_n_pos (by omega)
+            calc n = n ^ 1 := by ring
+              _ ≤ n ^ (k + 2) := h_pow
+          omega
+        calc c * n ^ (k + 2) + c
+            ≤ c * n ^ (k + 2) + n ^ (k + 2) := by
+                apply Nat.add_le_add_left
+                exact hc_le_nk2
+          _ = (c + 1) * n ^ (k + 2) := by ring
+          _ ≤ n * n ^ (k + 2) := by
+                apply Nat.mul_le_mul_right
+                omega
+          _ = n ^ (k + 3) := by ring
+      -- Monotonicity of x^2 + 3*x + 1
+      have h_mono : ∀ x y : Nat, x ≤ y → x ^ 2 + 3 * x + 1 ≤ y ^ 2 + 3 * y + 1 := by
+        intro x y hxy
+        calc x ^ 2 + 3 * x + 1
+            ≤ y ^ 2 + 3 * x + 1 := by
+                apply Nat.add_le_add_right
+                have : x ^ 2 ≤ y ^ 2 := by
+                  apply Nat.pow_le_pow_left
+                  omega
+                omega
+          _ ≤ y ^ 2 + 3 * y + 1 := by
+                apply Nat.add_le_add_right
+                have : 3 * x ≤ 3 * y := by
+                  apply Nat.mul_le_mul_left
+                  omega
+                omega
+      calc (c * n ^ (k + 2) + c) ^ 2 + 3 * (c * n ^ (k + 2) + c) + 1
+          ≤ (n ^ (k + 3)) ^ 2 + 3 * (n ^ (k + 3)) + 1 := h_mono (c * n ^ (k + 2) + c) (n ^ (k + 3)) h_poly_bound
+        _ < 2 ^ n := sorry
 
 /-- Helper for k=0: For c ≥ 0 and n ≥ 2*c + 5, 4*c^2 + 6*c + 1 < 2^n. -/
 private theorem poly_quadratic_bound_k0 (c : Nat) (n : Nat) (hn : n ≥ 2 * c + 5) :
