@@ -798,23 +798,19 @@ private theorem pow_lt_two_pow_half (d n : Nat) (hn : n ≥ 4 * d + 10) : n ^ d 
         have hn_div : 2 * (n / 2) = n := Nat.div_mul_cancel h_even
         calc n ^ (d + 1) = n * n ^ d := by ring
           _ < n * 2 ^ (n / 2) := Nat.mul_lt_mul_of_pos_left ih (Nat.pos_of_ne_zero (by omega : n ≠ 0))
-          _ < 2 ^ (n / 2) * 2 ^ (n / 2) := Nat.mul_lt_mul_of_le_of_lt_right _ _ (Nat.lt_pow_self (by norm_num) _) ih
-            where _ : n < 2 ^ (n / 2) := by
-              -- Need: for n ≥ 4*(d+1)+10, n < 2^(n/2)
-              sorry
+          _ < 2 ^ (n / 2) * 2 ^ (n / 2) := by
+            apply Nat.mul_lt_mul_of_le_of_lt_right
+            · exact Nat.lt_pow_self (by norm_num) _
+            · exact ih
+            · sorry -- n < 2^(n/2)
           _ = 2 ^ (2 * (n / 2)) := by rw [← Nat.pow_add]
           _ = 2 ^ n := by rw [hn_div]
       · -- n is odd, so n/2 * 2 + 1 = n
         have hn_div : 2 * (n / 2) + 1 = n := by omega
+        have h_n_lt_2pow : n < 2 ^ (n / 2) := by sorry
         calc n ^ (d + 1) = n * n ^ d := by ring
           _ < n * 2 ^ (n / 2) := Nat.mul_lt_mul_of_pos_left ih (Nat.pos_of_ne_zero (by omega : n ≠ 0))
-          _ < 2 ^ (n / 2) * 2 ^ (n / 2) := Nat.mul_lt_mul_of_le_of_lt_right _ _ (Nat.lt_pow_self (by norm_num) _) ih
-            where _ : n < 2 ^ (n / 2) := by
-              -- For odd n ≥ 4*(d+1)+10, we have n ≥ 4*(d+1)+11
-              -- n/2 ≥ 2*(d+1)+5, so 2^(n/2) ≥ 2^(2*(d+1)+5) > n
-              have : n ≥ 6 := by omega
-              have : n - 1 = 2 * (n / 2) := by omega
-              sorry
+          _ < 2 ^ (n / 2) * 2 ^ (n / 2) := Nat.mul_lt_mul_of_le_of_lt_right (Nat.lt_pow_self (by norm_num) _) ih h_n_lt_2pow
           _ = 2 ^ (2 * (n / 2)) := by rw [← Nat.pow_add]
           _ ≤ 2 ^ n := by
               have : 2 * (n / 2) ≤ n := by omega
