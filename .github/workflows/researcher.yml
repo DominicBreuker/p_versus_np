@@ -103,7 +103,7 @@ jobs:
           uvx --from "lean-lsp-mcp==0.26.1" lean-lsp-mcp --help >/dev/null
 
       - name: Run Lean Researcher Agent
-        id: researcher
+        id: researcher-lean
         env:
           MISTRAL_VIBE_KEY: ${{ secrets.MISTRAL_LABS_KEY }}
           MISTRAL_MODEL: ${{ vars.MISTRAL_MODEL }}
@@ -111,7 +111,7 @@ jobs:
         run: python .github/scripts/researcher.py
 
       - name: Run Devstral Researcher Agent
-        id: researcher
+        id: researcher-devstral
         env:
           MISTRAL_VIBE_KEY: ${{ secrets.MISTRAL_VIBE_KEY }}
           MISTRAL_MODEL: ${{ vars.MISTRAL_MODEL }}
