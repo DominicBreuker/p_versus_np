@@ -48,7 +48,12 @@ REPO_ROOT: Path = Path(__file__).resolve().parent.parent.parent
 PROMPT_TEMPLATE_PATH: Path = REPO_ROOT / ".github" / "prompts" / "researcher_vibe.md"
 MOCK_VIBE_PATH: Path = REPO_ROOT / ".github" / "scripts" / "mock_vibe.py"
 PROMPT_FILENAME = ".mistral-researcher-prompt.md"
+# Status detection only inspects the normalized leading status marker, not
+# later prose such as "Task 6 complete; Task 7 in progress".
 DEAD_STATUS_HEADS: set[str] = {"dead end", "archived", "retired"}
+# Matched case-insensitively against normalized_status_head(...) to treat
+# solved/frozen tracks as ineligible researcher targets even if they still
+# carry a stale positive priority.
 SOLVED_STATUS_HEAD_PREFIXES: tuple[str, ...] = (
     "complete",
     "completed",
@@ -411,6 +416,7 @@ def strip_markdown_link(value: str) -> str:
 
 def normalized_status_head(status: str) -> str:
     """Return the normalized leading status marker from a target table status cell."""
+    # Drop leading emoji/punctuation status markers such as "✅" before matching.
     cleaned = re.sub(r"^[^\w\s]+", "", status).strip().casefold()
     if not cleaned:
         return ""
