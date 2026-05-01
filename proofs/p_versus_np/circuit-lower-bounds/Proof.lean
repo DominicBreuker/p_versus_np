@@ -386,9 +386,15 @@ private theorem normalizeCircuit_nodes_list {n s : Nat} (c : BoolCircuit n) (hsi
 private theorem evalCircuit_normalizeCircuit {n s : Nat} (c : BoolCircuit n) (hsize : circuitSize c ≤ s)
     (inp : Fin n → Bool) :
     evalCircuit (normalizedToRaw (normalizeCircuit c hsize)) inp = evalCircuit c inp := by
-  -- Strategy: Use evalStep_fold_getElem?_preserve to show that padding with const-false nodes
-  -- doesn't affect values at indices < c.nodes.size
-  -- Then show the normalized + padding evaluates to the same as original
+  unfold evalCircuit
+  -- The normalized circuit nodes are [original normalized] ++ [false padding]
+  have h_nodes := normalizeCircuit_nodes_list c hsize
+  -- The key insight: padding with const-false nodes doesn't affect evaluation
+  -- because false values don't propagate through AND/OR gates in a way that
+  -- changes the output at indices < c.nodes.size
+  
+  -- For the output: if c.output < c.nodes.size, it maps to the same position in normalized circuit
+  -- Otherwise, the output defaults to false (const false)
   sorry
 
 private def encodeNodeCode {n s : Nat} : NodeCode n s → Bool ⊕ Fin n ⊕ Fin s ⊕ Finset (Fin s) ⊕ Finset (Fin s)
@@ -808,11 +814,23 @@ private theorem n_pow_lt_two_pow_n_reasonable (n d : Nat) (hd : d ≥ 1) (hn : n
     induction k, hk using Nat.le_induction with
     | base => exact base200
     | succ k hk ih =>
-      calc (k + 1) ^ 2 = k^2 + 2*k + 1 := by ring
-        _ < 2^k + (2*k + 1) := by omega
-        _ < 2^k + 2^k := by omega
-        _ = 2 * 2^k := by ring
-        _ = 2^(k+1) := by ring
+      by_cases hk200 : k = 200
+      · subst hk200
+        norm_num
+      · have hk201 : k ≥ 201 := by omega
+        calc (k + 1) ^ 2 = k^2 + 2*k + 1 := by ring
+          _ < 2^k + (2*k + 1) := by omega
+          _ < 2^k + 2^k := by
+              apply Nat.add_lt_add_left
+              -- For k ≥ 201, k^2 < 2^k by IH, and k^2 ≥ 2*k + 1 for k ≥ 3
+              have : k ^ 2 ≥ 2 * k + 1 := by
+                calc k^2 = k * k := by ring
+                  _ ≥ 3 * k := by omega  -- For k ≥ 201
+                  _ ≥ 2 * k + k := by omega
+                  _ ≥ 2 * k + 1 := by omega
+              omega
+          _ = 2 * 2^k := by ring
+          _ = 2^(k+1) := by ring
   · -- d = 3: n^3 < 2^n for n ≥ 200
     sorry
   · -- d = 4: n^4 < 2^n for n ≥ 200
