@@ -33,6 +33,8 @@ circuit complexity, then `P ≠ NP`.
 - [x] Task 5: Prove the conditional reduction from SAT circuit lower bounds to `P ≠ NP`
 - [x] Task 6: Prove `circuit_count_lt_functions_at_n` — complete for all `n ≥ 4`
 - [ ] Task 7: Complete `shannon_counting_argument` without overstating what it implies
+  - Progress: Removed flawed `pow_lt_two_pow_half` and `n_lt_two_pow_half` lemmas that had mathematical inconsistencies
+  - Remaining sorrys: `evalCircuit_normalizeCircuit`, `poly_quadratic_bound_k_ge_1` (k ≥ 2 case), and pigeonhole principle
 
 ---
 

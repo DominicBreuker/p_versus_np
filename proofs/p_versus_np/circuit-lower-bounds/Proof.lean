@@ -841,52 +841,6 @@ private theorem n_squared_plus_n_quartic_lt_two_pow_n_200 (n : Nat) (hn : n ≥ 
 
 
 
-/-- Helper lemma: n < 2^(n/2) for n ≥ 14. -/
-private theorem n_lt_two_pow_half (n : Nat) (hn : n ≥ 14) : n < 2 ^ (n / 2) := by
-  -- For n ≥ 14, we have n/2 ≥ 7
-  -- We'll handle even and odd cases separately
-  by_cases h_even : n % 2 = 0
-  · -- n is even, so n = 2k, need 2k < 2^k, which is true for k ≥ 7
-    -- We verify directly for n in {14, 16, ..., 20}, then use that 2k grows linearly while 2^k grows exponentially
-    have : n / 2 ≥ 7 := by omega
-    -- For even n, we can verify the base and use monotonicity
-    sorry
-  · -- n is odd, so n = 2k+1, need 2k+1 < 2^k
-    -- For odd n ≥ 15, we have (n+1)/2 = n/2 + 1
-    -- We can use induction
-    sorry
-
-/-- Helper lemma: for n ≥ 4*d + 10, we have n^d < 2^(n/2).
-    This inductive helper shows exponential growth dominates polynomial growth.
-    Proof by induction on d: base case d=0 is trivial. For step, use IH and show n < 2^(n/2). -/
-private theorem pow_lt_two_pow_half (d n : Nat) (hn : n ≥ 4 * d + 10) : n ^ d < 2 ^ (n / 2) := by
-  induction d with
-  | zero =>
-    -- Base case: d = 0, so n^0 = 1, need 1 < 2^(n/2)
-    -- We have n ≥ 4*0 + 10 = 10, so n/2 ≥ 5, 2^5 = 32 > 1
-    have hn10 : n ≥ 10 := by omega
-    have h_half : n / 2 ≥ 5 := by omega
-    have : 2 ^ (n / 2) ≥ 2 ^ 5 := Nat.pow_le_pow_right (by norm_num) h_half
-    norm_num at this
-    omega
-  | succ d ih =>
-    -- Inductive step: assume n^d < 2^(n/2) for n ≥ 4d+10
-    -- Need to show n^(d+1) < 2^(n/2) for n ≥ 4(d+1)+10 = 4d+14
-    have hn_step : n ≥ 4 * d + 14 := by omega
-    -- By IH, n^d < 2^(n/2) (we have n ≥ 4d+14 ≥ 4d+10)
-    have ih_apply : n ^ d < 2 ^ (n / 2) := ih (by omega)
-    -- Need n < 2^(n/2) for n ≥ 14
-    have hn14 : n ≥ 14 := by omega
-    have hn_lt : n < 2 ^ (n / 2) := n_lt_two_pow_half n hn14
-    -- Conclude: n^(d+1) = n * n^d < 2^(n/2) * 2^(n/2) = 2^(n/2 + n/2)
-    -- But we need n^(d+1) < 2^(n/2), not < 2^(n/2 + n/2)!
-    -- We have n^(d+1) < 2^(n/2 + n/2), but the goal is n^(d+1) < 2^(n/2).
-    -- This is too strong! The issue is that n/2 + n/2 might be > n/2.
-    -- Actually, we should just use a different approach.
-    
-    -- Actually, this theorem seems problematic. Let me try a different approach.
-    sorry
-
 /-- General helper: for any k ≥ 1, c ≥ 1, and n ≥ 100*k + c + 100,
     we have (c*n^k + c)^2 + 3*(c*n^k + c) + 1 < 2^n.
     This handles the k ≥ 1 case of poly_quadratic_bound.
@@ -1006,7 +960,11 @@ private theorem poly_quadratic_bound_k_ge_1 (k c n : Nat) (hk : k ≥ 1) (hc : c
                 omega
       calc (c * n ^ (k + 2) + c) ^ 2 + 3 * (c * n ^ (k + 2) + c) + 1
           ≤ (n ^ (k + 3)) ^ 2 + 3 * (n ^ (k + 3)) + 1 := h_mono (c * n ^ (k + 2) + c) (n ^ (k + 3)) h_poly_bound
-        _ < 2 ^ n := sorry
+        _ < 2 ^ n := by
+          -- We need to show (n^(k+3))^2 + 3*n^(k+3) + 1 < 2^n
+          -- We have n ≥ 100*(k+2) + c + 100 ≥ 301
+          -- So n ≥ 301 and k ≥ 0
+          sorry
 
 /-- Helper for k=0: For c ≥ 0 and n ≥ 2*c + 5, 4*c^2 + 6*c + 1 < 2^n. -/
 private theorem poly_quadratic_bound_k0 (c : Nat) (n : Nat) (hn : n ≥ 2 * c + 5) :

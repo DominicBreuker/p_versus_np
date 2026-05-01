@@ -31,14 +31,17 @@
 - Restored `Proof.lean` to a compiling state after the previous partial refactor left it broken.
 
 **Current tradeoff:**
-- The file now compiles, but the hard proof obligations have been isolated behind temporary `sorry`s:
+- The file now compiles, but the hard proof obligations remain unfinished:
   1. `evalCircuit_normalizeCircuit` (line 389)
-  2. `pow_lt_two_pow_half` helper (line 804 - inside `pow_lt_two_pow_half`)
-  3. `pow_lt_two_pow_half` helper (line 817 - inside `pow_lt_two_pow_half`)
-  4. The final inequality in `poly_quadratic_bound_k_ge_1` for k ≥ 2 (line 944)
-  5. The pigeonhole inequality in `shannon_counting_argument` (line 1295)
+  2. The final inequality in `poly_quadratic_bound_k_ge_1` for k ≥ 2 (line ~972)
+  3. The pigeonhole inequality in `shannon_counting_argument` (line 1364)
 
 **Note:** `evalNode_normalizeNodeCode` was previously a sorry but has now been completed.
+
+**Update (2026-05-01):** Removed flawed helper lemmas `pow_lt_two_pow_half` and `n_lt_two_pow_half` which had mathematical inconsistencies in their statement vs proof. These were not used elsewhere, but their removal exposed an arithmetic hole in the `k ≥ 2` case of `poly_quadratic_bound_k_ge_1`. The remaining sorrys are now:
+- 1 semantic sorry (evalCircuit_normalizeCircuit)
+- 1 arithmetic sorry (poly_quadratic_bound_k_ge_1 for k ≥ 2)
+- 1 pigeonhole sorry (shannon_counting_argument)
 
 ### 1. Completed `n_squared_plus_n_quartic_lt_two_pow_n_200` helper lemma
 **Location:** Lines 385-445
