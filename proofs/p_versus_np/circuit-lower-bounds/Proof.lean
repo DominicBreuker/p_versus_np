@@ -386,9 +386,9 @@ private theorem normalizeCircuit_nodes_list {n s : Nat} (c : BoolCircuit n) (hsi
 private theorem evalCircuit_normalizeCircuit {n s : Nat} (c : BoolCircuit n) (hsize : circuitSize c ≤ s)
     (inp : Fin n → Bool) :
     evalCircuit (normalizedToRaw (normalizeCircuit c hsize)) inp = evalCircuit c inp := by
-  -- Try to use evalStep_fold_normalized_eq
-  unfold evalCircuit normalizedToRaw normalizeCircuit
-  simp only [Array.ofFn]
+  -- Strategy: Use evalStep_fold_getElem?_preserve to show that padding with const-false nodes
+  -- doesn't affect values at indices < c.nodes.size
+  -- Then show the normalized + padding evaluates to the same as original
   sorry
 
 private def encodeNodeCode {n s : Nat} : NodeCode n s → Bool ⊕ Fin n ⊕ Fin s ⊕ Finset (Fin s) ⊕ Finset (Fin s)
@@ -792,12 +792,14 @@ private theorem n_squared_plus_n_quartic_lt_two_pow_n_200 (n : Nat) (hn : n ≥ 
 /-- For n ≥ 200 and d ≥ 1, we have n^d < 2^n.
     This establishes exponential dominance of 2^n over polynomial n^d for sufficiently large n.
     -/
-private theorem n_pow_lt_two_pow_n_reasonable (n d : Nat) (hd : d ≥ 1) (hn : n ≥ 200) :
+private theorem n_pow_lt_two_pow_n_reasonable (n d : Nat) (hd : d ≥ 1) (hn : n ≥ 200) (hbound : d ≤ 20) :
     n ^ d < 2 ^ n := by
-  -- For n ≥ 200, n^d grows slower than 2^n for any fixed d
-  -- Strategy: Bound n^d by an exponential function that grows slower than 2^n
-  -- For now, leave as sorry - this requires careful analysis of exponential vs polynomial growth
-  sorry
+  -- For "reasonable" degrees d ≤ 20 and n ≥ 200, prove n^d < 2^n by case analysis
+  interval_cases d
+  all_goals
+    -- For each specific value of d (1 through 20), prove n^d < 2^n
+    -- Pattern: use induction on n similar to n_quartic_plus_lt_two_pow_n_200
+    sorry
 
 /-- General helper: for any k ≥ 1, c ≥ 1, and n ≥ 100*k + c + 100,
     we have (c*n^k + c)^2 + 3*(c*n^k + c) + 1 < 2^n.
@@ -921,9 +923,26 @@ private theorem poly_quadratic_bound_k_ge_1 (k c n : Nat) (hk : k ≥ 1) (hc : c
         _ < 2 ^ n := by
           -- We need (n^(k+3))^2 + 3n^(k+3) + 1 < 2^n
           -- This is n^(2k+6) + 3n^(k+3) + 1 < 2^n
-          -- For k ≥ 2, n ≥ 100k + c + 100 ≥ 301, so d=2k+6 ≥ 10
-          -- We need a helper that n^d < 2^n for these ranges
-          sorry  -- Would use n_pow_lt_two_pow_n_general
+          -- For k ≥ 2, n ≥ 100k + c + 100 ≥ 301
+          
+          -- Case split: for k ≤ 7, d=2k+6 ≤ 20, we can use n_pow_lt_two_pow_n_reasonable
+          -- For k > 7, we need a different approach (TODO)
+          by_cases hk_bound : k ≤ 7
+          · -- k ≤ 7, so 2k+6 ≤ 20
+            let d := 2 * k + 6
+            have hd : d ≤ 20 := by omega
+            have hn_large : n ≥ 200 := by omega
+            calc (n ^ (k + 3)) ^ 2 + 3 * (n ^ (k + 3)) + 1
+                = n ^ (2 * (k + 3)) + 3 * (n ^ (k + 3)) + 1 := by ring
+              _ ≤ n ^ (2 * (k + 3)) + 3 * n ^ (2 * (k + 3)) + n ^ (2 * (k + 3)) := by
+                    sorry  -- Need monotonicity bounds
+              _ < 2 ^ n := by sorry
+          · -- k > 7, so k ≥ 8
+            -- For large k, we cannot use n^d < 2^n for large d
+            -- Use a more direct approach: for n ≥ 100k + c + 100 ≥ 100*8 + 1 + 100 = 901, 
+            -- we have 2^n growing much faster than n^(2k+6)
+            -- This requires a stronger helper or a direct proof
+            sorry  -- For now, use sorry; needs stronger helper for large degrees
 
 /-- Helper for k=0: For c ≥ 0 and n ≥ 2*c + 5, 4*c^2 + 6*c + 1 < 2^n. -/
 private theorem poly_quadratic_bound_k0 (c : Nat) (n : Nat) (hn : n ≥ 2 * c + 5) :
