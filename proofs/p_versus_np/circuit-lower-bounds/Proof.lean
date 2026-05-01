@@ -386,22 +386,47 @@ private theorem normalizeCircuit_nodes_list {n s : Nat} (c : BoolCircuit n) (hsi
 private theorem evalCircuit_normalizeCircuit {n s : Nat} (c : BoolCircuit n) (hsize : circuitSize c ≤ s)
     (inp : Fin n → Bool) :
     evalCircuit (normalizedToRaw (normalizeCircuit c hsize)) inp = evalCircuit c inp := by
+  let rawVals : Array Bool := List.foldl (evalStep inp) #[] c.nodes.toList
+  let canonVals : Array Bool :=
+    List.foldl (evalStep inp) #[]
+      (c.nodes.toList.map (fun node => nodeCodeToRaw (normalizeNodeCode n s node)))
+  have hcanon : canonVals = rawVals := by
+    dsimp [canonVals, rawVals]
+    exact evalStep_fold_normalized_eq inp #[] c.nodes.toList (by simpa)
+  have hnodeListCodes : List.ofFn (normalizeCircuit c hsize).2 =
+      List.ofFn (fun i : Fin c.nodes.size => normalizeNodeCode n s (c.nodes[i])) ++
+        List.replicate (s - c.nodes.size) (NodeCode.const false) := normalizeCircuit_nodes_list c hsize
+  have hnodeList : List.ofFn (fun i => nodeCodeToRaw ((normalizeCircuit c hsize).2 i)) =
+      (c.nodes.toList.map (fun node => nodeCodeToRaw (normalizeNodeCode n s node))) ++
+        List.replicate (s - c.nodes.size) falseNode := by
+    simpa [falseNode, nodeCodeToRaw, List.map_append, List.ofFn_eq_map, Function.comp_def] using
+      congrArg (List.map nodeCodeToRaw) hnodeListCodes
+  have hnormVals :
+      Array.foldl (fun acc node => acc.push (evalNode inp acc node)) #[]
+          (normalizedToRaw (normalizeCircuit c hsize)).nodes =
+        List.foldl (evalStep inp) #[] ((c.nodes.toList.map (fun node => nodeCodeToRaw (normalizeNodeCode n s node))) ++
+          List.replicate (s - c.nodes.size) falseNode) := by
+    simp [normalizedToRaw, evalStep, Array.foldl_toList, Array.toList_ofFn, hnodeList]
+  have hrawVals :
+      Array.foldl (fun acc node => acc.push (evalNode inp acc node)) #[] c.nodes = rawVals := by
+    simp [rawVals, evalStep, Array.foldl_toList]
   unfold evalCircuit
-  unfold normalizedToRaw
-  simp only [circuitSize, Option.getD]
-  
-  -- Key observation: After normalization with size s ≥ c.nodes.size:
-  -- 1. The output node of c is either:
-  --    a) c.output < c.nodes.size: then it's preserved at the same index in normalized circuit
-  --    b) c.output ≥ c.nodes.size: then val is false (from the else branch), which is n
-  -- 2. Node evaluations are preserved for indices < c.nodes.size via evalStep_fold_getElem?_preserve
-  -- 3. Padding with const-false nodes doesn't change the folded values
-   
-  -- We prove this by showing the folded arrays are equal at all indices ≤ max(c.output, c.nodes.size)
-  -- Strategy: Use normalizeCircuit_nodes_list to decompose and apply evalStep lemmas
-  
-  sorry
-
+  rw [hnormVals, hrawVals, List.foldl_append]
+  simp only [canonVals, rawVals]
+  rw [hcanon]
+  by_cases houtput : c.output < c.nodes.size
+  · have hsizeVals : rawVals.size = c.nodes.size := by
+      dsimp [rawVals]
+      simpa using evalStep_fold_size inp #[] c.nodes.toList
+    have hprefix : (List.foldl (evalStep inp) rawVals (List.replicate (s - c.nodes.size) falseNode))[c.output]? =
+        rawVals[c.output]? := by
+      apply evalStep_fold_getElem?_preserve inp rawVals (List.replicate (s - c.nodes.size) falseNode) c.output
+      simpa [hsizeVals] using houtput
+    simp [normalizedToRaw, normalizeCircuit, houtput, hsizeVals, hprefix]
+  · have hsizeVals : rawVals.size = c.nodes.size := by
+      dsimp [rawVals]
+      simpa using evalStep_fold_size inp #[] c.nodes.toList
+    simp [normalizedToRaw, normalizeCircuit, houtput, hsizeVals, Array.getD]
 private def encodeNodeCode {n s : Nat} : NodeCode n s → Bool ⊕ Fin n ⊕ Fin s ⊕ Finset (Fin s) ⊕ Finset (Fin s)
   | .const b => Sum.inl b
   | .var v => Sum.inr <| Sum.inl v
