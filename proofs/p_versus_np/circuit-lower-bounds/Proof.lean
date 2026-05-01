@@ -808,25 +808,7 @@ private theorem n_pow_lt_two_pow_n_general (n d : Nat) (hn : n ≥ d + 10) (hd :
     n ^ d < 2 ^ n := by
   -- Standard exponential dominance: n^d < 2^n for n ≥ d + 10, d ≥ 1
   -- Proof strategy: For fixed d, induct on n starting from threshold d + 10
-
-EOF
-
-# I give up on this complex proof and will leave it sorry'd
-# The correct pattern follows n_quartic_plus_lt_two_pow_n_200:
-# 1. Start by proving a base case at the threshold with norm_num
-# 2. Use Nat.le_induction to induct on n
-# 3. In the inductive step, expand the polynomial and show each term is bounded by 2^n
-# However, proving this for a general d with threshold d+10 requires either:
-# a) A strong library lemma (which may not exist)
-# b) A very intricate manual arithmetic proof
-# c) A different inductive structure (e.g., on d rather than n)
-#    But as I discovered, inducting on d also has challenges.
-# 
-# For now, I'll leave this as sorry to unblock the rest of the file.
-# The next researcher should either:
-# - Find and apply a Mathlib lemma about exponential dominance
-# - Or construct a more clever inductive proof
-# - Or use a very high threshold (like 200) to make norm_num work for specific cases
+  sorry
 
 /-- General helper: for any k ≥ 1, c ≥ 1, and n ≥ 100*k + c + 100,
     we have (c*n^k + c)^2 + 3*(c*n^k + c) + 1 < 2^n.
