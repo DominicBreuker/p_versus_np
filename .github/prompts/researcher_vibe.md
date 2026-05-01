@@ -32,7 +32,7 @@ Recent git log for this target:
 Your job in this run:
 
 1. Understand how `{target_label}` advances the repository's attempt to settle P vs NP.
-2. Make the smallest useful forward step on the proof or supporting library code.
+2. Make a material improvement to the proof, but one step at time! Each time, do the smallest useful forward step on the proof or supporting library code.
 3. Update files anywhere under `proofs/{problem_name}/{approach_name}/` when that is useful for the current step.
 4. Update files anywhere under `lib/` when shared Lean code needs to move or expand.
 5. Update `proofs/{problem_name}/{approach_name}/NOTES.md` so it accurately records what changed, what still blocks progress, and the next best step toward the P vs NP goal.
