@@ -386,24 +386,20 @@ private theorem normalizeCircuit_nodes_list {n s : Nat} (c : BoolCircuit n) (hsi
 private theorem evalCircuit_normalizeCircuit {n s : Nat} (c : BoolCircuit n) (hsize : circuitSize c ≤ s)
     (inp : Fin n → Bool) :
     evalCircuit (normalizedToRaw (normalizeCircuit c hsize)) inp = evalCircuit c inp := by
-  -- Proof strategy: Show that the fold operations produce the same result array
-  -- The normalized circuit prepends normalized versions of original nodes followed by const-false padding
-  -- The const-false padding doesn't affect evaluation up to the original circuit size
-  
-  unfold evalCircuit normalizedToRaw normalizeCircuit
-  
-  -- The key: the fold over the padded list equals the fold over just the prefix
-  -- because const-false nodes don't affect evaluation at indices < prefix length
-  
-  apply congr_arg
-  apply congr_arg (·.getD ·)
-  
-  -- Show the output indices match
-  by_cases hout : c.output < c.nodes.size
-  · simp [hout]
-  · simp [hout]
-  
-  -- Now show the arrays are equal by showing the folds are equal
+  -- Proof strategy (from README and NOTES):
+  -- 1. Use normalizeCircuit_nodes_list to understand that normalized circuit nodes = 
+  --    [normalized original nodes] ++ [const-false padding]
+  -- 2. Show that folding over normalized nodes gives same result as folding over original nodes
+  --    using evalStep_fold_normalized_eq for the prefix
+  -- 3. Show that const-false padding doesn't change values at indices < c.nodes.size
+  --    using a lemma like evalStep_fold_getElem?_preserve
+  -- 
+  -- The key challenge is working with Array.foldl vs List operations.
+  -- After unfolding, both sides use Array.foldl, so we need to show the arrays being folded are equal.
+  -- The normalized circuit's nodes array is created with Array.ofFn, which needs to be related
+  -- to the original c.nodes array.
+  --
+  -- Alternative approach: Use simp with normalizeCircuit_nodes_list as suggested in NOTES
   sorry
 
 private def encodeNodeCode {n s : Nat} : NodeCode n s → Bool ⊕ Fin n ⊕ Fin s ⊕ Finset (Fin s) ⊕ Finset (Fin s)
@@ -810,11 +806,11 @@ private theorem n_squared_plus_n_quartic_lt_two_pow_n_200 (n : Nat) (hn : n ≥ 
     -/
 private theorem n_pow_lt_two_pow_n_general (n d : Nat) (hn : n ≥ d + 10) (hd : d ≥ 1) :
     n ^ d < 2 ^ n := by
-  -- TODO: Prove this using induction similar to n_quartic_plus_lt_two_pow_n_200
-  -- For now, leave as sorry - this is a standard exponential dominance result
-  -- The key is that n ≥ d + 10 ensures n is large enough for 2^n to dominate n^d
-  -- Base case: for d = 1, need n ≥ 11, and n < 2^n holds
-  -- Inductive step: use that (m+1)^d - m^d = O(m^(d-1)) < 2^m for large m
+  -- Standard exponential dominance: n^d < 2^n for n ≥ d + 10, d ≥ 1
+  -- Proof strategy: Induct on d. For base case d = 1, show n < 2^n for n ≥ 11.
+  -- For inductive step, use that n^(d+1) = n * n^d and apply IH and arithmetic.
+  -- This is a placeholder; the full proof would follow the pattern of n_quartic_plus_lt_two_pow_n_200
+  -- but generalized to work for any d with threshold d + 10.
   sorry
 
 /-- General helper: for any k ≥ 1, c ≥ 1, and n ≥ 100*k + c + 100,
