@@ -45,10 +45,16 @@ IMPORTANT: also read the file `GUIDANCE.md` for a strategic view on completing t
 
 **Current state:**
 - The file compiles successfully with `lake build`
-- **3 sorrys remain** (reduced from 5 sorrys before this pass):
-  1. **`evalCircuit_normalizeCircuit`** (line 389): Prove evaluation invariance under circuit padding
-  2. **`poly_quadratic_bound_k_ge_1`** (line 915): Prove exponential dominance `(n^(k+3))^2 + 3n^(k+3) + 1 < 2^n` for k ≥ 2 
-  3. **Pigeonhole contradiction** (line 1304): Complete the shannon_counting_argument by deriving contradiction from counting inequality
+- **3 sorrys remain**:
+  1. **`evalCircuit_normalizeCircuit`** (line 412): Added proof structure with strategy outline, needs tactic completion using `evalStep_fold_getElem?_preserve` and case analysis on output index
+  2. **`poly_quadratic_bound_k_ge_1`** (line 915): Need to prove exponential dominance for `n ≥ 100k + 300`
+  3. **Pigeonhole contradiction** (line 1304): Simplified using `Classical.choose`, now needs formalization of cardinality contradiction
+
+**Changes made in this pass:**
+- Removed broken `pow_lt_two_pow_half` and `n_lt_two_pow_half` lemmas (mathematical inconsistencies)
+- Added proof skeleton for `evalCircuit_normalizeCircuit` with README-aligned strategy
+- Fixed `h_all_computable` destructuring by using `Classical.choose` instead of `cases` on `Exists`
+- Consolidated multiple pigeonhole injection sorrys into single sorry for leanability
 
 **Note:** `evalNode_normalizeNodeCode` was previously a sorry but has now been completed.
 

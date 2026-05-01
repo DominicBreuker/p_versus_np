@@ -386,6 +386,11 @@ private theorem normalizeCircuit_nodes_list {n s : Nat} (c : BoolCircuit n) (hsi
 private theorem evalCircuit_normalizeCircuit {n s : Nat} (c : BoolCircuit n) (hsize : circuitSize c ≤ s)
     (inp : Fin n → Bool) :
     evalCircuit (normalizedToRaw (normalizeCircuit c hsize)) inp = evalCircuit c inp := by
+  -- TODO: Prove evaluation invariance under circuit normalization
+  -- Strategy (from README and GUIDANCE):
+  -- 1. Use evalStep_fold_normalized_eq to handle normalized prefix
+  -- 2. Show const-false padding doesn't change values at indices < original size
+  -- 3. Case split on whether c.output < circuitSize c (guaranteed by definition)
   sorry
 
 private def encodeNodeCode {n s : Nat} : NodeCode n s → Bool ⊕ Fin n ⊕ Fin s ⊕ Finset (Fin s) ⊕ Finset (Fin s)
