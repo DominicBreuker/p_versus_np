@@ -17,6 +17,10 @@ on:
         description: Cumulative Vibe runtime limit in minutes before skipping later passes (0 disables)
         required: false
         default: '0'
+      custom_prompt:
+        description: A custom prompt to inject into vibe CLI instead of the pre-built one
+        required: false
+        default: ''
 
 jobs:
   run_researcher:
@@ -147,6 +151,7 @@ jobs:
           python .github/scripts/researcher.py
           --run-count "${LEAN_RESEARCHER_RUN_COUNT}"
           --overall-timeout-minutes "${RESEARCHER_OVERALL_TIMEOUT_MINUTES}"
+          --prompt "${CUSTOM_PROMPT}"
 
       - name: Configure Devstral researcher git identity
         run: |
@@ -164,6 +169,7 @@ jobs:
           python .github/scripts/researcher.py
           --run-count "${DEVSTRAL_RESEARCHER_RUN_COUNT}"
           --overall-timeout-minutes "${RESEARCHER_OVERALL_TIMEOUT_MINUTES}"
+          --prompt "${CUSTOM_PROMPT}"
 
       - name: Clean up trailing whitespace
         if: always()

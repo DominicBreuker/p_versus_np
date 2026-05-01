@@ -120,6 +120,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             "0 disables the limit"
         ),
     )
+    parser.add_argument(
+        "--prompt",
+        type=str,
+        default=None,
+        help="custom prompt passed to Vibe CLI",
+    )
     return parser.parse_args(argv)
 
 
@@ -1046,7 +1052,10 @@ def main() -> None:
         try:
             if run_index == 1:
                 print(f"Running Mistral Vibe (pass {run_index}/{args.run_count}) …")
-                result = run_vibe(prompt, vibe_executable=vibe_executable, bootstrap_from_file=True)
+                if args.prompt and len(args.prompt) > 0:
+                    result = run_vibe(args.prompt, vibe_executable=vibe_executable, bootstrap_from_file=False)
+                else:
+                    result = run_vibe(prompt, vibe_executable=vibe_executable, bootstrap_from_file=True)
                 if result.timed_out:
                     run_failure_message = (
                         f"Mistral Vibe timed out during pass {run_index}/{args.run_count} "
