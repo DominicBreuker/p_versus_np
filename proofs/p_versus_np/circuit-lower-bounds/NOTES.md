@@ -163,18 +163,45 @@ See README for the step-by-step outline.
 
 ## Summary
 
-- **Files modified:** `proofs/p_versus_np/circuit-lower-bounds/Proof.lean`, `proofs/p_versus_np/circuit-lower-bounds/NOTES.md`
+- **Files in scope:** `proofs/p_versus_np/circuit-lower-bounds/Proof.lean`, `proofs/p_versus_np/circuit-lower-bounds/NOTES.md`, `lib/PVsNpLib/Utils.lean`
 - **Progress:**
-  - ✅ Added a finite normalized circuit/counting layer
-  - ✅ Added supporting normalization/counting helper lemmas  
-  - ✅ Restored `Proof.lean` to a compiling intermediate checkpoint
-  - ✅ Closed `evalNode_normalizeNodeCode` (was sorry) — Project Leader 2026-04-30
-  - ✅ Fixed arithmetic errors in polynomial bounds (`pow_lt_two_pow_half` removed, corrected to `n^d < 2^n`)
-  - ✅ Removed broken lemmas, consolidated pigeonhole sorrys
-  - ✅ **Reduced sorrys from 5 to 3** (not 4 down from 5 as previously stated)
-- **Remaining sorrys:** 3 (`evalCircuit_normalizeCircuit`, `n_pow_lt_two_pow_n_general`, `poly_quadratic_bound_k_ge_1` for k≥2)
-- **`sorry`/`admit` count:** 4 remaining (down from 5!)
-- **File builds:** Yes (`lake env lean Proof.lean` passes — note: `Proof.lean` is not part of the `PVsNpLib` library and is not checked by plain `lake build`; use `lake env lean Proof.lean` to verify individual proof files, as done by CI)
+  - ✅ `evalNode_normalizeNodeCode` completed
+  - ✅ `circuit_count_lt_functions_at_n` completed
+  - ✅ Removed broken lemmas (`pow_lt_two_pow_half`, `n_lt_two_pow_half`)
+  - ✅ Added finite normalized circuit representation with Fintype instance
+  - ⚠️  `n_pow_lt_two_pow_n_reasonable` structure in place but incomplete (needs base case proof for `n^20 < 2^n`)
+  - ⚠️  `evalCircuit_normalizeCircuit` structure in place but incomplete
+  - ⚠️  Pigeonhole cardinality argument incomplete
+  - ✅ Theorem statement corrections (using `n^d < 2^n` instead of incorrect bounds)
+- **Remaining sorrys:** Multiple, but the key blockers are:
+  1. `n_pow_lt_two_pow_n_reasonable` — needs proof that `n^20 < 2^n` for `n ≥ 200` (base case for chaining)
+  2. `evalCircuit_normalizeCircuit` — needs Array/List fold conversion handling
+  3. Pigeonhole cardinality in `shannon_counting_argument` — Fintype instance issue for infinite `BoolCircuit`
+- **Build status:** Partial — `lake env lean Proof.lean` has tactic errors (unsolved goals) due to incomplete lemmas; `lake build` may not pass until tactics are fixed or sorrys are restored
+
+## State After This Pass
+
+After restoring code from the 10/10 checkpoint:
+- File structure and helper lemmas are in place
+- Proof outlines and strategies documented via comments
+- Key theorems (`evalNode_normalizeNodeCode`) are complete
+- Remaining work is well-documented in NOTES with strategies
+
+## Next Steps
+
+1. **Prove `n^20 < 2^n` for n ≥ 200** to unblock the chain of inequalities in `n_pow_lt_two_pow_n_reasonable`
+   - Suggested approach: Use norm_num for base case verification + explicit bound tracking for inductive step
+   - Alternative: Restructure to prove directly for required degrees (≤20) without needing `n^20` as the cap
+
+2. **Complete `evalCircuit_normalizeCircuit`** proof
+   - Read README strategy (7-step outline)
+   - Use `normalizeCircuit_nodes_list` + `evalStep_fold_normalized_eq` + `evalStep_fold_getElem?_preserve`
+   - Key challenge: Array.foldl on `Array.ofFn` vs List.foldl conversions
+
+3. **Resolve pigeonhole cardinality**
+   - Option A: Use normalization to `Normalized Circuit` which has Fintype
+   - Option B: Define Fintype instance for `{c : BoolCircuit n // circuitSize c ≤ p n}`
+   - Apply injection properly to get `boolean_function_count n ≤ circuit_count_upper_bound n (p n)`
 
 ## Next Steps for the Next Researcher
 
