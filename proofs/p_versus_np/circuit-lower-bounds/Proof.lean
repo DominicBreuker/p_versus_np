@@ -854,11 +854,16 @@ private theorem n_pow_lt_two_pow_n_reasonable (n d : Nat) (hd : d ≥ 1) (hn : n
     -- 1. A specific helper lemma for n^3 + ... < 2^n (like n_quartic_plus_lt_two_pow_n_200)
     -- 2. A monotonicity argument from d=2 case
     -- 3. Direct induction
-    -- Note: For n ≥ 200, n^3 grows much slower than 2^n, so this holds
+    -- Better approach: Try to use monotonicity by treating n^3 as n^4 / n
+    -- But this is getting complicated. For the near term, enumerate all d cases systematically
+    -- Use interval_cases but handle each case separately with appropriate lemmas
+    -- This requires significant additional infrastructure - defer for now
     sorry
   · -- d = 4: n^4 < 2^n for n ≥ 200
-    -- This is handled by n_quartic_plus_lt_two_pow_n_200 with modifications
-    sorry
+    -- Use: n^4 < n^4 + 3*n^2 + 1 < 2^n (from n_quartic_plus_lt_two_pow_n_200)
+    -- This requires a helper lemma for n^4 < 2^n extracted from the quartic+ lemma
+    calc n^4 < n^4 + 3*n^2 + 1 := by omega
+      _ < 2^n := n_quartic_plus_lt_two_pow_n_200 n hn
   · -- d = 5
     sorry
   · -- d = 6
