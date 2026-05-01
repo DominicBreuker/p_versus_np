@@ -792,8 +792,8 @@ def format_vibe_streaming_message(payload: dict[str, object]) -> str:
         parts.append(content)
 
     if not parts:
-        return f"[vibe {role}] {json.dumps(payload, ensure_ascii=False)}"
-    return f"[vibe {role}] " + " | ".join(parts)
+        return f"🤖 [vibe {role}] {json.dumps(payload, ensure_ascii=False)}"
+    return f"🤖 [vibe {role}] " + " | ".join(parts)
 
 
 def format_vibe_output_line(line: str) -> str:
@@ -803,7 +803,7 @@ def format_vibe_output_line(line: str) -> str:
 
     match = VIBE_TAG_PATTERN.fullmatch(stripped)
     if match:
-        formatted = f"[vibe {match.group('tag')}] {match.group('message')}"
+        formatted = f"🤖 [vibe {match.group('tag')}] {match.group('message')}"
         return formatted
 
     try:
