@@ -386,9 +386,10 @@ private theorem normalizeCircuit_nodes_list {n s : Nat} (c : BoolCircuit n) (hsi
 private theorem evalCircuit_normalizeCircuit {n s : Nat} (c : BoolCircuit n) (hsize : circuitSize c ≤ s)
     (inp : Fin n → Bool) :
     evalCircuit (normalizedToRaw (normalizeCircuit c hsize)) inp = evalCircuit c inp := by
-  -- Key fact: evaluated nodes produce the same values, whether normalized or not
-  -- And const-false padding doesn't affect evaluation at indices < original size
-  unfold evalCircuit normalizedToRaw normalizeCircuit
+  -- Use normalizeCircuit_nodes_list to get: normalized nodes = [normalized original] ++ [padding]
+  -- Then compute evalCircuit using this decomposition
+  -- evalCircuit computes by Array.foldl, which relates to List.foldl via Array.ofFn
+  unfold evalCircuit normalizedToRaw normalizeCircuit at *
   sorry
 
 private def encodeNodeCode {n s : Nat} : NodeCode n s → Bool ⊕ Fin n ⊕ Fin s ⊕ Finset (Fin s) ⊕ Finset (Fin s)
@@ -789,52 +790,12 @@ private theorem n_squared_plus_n_quartic_lt_two_pow_n_200 (n : Nat) (hn : n ≥ 
 
 
 
-/-- For n ≥ d + 10 and d ≥ 1, n^d < 2^n.
+/-- For n ≥ 200 and "reasonable" degree d (up to ~20), we have n^d < 2^n.
     This helper is used by poly_quadratic_bound_k_ge_1 for the k ≥ 2 case.
-    The threshold n ≥ d + 10 ensures exponential 2^n dominates polynomial n^d.
     -/
-private theorem n_pow_lt_two_pow_n_general (n d : Nat) (hn : n ≥ d + 10) (hd : d ≥ 1) :
+private theorem n_pow_lt_two_pow_n_reasonable (n d : Nat) (hd : d ≥ 1) (hn : n ≥ 200) (hd20 : d ≤ 20) :
     n ^ d < 2 ^ n := by
-  -- Standard exponential dominance: n^d < 2^n for n ≥ d + 10, d ≥ 1
-  -- Proof strategy: Induct on d, using exponential dominance for each fixed d
-  -- For d = 1: n < 2^n for n ≥ 11 (clearly true)
-  -- For d ≥ 1: n^d < 2^n follows from n < 2^n and n^(d-1) < 2^n
-  cases d with
-  | zero => omega  -- d ≥ 1, contradiction
-  | succ d' =>
-    -- d = d' + 1, need: n^(d' + 1) < 2^n for n ≥ d' + 1 + 10 = d' + 11
-    clear hd
-    -- Use: n^(d'+1) = n * n^d' < 2^n * 2^n for n ≥ d' + 11  (since n ≥ d' + 11 ≥ 11 > 0)
-    -- Wait, that gives n^(d'+1) < (2^n)^2 = 2^(2n), not 2^n
-    -- Need a different approach
-    -- Actually, the statement n ≥ d + 10 means n ≥ d' + 1 + 10 = d' + 11
-    -- So for n ≥ d' + 11 and d' + 1 ≥ 1, we need n^(d'+1) < 2^n
-    -- Since n ≥ d' + 11 ≥ 11, we have n ≥ 11
-    -- And for n ≥ 11 and any k ≥ 1: n^k < 2^n (by induction on k)
-    -- Base k=1: n < 2^n for n ≥ 1, certainly for n ≥ 11
-    -- Step: n^(k+1) = n * n^k < n * 2^n ≤ 2^n * 2^n = 2^(2n)
-    -- But we need n^(k+1) < 2^n, not 2^(2n)
-    -- Hmm, this suggests the bound n ≥ d + 10 might not be sufficient...
-    -- Let me check: for d = 10, n ≥ 20: does 20^10 < 2^20?
-    -- 20^10 = 1024^10 = (2^10)^10 = 2^100, and 2^20 = 2^20, so 2^100 > 2^20. NO!
-    -- So n ≥ d + 10 is not sufficient for n^d < 2^n!
-    -- Wait, let me re-read the threshold... The theorem says n ≥ d + 10
-    -- Let me check with smaller values:
-    -- d = 1: n ≥ 11, need n < 2^n: 11 < 2048 ✓
-    -- d = 2: n ≥ 12, need n^2 < 2^n: 12^2 = 144 < 4096 ✓
-    -- d = 3: n ≥ 13, need n^3 < 2^n: 13^3 = 2197 < 8192 ✓
-    -- d = 4: n ≥ 14, need n^4 < 2^n: 14^4 = 38416 < 16384? NO! 38416 > 16384
-    -- So n ≥ d + 10 is wrong for d ≥ 4!
-    -- Let me check d=4, n=14: 14^4 = 38416, 2^14 = 16384. 38416 > 16384. WRONG!
-    -- The correct bound should be much larger. Looking at existing code:
-    -- n_quartic_plus_lt_two_pow_n_200 (line 385) proves n^4 + 3n^2 + 1 < 2^n for n ≥ 200
-    -- So for pure n^4, maybe n ≥ 15? Let's check: 15^4 = 50625, 2^15 = 32768. NO!
-    -- 16^4 = 65536, 2^16 = 65536. NO! (not strictly less)
-    -- 17^4 = 83521, 2^17 = 131072. YES!
-    -- So for d=4, we need n ≥ 17, not n ≥ 14
-    -- The bound n ≥ d + 10 is optimistically claiming too much
-    -- Let me verify the actual usage in poly_quadratic_bound_k_ge_1...
-    sorry
+  sorry
 
 /-- General helper: for any k ≥ 1, c ≥ 1, and n ≥ 100*k + c + 100,
     we have (c*n^k + c)^2 + 3*(c*n^k + c) + 1 < 2^n.
