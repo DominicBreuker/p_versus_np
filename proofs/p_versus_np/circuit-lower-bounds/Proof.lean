@@ -937,46 +937,9 @@ private theorem poly_quadratic_bound_k_ge_1 (k c n : Nat) (hk : k ≥ 1) (hc : c
         _ < 2 ^ n := by
           -- We need (n^(k+3))^2 + 3n^(k+3) + 1 < 2^n
           -- This is n^(2k+6) + 3n^(k+3) + 1 < 2^n
-          -- For k ≥ 2, we have n ≥ 100k + c + 100 ≥ 301
-          -- So d = 2k+6 ≥ 10 and n ≥ 301 ≥ d + 10
-          have hd : 2 * k + 6 ≥ 1 := by omega
-          have hn_ge : n ≥ (2 * k + 6) + 10 := by omega
-          -- Use n_pow_lt_two_pow_n_general to show n^(2k+6) < 2^n
-          have h_pow_lt : n ^ (2 * k + 6) < 2 ^ n := n_pow_lt_two_pow_n_general n (2 * k + 6) hn_ge hd
-          -- The same monotonicity argument as before
-          have h_mono : ∀ x y : Nat, x ≤ y → x ^ 2 + 3 * x + 1 ≤ y ^ 2 + 3 * y + 1 := by
-            intro x y hxy
-            calc x ^ 2 + 3 * x + 1
-                ≤ y ^ 2 + 3 * x + 1 := by
-                    apply Nat.add_le_add_right
-                    have : x ^ 2 ≤ y ^ 2 := by
-                      apply Nat.pow_le_pow_left
-                      omega
-                    omega
-              _ ≤ y ^ 2 + 3 * y + 1 := by
-                    apply Nat.add_le_add_right
-                    have : 3 * x ≤ 3 * y := by
-                      apply Nat.mul_le_mul_left
-                      omega
-                    omega
-          -- We use n^d < 2^n where d = 2k+6
-          -- Goal: (n^(k+3))^2 + 3*n^(k+3) + 1 = n^(2k+6) + 3*n^(k+3) + 1 < 2^n
-          -- First show k + 3 ≤ 2k + 6, then use Nat.pow_le_pow_right
-          have hk_nonneg : k ≥ 0 := by omega
-          have hexp : k + 3 ≤ 2 * k + 6 := by omega
-          have hpow_le : n ^ (k + 3) ≤ n ^ (2 * k + 6) := Nat.pow_le_pow_right (by omega) hexp
-          -- Use monotonicity of x^2 + 3*x + 1
-          have h_mono' : ∀ x y : Nat, x ≤ y → x ^ 2 + 3 * x + 1 ≤ y ^ 2 + 3 * y + 1 := h_mono
-          have : 3 * n ^ (k + 3) ≤ 3 * n ^ (2 * k + 6) := Nat.mul_le_mul_left 3 hpow_le
-          calc (n ^ (k + 3)) ^ 2 + 3 * (n ^ (k + 3)) + 1
-              = n ^ (2 * k + 6) + 3 * n ^ (k + 3) + 1 := by ring
-            _ ≤ n ^ (2 * k + 6) + 3 * n ^ (2 * k + 6) + 1 := by omega
-            _ = 4 * (n ^ (2 * k + 6)) + 1 := by ring
-            _ < 2 ^ n + 1 := by omega
-            _ < 2 ^ n + 2 ^ n := by omega
-            _ = 2 * 2 ^ n := by ring
-            _ = 2 ^ (n + 1) := by rw [Nat.pow_succ]; ring
-            _ ≥ 2 ^ n := by apply Nat.pow_le_pow_right; norm_num; omega
+          -- For k ≥ 2, n ≥ 100k + c + 100 ≥ 301, so d=2k+6 ≥ 10
+          -- We need a helper that n^d < 2^n for these ranges
+          sorry  -- Would use n_pow_lt_two_pow_n_general
 
 /-- Helper for k=0: For c ≥ 0 and n ≥ 2*c + 5, 4*c^2 + 6*c + 1 < 2^n. -/
 private theorem poly_quadratic_bound_k0 (c : Nat) (n : Nat) (hn : n ≥ 2 * c + 5) :
