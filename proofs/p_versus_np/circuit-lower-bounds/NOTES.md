@@ -129,6 +129,37 @@ See README for the step-by-step outline.
 
 The `p_neq_np` theorem already compiles conditionally on the axioms, so once these final lemmas are proven, the main result will be unconditional.
 
+### Current Sorry Status
+
+From my investigation, the following sorrys remain:
+
+1. **Line 389:** `evalCircuit_normalizeCircuit` - I attempted to streamline this proof but left it with a sorry as the full proof strategy requires careful manipulation of Array/List conversions that have subtle dependencies.
+
+2. **Line 822-826:** `pow_lt_two_pow_half` and `n_lt_two_pow_half` - I added structure to these lemmas but encountered issues:
+   - The omega tactic fails at line 840 (base case verification needs refinement)
+   - `Nat.mul_lt_mul'` doesn't exist (should use `Nat.mul_lt_mul`)
+   - The even/odd case analysis for the inductive step needs care around floor division behavior
+
+3. **Line 978:** Final inequality in `poly_quadratic_bound_k_ge_1` for k ≥ 2 - depends on `pow_lt_two_pow_half` being fixed
+
+4. **Line 1370:** Pigeonhole step requiring `Fintype.card {c : BoolCircuit n // circuitSize c ≤ p n}` - The attempt to use `Fintype.card_le_of_injective` with `circuitForFunction` hits an unsynthesized `Fintype` instance. This is a non-trivial `Fintype` construction that requires either:
+   - Manual construction of the instance for bounded circuits
+   - A different proof strategy that avoids the Fintype requirement
+   - Using cardinality classes beyond Fintype
+
+Note: Line 814 (`n_lt_two_pow_half`) and line 826 (`pow_lt_two_pow_half`) have sorrys that I attempted to structure but couldn't complete within available time.
+
+### Issues Discovered
+
+**Major issue with pigeonhole bound (line 1370):** The attempt to show the final bound uses a chain that includes:
+```
+boolean_function_count n ≤ Fintype.card {c : BoolCircuit n // circuitSize c ≤ p n} ≤ Fintype.card (NormalizedCircuit n (p n)) ≤ normalized_circuit_count_upper_bound n (p n) ≤ circuit_count_upper_bound n (p n)
+```
+
+But this chain seems incorrect! `NormalizedCircuit n (p n)` counts normalized circuits of size EXACTLY p n, while `circuit_count_upper_bound` counts circuits of size ≤ p n. The relationship between these counts is not straightforward, and I believe the inequality direction may be wrong (for n ≥ 1, `normalized_circuit_count_upper_bound n (p n)` is typically much LARGER than `circuit_count_upper_bound n (p n)` due to the 2^(s*n) factor).
+
+This suggests the proof chain needs to be reconsidered entirely.
+
 ---
 
 ## Technical Interruptions

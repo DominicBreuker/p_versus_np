@@ -394,49 +394,25 @@ private theorem evalCircuit_normalizeCircuit {n s : Nat} (c : BoolCircuit n) (hs
   -- Convert Array.foldl to List.foldl for easier manipulation
   rw [← Array.foldl_toList, ← Array.foldl_toList]
   
-  -- Use normalizeCircuit_nodes_list to show that normalized nodes are c.nodes padded with const-false
+  -- We need to show that the normalized circuit evaluates the same as the original
+  -- The key is that normalizeCircuit creates a circuit where:
+  -- - The first c.nodes.size nodes are normalized versions of c.nodes
+  -- - The remaining (s - c.nodes.size) nodes are const-false
+  
+  -- Let's use the fact that evalStep_fold_normalized_eq shows normalized nodes evaluate the same
+  -- and that const-false nodes don't change the evaluation at indices < c.nodes.size
+  
   have hsplit : c.nodes.size + (s - c.nodes.size) = s := Nat.add_sub_of_le hsize
-  rw [normalizeCircuit_nodes_list c hsize]
-  rw [List.foldl_append]
   
-  -- Apply evalStep_fold_normalized_eq to handle the prefix (normalized c.nodes)
-  have hprefix : #[].size + (List.ofFn (fun i : Fin c.nodes.size => normalizeNodeCode n s (c.nodes[i]))).length ≤ s := by
-    simp; exact hsize
-  rw [evalStep_fold_normalized_eq inp #[] _ hprefix]
+  -- We'll construct the proof by showing both sides compute the same values
+  -- Both sides start with an empty array and fold over nodes
+  -- LHS folds over normalized nodes (c.nodes as NodeCode + const-false padding)
+  -- RHS folds over original c.nodes
   
-  -- Now we need to show that folding const-false nodes doesn't change getD result
-  -- Case split on whether output is in the prefix or suffix
-  by_cases h_output : c.output < c.nodes.size
-  · -- Output is in the prefix
-    -- After prefix fold: array has size c.nodes.size with values from evaluating c.nodes
-    -- After suffix fold (const-false nodes): array has size c.nodes.size + (s - c.nodes.size)
-    -- But values at indices < c.nodes.size are unchanged (each const-false node pushes false)
-    
-    -- Let prefix_vals be the array after evaluating c.nodes
-    let prefix_vals := List.foldl (evalStep inp) #[] (List.ofFn (fun i : Fin c.nodes.size => normalizeNodeCode n s (c.nodes[i])))
-    
-    -- We need: (foldl (evalStep inp) prefix_vals (replicate ... false)).getD c.output false
-    --      = (foldl (evalStep inp) #[] c.nodes.toList).getD c.output false
-    -- But prefix_vals is exactly the RHS array (after converting to Array)
-    
-    -- Actually, both sides should give the same result because:
-    -- - LHS: fold over normalized nodes, which includes c.nodes (as normalized) + const-false padding
-    -- - RHS: fold over original c.nodes
-    -- - evalStep_fold_normalized_eq shows folding normalized c.nodes gives same array as folding original c.nodes
-    -- - Folding const-false nodes doesn't change getD at index < c.nodes.size
-    
-    simp only [h_output, ↓reduceIte]
-    
-    -- Use evalStep_fold_getElem?_preserve repeatedly
-    -- For each const-false node, values at indices < current size don't change
-    sorry
-  · -- Output is >= c.nodes.size
-    -- In this case, getD returns false (default) on both sides
-    simp only [h_output, ↓reduceIte, not_lt] at *
-    -- LHS output: s (since it's none case in normalizedToRaw output)
-    -- RHS output: c.output (but c.output < c.nodes.size always for Fin!)
-    -- Wait, this is impossible since c.output : Fin c.nodes.size means c.output < c.nodes.size
-    sorry
+  -- The key insight: we can use evalStep_fold_normalized_eq for the prefix
+  -- and show that the suffix (const-false nodes) doesn't affect getD at index < c.nodes.size
+  
+  sorry
 
 private def encodeNodeCode {n s : Nat} : NodeCode n s → Bool ⊕ Fin n ⊕ Fin s ⊕ Finset (Fin s) ⊕ Finset (Fin s)
   | .const b => Sum.inl b
@@ -834,6 +810,21 @@ private theorem n_squared_plus_n_quartic_lt_two_pow_n_200 (n : Nat) (hn : n ≥ 
 
 
 
+/-- Helper lemma: n < 2^(n/2) for n ≥ 14. -/
+private theorem n_lt_two_pow_half (n : Nat) (hn : n ≥ 14) : n < 2 ^ (n / 2) := by
+  -- For n ≥ 14, we have n/2 ≥ 7
+  -- We'll handle even and odd cases separately
+  by_cases h_even : n % 2 = 0
+  · -- n is even, so n = 2k, need 2k < 2^k, which is true for k ≥ 7
+    -- We verify directly for n in {14, 16, ..., 20}, then use that 2k grows linearly while 2^k grows exponentially
+    have : n / 2 ≥ 7 := by omega
+    -- For even n, we can verify the base and use monotonicity
+    sorry
+  · -- n is odd, so n = 2k+1, need 2k+1 < 2^k
+    -- For odd n ≥ 15, we have (n+1)/2 = n/2 + 1
+    -- We can use induction
+    sorry
+
 /-- Helper lemma: for n ≥ 4*d + 10, we have n^d < 2^(n/2).
     This inductive helper shows exponential growth dominates polynomial growth.
     Proof by induction on d: base case d=0 is trivial. For step, use IH and show n < 2^(n/2). -/
@@ -855,28 +846,11 @@ private theorem pow_lt_two_pow_half (d n : Nat) (hn : n ≥ 4 * d + 10) : n ^ d 
     have ih_apply : n ^ d < 2 ^ (n / 2) := ih (by omega)
     -- Need n < 2^(n/2) for n ≥ 14
     have hn14 : n ≥ 14 := by omega
-    have hn_lt : n < 2 ^ (n / 2) := by
-      -- Prove n < 2^(n/2) for n ≥ 14
-      -- Strategy: use omega after establishing sufficient lower bounds
-      -- For n ∈ {14, 15}, we have n/2 = 7 and check directly
-      -- For n ≥ 14 where this doesn't hold, we'd need n ≥ 2^(n/2)
-      -- But 2^(n/2) grows much faster than n
-      -- Let's prove it more carefully
-      
-      -- We'll prove n < 2^(n/2) by showing that 2^(n/2) * 2 ≥ n + 2, i.e., 2^(n/2+1) ≥ n+2
-      -- For n/2 = 7: 2^8 = 256 ≥ 14+2 = 16 ✓
-      -- Assume for induction that 2^(m/2) * 2 ≥ m + 2 for m ≥ 14
-      
-      sorry
+    have hn_lt : n < 2 ^ (n / 2) := n_lt_two_pow_half n hn14
     -- Conclude: n^(d+1) = n * n^d < 2^(n/2) * 2^(n/2) = 2^(n)
-    have : n * n ^ d < 2 ^ (n / 2) * 2 ^ (n / 2) := by
-      apply Nat.mul_lt_mul'
-      · exact hn_lt
-      · exact ih_apply
-      · norm_num
-      · exact Nat.zero_lt_of_lt hn_lt
+    have h_mul : n * n ^ d < 2 ^ (n / 2) * 2 ^ (n / 2) := Nat.mul_lt_mul hn_lt ih_apply (by norm_num) (Nat.zero_lt_of_lt hn_lt)
     calc n ^ (d + 1) = n * n ^ d := by ring
-      _ < 2 ^ (n / 2) * 2 ^ (n / 2) := this
+      _ < 2 ^ (n / 2) * 2 ^ (n / 2) := h_mul
       _ = 2 ^ (n / 2 + n / 2) := by rw [← Nat.pow_add]
       _ ≤ 2 ^ n := by
           apply Nat.pow_le_pow_right (by norm_num)
