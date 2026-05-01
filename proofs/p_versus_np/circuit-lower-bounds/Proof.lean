@@ -813,41 +813,23 @@ private theorem n_pow_lt_two_pow_n_reasonable (n d : Nat) (hd : d ≥ 1) (hn : n
     n ^ d < 2 ^ n := by
   -- For "reasonable" degrees d ≤ 20 and n ≥ 200, prove n^d < 2^n by induction on n
   interval_cases d
-  · -- d = 1: n < 2^n for n ≥ 200
-    -- Use norm_num to prove this directly
-    apply Nat.le_induction (by norm_num : 200 < 2 ^ 200)
-    intro m hm_ge200 ih
-    calc m + 1 < 2^m + 1 := by omega
-      _ < 2^m + 2^m := by omega
-      _ = 2 * 2^m := by ring
-      _ = 2^(m + 1) := by ring
-  · -- d = 2: n^2 < 2^n for n ≥ 200
-    -- For n ≥ 200, n^2 grows slower than 2^n
-    -- Base case: n = 200
-    have base200 : 200 ^ 2 < 2 ^ 200 := by norm_num
-    -- Inductive step
-    suffices ∀ k ≥ 200, k ^ 2 < 2 ^ k by exact this n hn
+  · -- d = 1: n^1 < 2^n for n ≥ 200, i.e., n < 2^n
+    simp only [pow_one]  -- Simplify n^1 to n
+    suffices ∀ k ≥ 200, k < 2^k by exact this n hn
     intro k hk
     induction k, hk using Nat.le_induction with
-    | base => exact base200
-    | succ k hk ih =>
-      by_cases hk200 : k = 200
-      · subst hk200
-        norm_num
-      · have hk201 : k ≥ 201 := by omega
-        calc (k + 1) ^ 2 = k^2 + 2*k + 1 := by ring
-          _ < 2^k + (2*k + 1) := by omega
-          _ < 2^k + 2^k := by
-              apply Nat.add_lt_add_left
-              -- For k ≥ 201, k^2 < 2^k by IH, and k^2 ≥ 2*k + 1 for k ≥ 3
-              have : k ^ 2 ≥ 2 * k + 1 := by
-                calc k^2 = k * k := by ring
-                  _ ≥ 3 * k := by omega  -- For k ≥ 201
-                  _ ≥ 2 * k + k := by omega
-                  _ ≥ 2 * k + 1 := by omega
-              omega
-          _ = 2 * 2^k := by ring
-          _ = 2^(k+1) := by ring
+    | base => norm_num
+    | succ k hk_ih =>
+      calc k + 1 < 2^k + 1 := by omega
+        _ < 2^k + 2^k := by omega
+        _ = 2^(k+1) := by rw [Nat.pow_succ]; ring
+  · -- d = 2: n^2 < 2^n for n ≥ 200
+    -- Use that n^2 < 2^n since n ≥ 200 ≥ 9, so n² + 2n < 2^n, and n² < n² + 2n
+    have h1 : n^2 < n^2 + 2 * n := by omega
+    -- n_squared_plus_two_n_lt_two_pow_n needs n ≥ 9, but we have n ≥ 200, so we can use it
+    have hn9 : n ≥ 9 := by omega
+    have h2 : n^2 + 2 * n < 2^n := n_squared_plus_two_n_lt_two_pow_n n hn9
+    omega
   · -- d = 3: n^3 < 2^n for n ≥ 200
     sorry
   · -- d = 4: n^4 < 2^n for n ≥ 200
