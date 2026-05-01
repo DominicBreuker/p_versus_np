@@ -1053,8 +1053,10 @@ def main() -> None:
             if run_index == 1:
                 print(f"Running Mistral Vibe (pass {run_index}/{args.run_count}) …")
                 if args.prompt and len(args.prompt) > 0:
+                    print(f"Running with custom prompt")
                     result = run_vibe(args.prompt, vibe_executable=vibe_executable, bootstrap_from_file=False)
                 else:
+                    print(f"Running with pre-built prompt rendered to file")
                     result = run_vibe(prompt, vibe_executable=vibe_executable, bootstrap_from_file=True)
                 if result.timed_out:
                     run_failure_message = (
