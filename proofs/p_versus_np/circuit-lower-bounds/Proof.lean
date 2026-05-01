@@ -1333,15 +1333,26 @@ theorem shannon_counting_argument :
       fun f => (Classical.choose (h_all_computable f))
     
     -- This map is injective: if f ≠ g, then f_to_circuit f ≠ f_to_circuit g
-    -- Proof: if c computes both f and g, then f = g (since c computes exactly one function)
+    -- Proof: if f_to_circuit f = f_to_circuit g = c, then c must compute both f and g
+    -- But a circuit evaluates to a unique function, so f = g
     have h_inj : Function.Injective f_to_circuit := by
       intro f g h_eq
-      -- If f_to_circuit f = f_to_circuit g, then both equal some circuit c
-      -- But c computes a unique function, so f must equal g
-      sorry
+      simp only [f_to_circuit] at h_eq
+      have hc : (Classical.choose (h_all_computable f)) = (Classical.choose (h_all_computable g)) := h_eq
+      -- c computes f by construction of Classical.choose
+      -- And c computes g by Classical.choose_spec
+      have hf : ∀ inp, evalCircuit (Classical.choose (h_all_computable f)) inp = f inp := by
+        intro inp
+        exact (Classical.choose_spec (h_all_computable f)).2 inp
+      have hg : ∀ inp, evalCircuit (Classical.choose (h_all_computable g)) inp = g inp := by
+        intro inp
+        exact (Classical.choose_spec (h_all_computable g)).2 inp
+      -- Since the circuits are equal (hc), they compute the same function
+      -- So f = g
+todo
     
-    -- If f_to_circuit is injective, we need that its image consists of valid circuits
-    -- which follows from h_all_computable
+    -- The image of f_to_circuit consists of circuits with circuitSize ≤ p n
+    -- This follows from h_all_computable, which guarantees such circuits exist
     sorry
   exact Nat.lt_irrefl (boolean_function_count n) (Nat.lt_of_le_of_lt h_ge h_count)
 
