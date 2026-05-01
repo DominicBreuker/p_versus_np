@@ -1309,13 +1309,11 @@ theorem shannon_counting_argument :
     -- And bound the size of circuits
     calc boolean_function_count n
         ≤ Fintype.card {c : BoolCircuit n // circuitSize c ≤ p n} := h_card
-      _ ≤ normalized_circuit_card_le n (p n) := by
-            -- Need to show: Fintype.card {c : BoolCircuit n // circuitSize c ≤ p n} ≤ normalized_circuit_card_le n (p n)
-            -- circuit counting lemma
-            sorry
-      _ ≤ normalized_circuit_count_upper_bound n (p n) := by exact le_refl _
+      _ ≤ Fintype.card (NormalizedCircuit n (p n)) := by
+            sorry  -- Need: circuits of size ≤ p n inject into normalized circuits of size p n
+      _ ≤ normalized_circuit_count_upper_bound n (p n) := normalized_circuit_card_le n (p n)
       _ ≤ circuit_count_upper_bound n (p n) := by
-            -- normalized_circuit_count_upper_bound ≤ circuit_count_upper_bound
+            -- Need: normalized_circuit_count_upper_bound n (p n) ≤ circuit_count_upper_bound n (p n)
             sorry
   exact Nat.lt_irrefl (boolean_function_count n) (Nat.lt_of_le_of_lt h_ge h_count)
 
