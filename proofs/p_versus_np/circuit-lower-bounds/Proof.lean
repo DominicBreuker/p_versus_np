@@ -386,10 +386,17 @@ private theorem normalizeCircuit_nodes_list {n s : Nat} (c : BoolCircuit n) (hsi
 private theorem evalCircuit_normalizeCircuit {n s : Nat} (c : BoolCircuit n) (hsize : circuitSize c ≤ s)
     (inp : Fin n → Bool) :
     evalCircuit (normalizedToRaw (normalizeCircuit c hsize)) inp = evalCircuit c inp := by
-  -- Use normalizeCircuit_nodes_list to get: normalized nodes = [normalized original] ++ [padding]
-  -- Then compute evalCircuit using this decomposition
-  -- evalCircuit computes by Array.foldl, which relates to List.foldl via Array.ofFn
-  unfold evalCircuit normalizedToRaw normalizeCircuit at *
+  -- Key facts:
+  -- 1. evalNode preserves under normalizeNodeCode (evalNode_normalizeNodeCode)
+  -- 2. Const-false nodes evaluate to false and have no children, so they don't affect folding
+  -- 3. The normalized circuit has the same structure as original, with const-false padding at end
+  -- 4. If output index is in original part, it's unchanged; if in padding, result is false
+  unfold evalCircuit normalizedToRaw normalizeCircuit
+  simp only [Array.foldl, Array.getD, evalStep, nodeCodeToRaw]
+  -- We need to relate Array.foldl on Array.ofFn to List.foldl
+  -- The normalized nodes are: pre (original normalized) ++ suf (const-false padding)
+  -- Use evalNode_normalizeNodeCode to show pre evaluates the same as original nodes
+  -- Use evalStep_fold_getElem?_preserve to show pre doesn't affect suf's evaluation
   sorry
 
 private def encodeNodeCode {n s : Nat} : NodeCode n s → Bool ⊕ Fin n ⊕ Fin s ⊕ Finset (Fin s) ⊕ Finset (Fin s)
@@ -1334,10 +1341,40 @@ theorem shannon_counting_argument :
       funext inp
       rw [← hf inp, ← hg inp, hc]
     
-    -- The image of f_to_circuit consists of circuits with circuitSize ≤ p n
-    -- Use f_inj to get boolean_function_count n ≤ |BoolCircuit n|
-    -- Then use that circuits with size ≤ p n inject into normalized circuits
-    -- normalized_circuit_card_le gives the final bound
+    -- This is the pigeonhole cardinality argument
+    -- We have h_inj showing f_to_circuit is injective
+    -- We need to establish: boolean_function_count n ≤ circuit_count_upper_bound n (p n)
+    -- 
+    -- CHALLENGE: BoolCircuit n is not a Fintype, so we can't directly use cardinality
+    -- However, we know:
+    -- (1) Every function f has a circuit of size ≤ p n (from h_all_computable f)
+    -- (2) The map f ↦ (Classical.choose (h_all_computable f)) is injective (h_inj)
+    -- (3) Each chosen circuit has size ≤ p n
+    -- 
+    -- The question is how to bound the image size. One approach:
+    -- Use normalization: every circuit c of size ≤ s can be represented as
+    -- a NormalizedCircuit n s, and NormalizedCircuit has a Fintype instance.
+    -- The map c ↦ normalizeCircuit c is "surjective" onto NormalizedCircuit,
+    -- giving us |{circuits of size ≤ s}| ≤ |NormalizedCircuit n s| ≤ normalized_circuit_count_upper_bound n s
+    -- 
+    -- But relating circuit_count_upper_bound to normalized_circuit_count_upper_bound
+    -- requires checking they have compatible growth rates for polynomial p.
+    -- For k ≥ 1, n ≥ 100*k + c + 100:
+    --   circuit_count_upper_bound ≤ (p n)^(p n) * 2^(p n)
+    --   normalized_circuit_count_upper_bound ≤ (p n) * (2^(n + p n + 4))^(p n)
+    -- 
+    -- The latter grows much faster, so this doesn't directly give the bound.
+    -- 
+    -- Alternative: note that circuit_count_upper_bound is BY DEFINITION meant to
+    -- be the upper bound on circuits, so any circuits must satisfy it.
+    -- From a metatheoretic perspective, circuit_count_upper_bound bounds the number
+    -- of circuits with the given structure (node choices, gate choices, child choices).
+    -- 
+    -- For a direct proof without relying on definitional properties, we'd need to:
+    -- 1. Show that circuits of size ≤ s inject into some finite type
+    -- 2. Calculate that this finite type has ≤ circuit_count_upper_bound s elements
+    -- 
+    -- This is complex. For now, we leave this as sorry and document the next steps.
     sorry
   exact Nat.lt_irrefl (boolean_function_count n) (Nat.lt_of_le_of_lt h_ge h_count)
 

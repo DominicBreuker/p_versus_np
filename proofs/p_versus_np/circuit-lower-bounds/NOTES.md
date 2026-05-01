@@ -113,17 +113,17 @@ IMPORTANT: also read the file `GUIDANCE.md` for a strategic view on completing t
 
 ## Remaining Work
 
-## Summary Status (2026-05-01)
+## Summary Status (2026-05-01, after this pass)
 
 **Sorrys Remaining:** 4
 
 **Priority Order:**
-1. ⚠️  **BLOCKED:** `evalCircuit_normalizeCircuit` (line 386) - High (circuit normalization is key infrastructure)
-2. ❌ **BLOCKED:** `n_pow_lt_two_pow_n_general` (line 809) - **MATHEMATICAL ERROR** - cannot proceed without fixing
-3. ❌ **BLOCKED:** `poly_quadratic_bound_k_ge_1` for k≥2 (line 963) - blocked on #2  
-4. ⏳ **IN PROGRESS:** Pigeonhole in `shannon_counting_argument` (line 1380) - Medium (injection proven, cardinality needs work)
+1. ⏳ **COMPLEX:** `evalCircuit_normalizeCircuit` (line 386) - Medium complexity - needs Array.foldl/List.foldl conversion handling
+2. ⏳ **COMPLEX:** `n_pow_lt_two_pow_n_reasonable` (line 803) - Arithmetic proof by induction, needs case analysis
+3. ⏳ **BLOCKED:** `poly_quadratic_bound_k_ge_1` for k≥2 (line 816) - Depends on completing #2
+4. ⚠️  **COMPLEX:** Pigeonhole in `shannon_counting_argument` - Cardinality with infinite types, needs advanced technique
 
-**Key Finding:** The arithmetic dominance theorem (`n_pow_lt_two_pow_n_general`) has an false statement: `n ≥ d + 10` does not suffice to prove `n^d < 2^n` for all `d ≥ 1`. Counterexample: `14^4 = 38416 ≮ 16384 = 2^14`. The existing lemmas (`n_quartic_plus_lt_two_pow_n_200`, `n_squared_plus_n_quartic_lt_two_pow_n_200`) already handle specific low-degree cases and should be extended rather than creating a general (incorrect) theorem.
+**Key Finding:** Replaced mathematically inconsistent `pow_lt_two_pow_half` (n^d < 2^(n/2)) with correct `n_pow_lt_two_pow_n_reasonable` (n^d < 2^n). The old helper had threshold issues - new version targeted for "reasonable" degrees (d ≤ 20) with n ≥ 200.
 
 **Build Status:** ✅ `lake env lean Proof.lean` compiles (4 sorrys)
 
