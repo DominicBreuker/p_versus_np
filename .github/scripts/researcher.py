@@ -107,7 +107,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run the P vs NP researcher agent.")
     parser.add_argument(
         "--run-count",
-        type=positive_int,
+        type=int,
         default=2,
         help="number of Vibe passes to execute (default: 2)",
     )
@@ -968,6 +968,10 @@ def merge_failure_messages(existing_message: str | None, addition: str) -> str:
 
 def main() -> None:
     args = parse_args()
+    if args.run_count < 1:
+        print(f"Run count is {args.run_count}, exiting")
+        sys.exit(0)
+    
     os.chdir(REPO_ROOT)
 
     vibe_executable = find_vibe_executable()
