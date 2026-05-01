@@ -386,22 +386,12 @@ private theorem normalizeCircuit_nodes_list {n s : Nat} (c : BoolCircuit n) (hsi
 private theorem evalCircuit_normalizeCircuit {n s : Nat} (c : BoolCircuit n) (hsize : circuitSize c ≤ s)
     (inp : Fin n → Bool) :
     evalCircuit (normalizedToRaw (normalizeCircuit c hsize)) inp = evalCircuit c inp := by
-  -- Strategy (from README and GUIDANCE):
-  -- The normalized circuit consists of:
-  -- 1. The first c.nodes.size nodes, which are the normalized versions of c's nodes
-  -- 2. The remaining s - c.nodes.size nodes, which are const-false
-  -- 
-  -- Since evalCircuit evaluates nodes in order and looks up the output value,
-  -- and the normalized nodes compute the same values as the original nodes
-  -- (by evalNode_normalizeNodeCode), the output will be the same.
-  
-  unfold evalCircuit normalizedToRaw normalizeCircuit
-  
-  -- The evaluation proceeds by folding evalStep over the nodes
-  -- Both circuits evaluate to the same value because:
-  -- 1. The first c.nodes.size evaluations are identical (by evalStep_fold_normalized_eq)
-  -- 2. The const-false padding doesn't affect values at indices < c.nodes.size
-  
+  -- Proof strategy:
+  -- 1. evalCircuit uses Array.foldl to evaluate nodes in order
+  -- 2. normalizedToRaw creates an array with normalized versions of original nodes followed by const-false padding
+  -- 3. evalStep_fold_normalized_eq shows that folding over normalized nodes gives the same result as original
+  -- 4. The const-false padding doesn't affect evaluation of nodes at indices < original size
+  -- Implementation requires careful conversion between Array and List structures
   sorry
 
 private def encodeNodeCode {n s : Nat} : NodeCode n s → Bool ⊕ Fin n ⊕ Fin s ⊕ Finset (Fin s) ⊕ Finset (Fin s)
@@ -808,12 +798,21 @@ private theorem n_squared_plus_n_quartic_lt_two_pow_n_200 (n : Nat) (hn : n ≥ 
     -/
 private theorem n_pow_lt_two_pow_n_general (n d : Nat) (hn : n ≥ d + 10) (hd : d ≥ 1) :
     n ^ d < 2 ^ n := by
-  -- We prove this by showing that for n ≥ d + 10 and d ≥ 1,
-  -- we can use the fact that exponential grows faster than polynomial
-  -- Use the general fact: if n ≥ 2d, then n^d < 2^n (can be proven by taking d-th roots)
-  -- For n ≥ d + 10 ≥ 2d when d ≥ 10, this follows directly
-  -- For smaller d, we can verify directly
-  sorry
+  -- Use the existing pattern from n_quartic_plus_lt_two_pow_n_200
+  -- Induct on a threshold: show that for all m ≥ n, the property holds
+  suffices ∀ m ≥ d + 10, m ^ d < 2 ^ m by exact this n hn
+  intro m hm
+  induction m, hm using Nat.le_induction with
+  | base =>
+    -- Base: m = d + 10
+    -- Need: (d + 10)^d < 2^(d + 10)
+    -- For d = 1: 11 < 2048 ✓
+    sorry
+  | succ m _ ih =>
+    -- Inductive: assume m^d < 2^m for m ≥ d + 10
+    -- Need: (m+1)^d < 2^(m+1) for m+1 ≥ d + 10
+    -- From IH: m^d < 2^m, so (m+1)^d < (... need to relate (m+1) to m ...)
+    sorry
 
 /-- General helper: for any k ≥ 1, c ≥ 1, and n ≥ 100*k + c + 100,
     we have (c*n^k + c)^2 + 3*(c*n^k + c) + 1 < 2^n.
@@ -1349,10 +1348,13 @@ theorem shannon_counting_argument :
         exact (Classical.choose_spec (h_all_computable g)).2 inp
       -- Since the circuits are equal (hc), they compute the same function
       -- So f = g
-todo
+      funext inp
+      rw [← hf inp, ← hg inp, hc]
     
     -- The image of f_to_circuit consists of circuits with circuitSize ≤ p n
-    -- This follows from h_all_computable, which guarantees such circuits exist
+    -- Use f_inj to get boolean_function_count n ≤ |BoolCircuit n|
+    -- Then use that circuits with size ≤ p n inject into normalized circuits
+    -- normalized_circuit_card_le gives the final bound
     sorry
   exact Nat.lt_irrefl (boolean_function_count n) (Nat.lt_of_le_of_lt h_ge h_count)
 

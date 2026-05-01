@@ -32,26 +32,31 @@ IMPORTANT: also read the file `GUIDANCE.md` for a strategic view on completing t
 - `circuit_count_lt_functions_at_n`: ✅ COMPLETE
 - Core lemmas (`n_quartic_plus_lt_two_pow_n_200`, `n_squared_plus_n_quartic_lt_two_pow_n_200`, `poly_quadratic_bound_k_ge_1` for k=1): ✅ COMPLETE
 
-### Remaining Sorrys (3 total)
+### Remaining Sorrys (4 total)
 
 1. **`evalCircuit_normalizeCircuit` (line 405)**: 
-   - Status: Proof outline complete with strategy comments
+   - Status: Partial proof structure added, but incomplete
    - What's needed: Show that normalizing a circuit (padding with const-false nodes) preserves evaluation
-   - Required lemmas: All building blocks exist (`evalNode_normalizeNodeCode`, `evalStep_fold_normalized_eq`, `evalStep_fold_getElem?_preserve`)
-   - Strategy: Use `evalStep_fold_normalized_eq` to show normalized prefix evaluates identically, then show const-false padding doesn't affect output at indices < original size
+   - Required lemmas: All building blocks exist (`evalNode_normalizeNodeCode`, `evalStep_fold_normalized_eq`)
+   - Strategy: Convert `Array.foldl` to `List.foldl` and use `evalStep_fold_normalized_eq`
+   - Note: Type conversions between `Array` and `List` are tricky in Lean
 
 2. **`n_pow_lt_two_pow_n_general` (line 816)**:
-   - Status: Helper lemma for exponential dominance
+   - Status: Proof structure added, implementation incomplete
    - What's needed: Prove `n^d < 2^n` for `n ≥ d + 10, d ≥ 1`
-   - Approach: Use induction on `d`. Can follow pattern of existing arithmetic helpers in the file
-   - Once this is proven, `poly_quadratic_bound_k_ge_1` for k≥2 (line 937) will unblock
+   - Approach: Follow pattern of `n_quartic_plus_lt_two_pow_n_200` - induct on threshold
+   - Once this is proven, `poly_quadratic_bound_k_ge_1` for k≥2 (line 944) will unblock
 
-3. **Pigeonhole argument in `shannon_counting_argument` (line ~1350)**:
-   - Status: Proof structure incomplete
-   - What's needed: Derive contradiction from `h_all_computable` (all functions have circuits) + `h_count` (fewer circuits than functions)
-   - Known issue: Cannot use `Fintype` instances directly (circuits form infinite type)
-   - Strategy options: Use explicit injection (f ↦ chosen circuit), or direct counting contradiction
-   - Note: NOTES.md around lines assert "for now skip injections" - direct strategy may be cleaner
+3. **Pigeonhole argument in `shannon_counting_argument` (line ~1361)**: 
+   - Status: Proof structure added with `sorry` for `card_le` application
+   - What's needed: Show `boolean_function_count n ≤ circuit_count_upper_bound n (p n)` using injection
+   - Strategy: Use `Function.Injective.card_le` with `f_to_circuit` injection
+   - Note: The key lemma `h_inj` has been proven; just need to apply `Function.Injective.card_le`
+
+4. **Application of `Function.Injective.card_le` (line ~1361)**:
+   - Status: `sorry` placeholder remaining
+   - What's needed: Apply the proven injection to get the cardinality bound
+   - Note: Need to show the codomain has bounded cardinality using normalized circuits
 
 ### 0. Stabilized the in-progress normalized-circuit refactor
 
