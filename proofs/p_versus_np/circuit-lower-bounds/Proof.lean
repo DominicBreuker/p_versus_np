@@ -386,20 +386,18 @@ private theorem normalizeCircuit_nodes_list {n s : Nat} (c : BoolCircuit n) (hsi
 private theorem evalCircuit_normalizeCircuit {n s : Nat} (c : BoolCircuit n) (hsize : circuitSize c ≤ s)
     (inp : Fin n → Bool) :
     evalCircuit (normalizedToRaw (normalizeCircuit c hsize)) inp = evalCircuit c inp := by
-  -- Proof strategy (from README and NOTES):
-  -- 1. Use normalizeCircuit_nodes_list to understand that normalized circuit nodes = 
-  --    [normalized original nodes] ++ [const-false padding]
-  -- 2. Show that folding over normalized nodes gives same result as folding over original nodes
-  --    using evalStep_fold_normalized_eq for the prefix
-  -- 3. Show that const-false padding doesn't change values at indices < c.nodes.size
-  --    using a lemma like evalStep_fold_getElem?_preserve
-  -- 
-  -- The key challenge is working with Array.foldl vs List operations.
-  -- After unfolding, both sides use Array.foldl, so we need to show the arrays being folded are equal.
-  -- The normalized circuit's nodes array is created with Array.ofFn, which needs to be related
-  -- to the original c.nodes array.
-  --
-  -- Alternative approach: Use simp with normalizeCircuit_nodes_list as suggested in NOTES
+  -- Proof strategy (from README):
+  -- The normalized circuit prepends normalized versions of original nodes followed by const-false padding
+  -- We need to show that evaluating this normalized circuit gives the same result
+  
+  -- The key insight: normalized circuit = original nodes (normalized) ++ const-false padding
+  -- evalNode preserves when applied to normalized nodes (by evalNode_normalizeNodeCode)
+  -- const-false padding preserves values in the array (by evalStep_fold_getElem?_preserve)
+  
+  -- Use the fact that normalized circuit evaluates the same as original
+  -- This follows from:
+  -- 1. normalizeNodeCode preserves evalNode (evalNode_normalizeNodeCode)
+  -- 2. const-false nodes don't change the fold result at indices < c.nodes.size
   sorry
 
 private def encodeNodeCode {n s : Nat} : NodeCode n s → Bool ⊕ Fin n ⊕ Fin s ⊕ Finset (Fin s) ⊕ Finset (Fin s)

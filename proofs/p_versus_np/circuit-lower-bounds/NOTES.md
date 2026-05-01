@@ -35,7 +35,7 @@ IMPORTANT: also read the file `GUIDANCE.md` for a strategic view on completing t
 
 ### Remaining Sorrys (4 total)
 
-1. **`evalCircuit_normalizeCircuit` (line 403)**: 
+1. **`evalCircuit_normalizeCircuit` (line 386)**: 
    - Status: Proof structure added with detailed strategy comments
    - What's needed: Show that normalizing a circuit (padding with const-false nodes) preserves evaluation
    - Required lemmas: All building blocks exist (`evalNode_normalizeNodeCode`, `evalStep_fold_normalized_eq`, `normalizeCircuit_nodes_list`)
@@ -71,7 +71,7 @@ IMPORTANT: also read the file `GUIDANCE.md` for a strategic view on completing t
 **Current state:**
 - The file compiles successfully with `lake build`
 - **3 sorrys remain**:
-  1. **`evalCircuit_normalizeCircuit`** (line 410): Added proof structure with strategy outline, needs tactic completion
+  1. **`evalCircuit_normalizeCircuit`** (line 386): Added proof structure with strategy outline, needs tactic completion
   2. **`poly_quadratic_bound_k_ge_1`** (line 947): Needs `n_pow_lt_two_pow_n_general` to be proved first
   3. **Pigeonhole contradiction** (line 1364): Simplified using `Classical.choose`, needs cardinality argument application
 
@@ -117,7 +117,7 @@ IMPORTANT: also read the file `GUIDANCE.md` for a strategic view on completing t
 
 See "Pass: Project Leader 2026-04-30" above.
 
-### 2. Prove `evalCircuit_normalizeCircuit` (sorry at line 410)
+### 2. Prove `evalCircuit_normalizeCircuit` (sorry at line 386)
 **Location:** `evalCircuit_normalizeCircuit`
 
 **Status:** IN PROGRESS — all sub-lemmas proven; needs proof assembly
@@ -166,7 +166,7 @@ See README for the step-by-step outline.
 
 ### Remaining Tasks (in order of priority):
 
-1. **Priority 1: `evalCircuit_normalizeCircuit` (line 410)**
+1. **Priority 1: `evalCircuit_normalizeCircuit` (line 386)**
    - ✅ Readme outline available (7-step strategy from README/GUIDANCE)
    - ✅ All building blocks exist: `evalNode_normalizeNodeCode`, `evalStep_fold_normalized_eq`, `evalStep_fold_getElem?_preserve`, `normalizeCircuit_nodes_list`
    - ⏳ TODO: Assemble proof - use `evalStep_fold_normalized_eq` on prefix, show padding doesn't affect output
@@ -210,7 +210,7 @@ The `p_neq_np` theorem already compiles conditionally on the axioms, so once the
 
 I've been working on fixing the sorrys according to README priorities. Here's the current state:
 
-### Attempted Fix: `evalCircuit_normalizeCircuit` (line 410)
+### Attempted Fix: `evalCircuit_normalizeCircuit` (line 386)
 **Status:** Documentation improved with clearer strategy comments. 
 **Issue:** The full proof requires carefully showing that const-false padding in normalized circuits doesn't change evaluation results at indices < original circuit size. This needs careful reasoning about `Array.getD` with bounds.
 
@@ -237,7 +237,7 @@ I've been working on fixing the sorrys according to README priorities. Here's th
 ## Current State
 
 **3 sorrys remain:**
-1. `evalCircuit_normalizeCircuit` (line 410) - needs proof assembly
+1. `evalCircuit_normalizeCircuit` (line 386) - needs proof assembly
 2. `n_pow_lt_two_pow_n_general` (line 821) - needs induction proof
 3. `poly_quadratic_bound_k_ge_1` for k≥2 (line 947) - depends on `n_pow_lt_two_pow_n_general`
 
@@ -279,7 +279,7 @@ I've been working on fixing the sorrys according to README priorities. Here's th
 
 ## Current Issues Discovered
 
-### Issue 1: `evalCircuit_normalizeCircuit` (line ~399)
+### Issue 1: `evalCircuit_normalizeCircuit` (line ~386)
 **Status:** Partial - proof structure added but incomplete
 
 The proof outline follows the README strategy but encounters technical issues with Array/List conversions in the `rw [normalizeCircuit_nodes_list ...]` step. The high-level strategy is sound:
@@ -396,7 +396,7 @@ This pass focused on completing the three remaining sorrys in `Proof.lean`:
 
 1. **Prove `n_pow_lt_two_pow_n_general`** (line 814): This is the foundational exponential dominance result. Use induction on `d` with threshold `n ≥ d + 10`. Base case `d=1`: `n < 2^n` for `n ≥ 11`. The inductive step needs to show `n * n^d < 2^n` using IH `n^d < 2^n` and `n < 2^n` for `n ≥ 11`.
 
-2. **Prove `evalCircuit_normalizeCircuit`** (line 403): This is the key normalization lemma. The README provides a 7-step strategy. The key challenge is working with `Array.foldl` on `Array.ofFn` structures. Use `normalizeCircuit_nodes_list` to show normalized nodes = [original normalized] ++ [const-false padding], then show folding preserves values.
+2. **Prove `evalCircuit_normalizeCircuit`** (line 386): This is the key normalization lemma. The README provides a 7-step strategy. The key challenge is working with `Array.foldl` on `Array.ofFn` structures. Use `normalizeCircuit_nodes_list` to show normalized nodes = [original normalized] ++ [const-false padding], then show folding preserves values.
 
 3. **Complete `poly_quadratic_bound_k_ge_1` for k≥2** (line 940): Apply `n_pow_lt_two_pow_n_general` to prove `n^(2k+6) < 2^n` for `k≥2`, `n ≥ 100k + c + 100`.
 
