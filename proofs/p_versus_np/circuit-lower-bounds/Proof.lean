@@ -848,17 +848,12 @@ private theorem n_pow_lt_two_pow_n_reasonable (n d : Nat) (hd : d ≥ 1) (hn : n
     have h2 : n^2 + 2 * n < 2^n := n_squared_plus_two_n_lt_two_pow_n n hn9
     omega
   · -- d = 3: n^3 < 2^n for n ≥ 200
-    -- Strategy: Prove by induction on n, similar to d=1 case
-    -- Or: Show n^3 ≤ (some bound we know works) < 2^n
-    -- For now, we leave this as sorry - requires either:
-    -- 1. A specific helper lemma for n^3 + ... < 2^n (like n_quartic_plus_lt_two_pow_n_200)
-    -- 2. A monotonicity argument from d=2 case
-    -- 3. Direct induction
-    -- Better approach: Try to use monotonicity by treating n^3 as n^4 / n
-    -- But this is getting complicated. For the near term, enumerate all d cases systematically
-    -- Use interval_cases but handle each case separately with appropriate lemmas
-    -- This requires significant additional infrastructure - defer for now
-    sorry
+    -- Use: n^3 < n^4 < 2^n (from n_quartic_plus_lt_two_pow_n_200)
+    calc n^3 < n^4 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+      _ < 2^n := n_quartic_plus_lt_two_pow_n_200 n hn
   · -- d = 4: n^4 < 2^n for n ≥ 200
     -- Use: n^4 < n^4 + 3*n^2 + 1 < 2^n (from n_quartic_plus_lt_two_pow_n_200)
     -- This requires a helper lemma for n^4 < 2^n extracted from the quartic+ lemma
