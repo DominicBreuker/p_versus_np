@@ -386,17 +386,17 @@ private theorem normalizeCircuit_nodes_list {n s : Nat} (c : BoolCircuit n) (hsi
 private theorem evalCircuit_normalizeCircuit {n s : Nat} (c : BoolCircuit n) (hsize : circuitSize c ≤ s)
     (inp : Fin n → Bool) :
     evalCircuit (normalizedToRaw (normalizeCircuit c hsize)) inp = evalCircuit c inp := by
-  -- Key facts:
-  -- 1. evalNode preserves under normalizeNodeCode (evalNode_normalizeNodeCode)
-  -- 2. Const-false nodes evaluate to false and have no children, so they don't affect folding
-  -- 3. The normalized circuit has the same structure as original, with const-false padding at end
-  -- 4. If output index is in original part, it's unchanged; if in padding, result is false
-  unfold evalCircuit normalizedToRaw normalizeCircuit
-  simp only [Array.foldl, Array.getD, evalStep, nodeCodeToRaw]
-  -- We need to relate Array.foldl on Array.ofFn to List.foldl
-  -- The normalized nodes are: pre (original normalized) ++ suf (const-false padding)
-  -- Use evalNode_normalizeNodeCode to show pre evaluates the same as original nodes
-  -- Use evalStep_fold_getElem?_preserve to show pre doesn't affect suf's evaluation
+  -- DECOMPOSITION STRATEGY:
+  -- 1. Use normalizeCircuit_nodes_list: normalizedNodes = [normalized_original] ++ [padding]
+  -- 2. Split evalCircuit into two parts
+  -- 3. Apply evalStep_fold_normalized_eq to show normalization preserves evaluation on original nodes
+  -- 4. Show padding (const-false nodes) doesn't affect the result
+  
+  -- We'll work with the definitions directly without full unfolding
+  unfold evalCircuit at *
+  unfold normalizedToRaw at *
+  unfold normalizeCircuit at *
+  
   sorry
 
 private def encodeNodeCode {n s : Nat} : NodeCode n s → Bool ⊕ Fin n ⊕ Fin s ⊕ Finset (Fin s) ⊕ Finset (Fin s)
