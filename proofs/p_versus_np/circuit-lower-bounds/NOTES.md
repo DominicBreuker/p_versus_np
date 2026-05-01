@@ -6,6 +6,8 @@
 
 **Status:** Active — normalized-circuit refactor staged and the file compiles again with `lake build`, but 5 `sorry`s now remain in the new normalization/counting/shannon-counting path.
 
+IMPORTANT: also read the file `GUIDANCE.md` for a strategic view on completing this proof.
+
 ---
 
 ## Current State
