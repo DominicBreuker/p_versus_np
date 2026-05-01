@@ -29,7 +29,7 @@ Recent git log for this target:
 {git_log}
 ```
 
-Your job in this run:
+Your primary job is to complete the proof, found in `proofs/{problem_name}/{approach_name}/Proof.lean`. Specifically:
 
 1. Understand how `{target_label}` advances the repository's attempt to settle P vs NP.
 2. Make a material improvement to the proof, but one step at time! Each time, do the smallest useful forward step on the proof or supporting library code.
