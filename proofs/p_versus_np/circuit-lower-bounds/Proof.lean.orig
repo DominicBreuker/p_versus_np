@@ -400,13 +400,7 @@ private theorem evalCircuit_normalizeCircuit {n s : Nat} (c : BoolCircuit n) (hs
   -- We prove this by showing the folded arrays are equal at all indices ≤ max(c.output, c.nodes.size)
   -- Strategy: Use normalizeCircuit_nodes_list to decompose and apply evalStep lemmas
   
-  -- Check if output is preserved or falls in padding region
-  by_cases hout : c.output < c.nodes.size
-  · -- Output preserved: evaluate normally using preserved node evaluations
-    -- Use evalStep_fold_getElem?_preserve and evalStep_fold_normalized_eq
-    sorry
-  · -- Output in padding: can show it evaluates to false consistently
-    sorry
+  sorry
 
 private def encodeNodeCode {n s : Nat} : NodeCode n s → Bool ⊕ Fin n ⊕ Fin s ⊕ Finset (Fin s) ⊕ Finset (Fin s)
   | .const b => Sum.inl b
