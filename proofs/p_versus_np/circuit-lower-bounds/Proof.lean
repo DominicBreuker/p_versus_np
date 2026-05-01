@@ -386,27 +386,24 @@ private theorem normalizeCircuit_nodes_list {n s : Nat} (c : BoolCircuit n) (hsi
 private theorem evalCircuit_normalizeCircuit {n s : Nat} (c : BoolCircuit n) (hsize : circuitSize c ≤ s)
     (inp : Fin n → Bool) :
     evalCircuit (normalizedToRaw (normalizeCircuit c hsize)) inp = evalCircuit c inp := by
-  -- Proof strategy:
-  -- The normalized circuit has the same first c.nodes.size nodes (normalized) 
-  -- followed by const-false padding. The evaluation of the first c.nodes.size positions
-  -- in the result array depends only on the first c.nodes.size nodes, and the 
-  -- const-false padding doesn't affect these positions.
+  -- Proof strategy: Show that the fold operations produce the same result array
+  -- The normalized circuit prepends normalized versions of original nodes followed by const-false padding
+  -- The const-false padding doesn't affect evaluation up to the original circuit size
   
   unfold evalCircuit normalizedToRaw normalizeCircuit
   
-  -- The output of the normalized circuit is either:
-  -- - c.output (if c.output < c.nodes.size), or
-  -- - s (otherwise)
-  -- Either way, the output index is < s (since c.output < c.nodes.size ≤ s)
+  -- The key: the fold over the padded list equals the fold over just the prefix
+  -- because const-false nodes don't affect evaluation at indices < prefix length
   
-  -- Key lemma: evalStep_fold_getElem?_preserve shows that adding extra nodes
-  -- to the fold doesn't change values at indices < vals.size
+  apply congr_arg
+  apply congr_arg (·.getD ·)
   
-  -- We need to show that:
-  -- 1. The fold over normalized nodes gives the same values as the fold over original nodes
-  --    for indices < c.nodes.size
-  -- 2. The output value at an index < c.nodes.size is the same in both circuits
+  -- Show the output indices match
+  by_cases hout : c.output < c.nodes.size
+  · simp [hout]
+  · simp [hout]
   
+  -- Now show the arrays are equal by showing the folds are equal
   sorry
 
 private def encodeNodeCode {n s : Nat} : NodeCode n s → Bool ⊕ Fin n ⊕ Fin s ⊕ Finset (Fin s) ⊕ Finset (Fin s)
