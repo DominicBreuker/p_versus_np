@@ -404,13 +404,19 @@ private theorem evalCircuit_normalizeCircuit {n s : Nat} (c : BoolCircuit n) (hs
   
   have hsplit : c.nodes.size + (s - c.nodes.size) = s := Nat.add_sub_of_le hsize
   
-  -- We'll construct the proof by showing both sides compute the same values
-  -- Both sides start with an empty array and fold over nodes
-  -- LHS folds over normalized nodes (c.nodes as NodeCode + const-false padding)
-  -- RHS folds over original c.nodes
+  -- The normalized circuit created by normalizeCircuit has:
+  -- - First c.nodes.size positions: normalized versions of c.nodes
+  -- - Remaining (s - c.nodes.size) positions: NodeCode.const false
   
-  -- The key insight: we can use evalStep_fold_normalized_eq for the prefix
-  -- and show that the suffix (const-false nodes) doesn't affect getD at index < c.nodes.size
+  -- After converting to List and using normalizeCircuit_nodes_list, we have the above structure
+  -- The foldl_append splits this into two parts: normalized c.nodes, then const-false nodes
+  
+  -- From evalStep_fold_normalized_eq, folding over normalized c.nodes gives the same result
+  -- as folding over the original c.nodes
+  
+  -- The const-false suffix: each evaluates to false (Gate.Const false),
+  -- and false doesn't change the AND/OR computations
+  -- The vals array only grows, but getD at index < c.nodes.size is preserved
   
   sorry
 

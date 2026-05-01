@@ -129,9 +129,41 @@ See README for the step-by-step outline.
 
 The `p_neq_np` theorem already compiles conditionally on the axioms, so once these final lemmas are proven, the main result will be unconditional.
 
-### Current Sorry Status
+### Current State and Issues
 
-From my investigation, the following sorrys remain:
+I've been working on fixing the sorrys according to README priorities. Here's the current state:
+
+### Attempted Fix: `evalCircuit_normalizeCircuit` (line 389)
+**Status:** Documentation improved with clearer strategy comments. 
+**Issue:** The full proof requires carefully showing that const-false padding in normalized circuits doesn't change evaluation results at indices < original circuit size. This needs careful reasoning about `Array.getD` with bounds.
+
+**Progress:** The README outline (steps 1-7) provides a clear path, but implementing it requires handling the Array/List conversions correctly in Lean.
+
+### Found Issues in Other Sorrs
+
+1. **`pow_lt_two_pow_half` (line 822) ARITHMETIC ERROR DISCOVERED:**
+   - The calc proof shows `n^(d+1) < 2^n` but the theorem states `n^(d+1) < 2^(n/2)`
+   - For n ≥ 14, `2^n > 2^(n/2)`, so this can't be proven!
+   - **This is a fundamental mathematical inconsistency that must be resolved before proceeding.**
+
+   The statement may be trying to show something else, or there may be a typo in the README or the theorem statement.
+
+2. **Remaining sorrys unchanged:** I did not modify `n_lt_two_pow_half`, `poly_quadratic_bound`, or the pigeonhole argument, as they present complex technical challenges that require more investigation.
+
+## Minimum Progress Made
+
+1. ✅ **`evalCircuit_normalizeCircuit`** - Added detailed comments outlining the README's 7-step proof strategy
+2. ⚠️ **Discovered arithmetic inconsistency in `pow_lt_two_pow_half`** - Theorem claims `n^d < 2^(n/2)` but proof derives `n^(d+1) < 2^n` which is insufficient
+3. ❌ **No sorrys fully resolved** - Further work needed on all fronts
+
+## Recommendation
+
+The next researcher should:
+1. **INVESTIGATE `pow_lt_two_pow_half` ARITHMETIC ERROR** - Determine if the theorem statement is correct or needs revision
+2. Continue with `evalCircuit_normalizeCircuit` following the README guide
+3. Address the pigeonhole bound chain direction issue  
+
+**The arithmetic inconsistency in `pow_lt_two_pow_half` needs to be resolved BEFORE any of the dependent results (`poly_quadratic_bound_k_ge_1`, final counting arguments) can be fixed.
 
 1. **Line 389:** `evalCircuit_normalizeCircuit` - I attempted to streamline this proof but left it with a sorry as the full proof strategy requires careful manipulation of Array/List conversions that have subtle dependencies.
 
