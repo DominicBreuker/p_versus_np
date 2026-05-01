@@ -390,12 +390,15 @@ private theorem evalCircuit_normalizeCircuit {n s : Nat} (c : BoolCircuit n) (hs
   unfold normalizedToRaw
   simp only [circuitSize, Option.getD]
   
-  -- Key: evalCircuit evaluates all nodes then takes vals.getD output
-  -- Normalized circuit has [original nodes] ++ [false padding]
-  -- Since output < original circuit size, we only care about values at indices < original size
-  -- Adding false-padding nodes after doesn't change these values because:
-  -- 1. evalStep_fold_getElem?_preserve shows getD for old indices is preserved
-  -- 2. The output index is < c.nodes.size, so it's in the "before padding" region
+  -- Key observation: After normalization with size s ≥ c.nodes.size:
+  -- 1. The output node of c is either:
+  --    a) c.output < c.nodes.size: then it's preserved at the same index in normalized circuit
+  --    b) c.output ≥ c.nodes.size: then val is false (from the else branch), which is n
+  -- 2. Node evaluations are preserved for indices < c.nodes.size via evalStep_fold_getElem?_preserve
+  -- 3. Padding with const-false nodes doesn't change the folded values
+   
+  -- We prove this by showing the folded arrays are equal at all indices ≤ max(c.output, c.nodes.size)
+  -- Strategy: Use normalizeCircuit_nodes_list to decompose and apply evalStep lemmas
   
   sorry
 
