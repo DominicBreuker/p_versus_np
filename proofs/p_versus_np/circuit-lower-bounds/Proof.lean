@@ -388,13 +388,55 @@ private theorem evalCircuit_normalizeCircuit {n s : Nat} (c : BoolCircuit n) (hs
     evalCircuit (normalizedToRaw (normalizeCircuit c hsize)) inp = evalCircuit c inp := by
   -- Strategy: Show that evaluation is invariant under normalization
   -- The normalized circuit has c.nodes followed by (s - c.nodes.size) const-false nodes
-  -- Evaluation of const-false nodes doesn't change the accumulated values
+  -- Evaluation of const-false nodes doesn't change the accumulated values in positions < c.nodes.size
   unfold evalCircuit normalizedToRaw normalizeCircuit
-  -- Both sides create an array by folding over nodes
-  -- LHS folds over: normalizeCircuit c hsize nodes (which are c.nodes padded with const false)
-  -- RHS folds over: c.nodes
-  -- We need to show these produce the same final array
-  sorry
+  
+  -- Convert Array.foldl to List.foldl for easier manipulation
+  rw [← Array.foldl_toList, ← Array.foldl_toList]
+  
+  -- Use normalizeCircuit_nodes_list to show that normalized nodes are c.nodes padded with const-false
+  have hsplit : c.nodes.size + (s - c.nodes.size) = s := Nat.add_sub_of_le hsize
+  rw [normalizeCircuit_nodes_list c hsize]
+  rw [List.foldl_append]
+  
+  -- Apply evalStep_fold_normalized_eq to handle the prefix (normalized c.nodes)
+  have hprefix : #[].size + (List.ofFn (fun i : Fin c.nodes.size => normalizeNodeCode n s (c.nodes[i]))).length ≤ s := by
+    simp; exact hsize
+  rw [evalStep_fold_normalized_eq inp #[] _ hprefix]
+  
+  -- Now we need to show that folding const-false nodes doesn't change getD result
+  -- Case split on whether output is in the prefix or suffix
+  by_cases h_output : c.output < c.nodes.size
+  · -- Output is in the prefix
+    -- After prefix fold: array has size c.nodes.size with values from evaluating c.nodes
+    -- After suffix fold (const-false nodes): array has size c.nodes.size + (s - c.nodes.size)
+    -- But values at indices < c.nodes.size are unchanged (each const-false node pushes false)
+    
+    -- Let prefix_vals be the array after evaluating c.nodes
+    let prefix_vals := List.foldl (evalStep inp) #[] (List.ofFn (fun i : Fin c.nodes.size => normalizeNodeCode n s (c.nodes[i])))
+    
+    -- We need: (foldl (evalStep inp) prefix_vals (replicate ... false)).getD c.output false
+    --      = (foldl (evalStep inp) #[] c.nodes.toList).getD c.output false
+    -- But prefix_vals is exactly the RHS array (after converting to Array)
+    
+    -- Actually, both sides should give the same result because:
+    -- - LHS: fold over normalized nodes, which includes c.nodes (as normalized) + const-false padding
+    -- - RHS: fold over original c.nodes
+    -- - evalStep_fold_normalized_eq shows folding normalized c.nodes gives same array as folding original c.nodes
+    -- - Folding const-false nodes doesn't change getD at index < c.nodes.size
+    
+    simp only [h_output, ↓reduceIte]
+    
+    -- Use evalStep_fold_getElem?_preserve repeatedly
+    -- For each const-false node, values at indices < current size don't change
+    sorry
+  · -- Output is >= c.nodes.size
+    -- In this case, getD returns false (default) on both sides
+    simp only [h_output, ↓reduceIte, not_lt] at *
+    -- LHS output: s (since it's none case in normalizedToRaw output)
+    -- RHS output: c.output (but c.output < c.nodes.size always for Fin!)
+    -- Wait, this is impossible since c.output : Fin c.nodes.size means c.output < c.nodes.size
+    sorry
 
 private def encodeNodeCode {n s : Nat} : NodeCode n s → Bool ⊕ Fin n ⊕ Fin s ⊕ Finset (Fin s) ⊕ Finset (Fin s)
   | .const b => Sum.inl b
