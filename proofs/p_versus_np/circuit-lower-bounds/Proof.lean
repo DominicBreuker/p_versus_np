@@ -790,59 +790,14 @@ private theorem n_squared_plus_n_quartic_lt_two_pow_n_200 (n : Nat) (hn : n ≥ 
 
 
 
+
+
 /-- Helper lemma: for n ≥ 4*d + 10, we have n^d < 2^(n/2).
     This inductive helper shows exponential growth dominates polynomial growth.
     Proof by induction on d: base case d=0 is trivial. For step, use IH and show n < 2^(n/2). -/
 private theorem pow_lt_two_pow_half (d n : Nat) (hn : n ≥ 4 * d + 10) : n ^ d < 2 ^ (n / 2) := by
-  induction d with
-  | zero => simp; omega
-  | succ d ih =>
-      -- IH: n^d < 2^(n/2)
-      -- Need: n^(d+1) < 2^(n/2)
-      have hd : d ≥ 0 := by omega
-      have hn6 : n ≥ 6 := by omega
-      by_cases h_even : 2 ∣ n
-      · -- n is even
-        have hn_div : 2 * (n / 2) = n := Nat.div_mul_cancel h_even
-        calc n ^ (d + 1) = n * n ^ d := by ring
-          _ < n * 2 ^ (n / 2) := Nat.mul_lt_mul_of_pos_left ih (Nat.pos_of_ne_zero (by omega : n ≠ 0))
-          _ < 2 ^ (n / 2) * 2 ^ (n / 2) := by
-            apply Nat.mul_lt_mul_of_le_of_lt_right
-            · exact Nat.lt_pow_self (by norm_num) _
-            · exact ih
-            · exact h_n_lt_2pow
-          _ = 2 ^ (2 * (n / 2)) := by rw [← Nat.pow_add]
-          _ = 2 ^ n := by rw [hn_div]
-      · -- n is odd, so n/2 * 2 + 1 = n
-        have hn_div : 2 * (n / 2) + 1 = n := by omega
-        have h_n_lt_2pow : n < 2 ^ (n / 2) := by
-          -- We need to show n < 2^(n/2) for n ≥ 4*(d+1)+10 ≥ 14
-          -- Since n/2 ≥ 7 and 2^7 = 128, we can check n=14, 15, ..., up to a point
-          -- and then use that 2^(n/2) grows exponentially
-          suffices ∀ m : Nat, m ≥ 6 → m < 2 ^ (m / 2) by
-            apply this n
-            omega
-          intro m hm
-          -- Prove by cases using specific values
-          match m with
-          | 6 => norm_num
-          | 7 => norm_num  
-          | 8 => norm_num
-          | 9 => norm_num
-          | 10 => norm_num
-          | 11 => norm_num
-          | 12 => norm_num
-          | 13 => norm_num
-          | _ => sorry  -- For m ≥ 14, we use monotonically and that 2^(m/2) > m
-        calc n ^ (d + 1) = n * n ^ d := by ring
-          _ < n * 2 ^ (n / 2) := Nat.mul_lt_mul_of_pos_left ih (Nat.pos_of_ne_zero (by omega : n ≠ 0))
-          _ < 2 ^ (n / 2) * 2 ^ (n / 2) := Nat.mul_lt_mul_of_le_of_lt_right (Nat.lt_pow_self (by norm_num) _) ih h_n_lt_2pow
-          _ = 2 ^ (2 * (n / 2)) := by rw [← Nat.pow_add]
-          _ ≤ 2 ^ n := by
-              have : 2 * (n / 2) ≤ n := by omega
-              apply Nat.pow_le_pow_right
-              · norm_num
-              · exact this
+  -- Placeholder - see README for proof strategy
+  sorry
 
 /-- General helper: for any k ≥ 1, c ≥ 1, and n ≥ 100*k + c + 100,
     we have (c*n^k + c)^2 + 3*(c*n^k + c) + 1 < 2^n.
@@ -1318,8 +1273,11 @@ theorem shannon_counting_argument :
     
     -- Instead, let's use the fact that h_all_computable gives us a right inverse
     -- Define a partial choice function: for each function, pick ONE circuit that computes it
+    -- Simplified version without the intermediate h_choose
     let circuitForFunction : ((Fin n → Bool) → Bool) → {c : BoolCircuit n // circuitSize c ≤ p n} :=
-      fun f => Classical.choose (h_all_computable f)
+      fun f => 
+        let ⟨c, hc⟩ := h_all_computable f
+        ⟨c, hc.1⟩
     
     -- The key observation: if c ∈ range(circuitForFunction), then circuitSize c ≤ p n
     -- And for each such c, there are only finitely many f that it can map to
@@ -1333,7 +1291,32 @@ theorem shannon_counting_argument :
     -- Now we need to bound |{c : BoolCircuit n // circuitSize c ≤ p n}| ≤ circuit_count_upper_bound n (p n)
     -- This requires counting circuits, which needs normalization
     
-    sorry
+    -- circuitForFunction is injective because if circuitForFunction f = circuitForFunction g,
+    -- then evalCircuit (circuitForFunction f) = evalCircuit (circuitForFunction g),
+    -- which means f = g by h_all_computable
+    have h_inj : Function.Injective circuitForFunction := by
+      intro f g heq
+      -- heq : circuitForFunction f = circuitForFunction g
+      -- So the underlying circuits are the same
+      have : (circuitForFunction f).1 = (circuitForFunction g).1 := congrArg Subtype.val heq
+      -- And by h_all_computable, evalCircuit computes the function
+      have hf : ∀ inp, evalCircuit (circuitForFunction f).1 inp = f inp := (circuitForFunction f).2.2
+      have hg : ∀ inp, evalCircuit (circuitForFunction g).1 inp = g inp := (circuitForFunction g).2.2
+      ext inp
+      rw [← hf inp, ← this, hg inp]
+    -- Now use card_le_of_injective
+    have h_card := Fintype.card_le_of_injective circuitForFunction h_inj
+    -- And bound the size of circuits
+    calc boolean_function_count n
+        ≤ Fintype.card {c : BoolCircuit n // circuitSize c ≤ p n} := h_card
+      _ ≤ normalized_circuit_card_le n (p n) := by
+            -- Need to show: Fintype.card {c : BoolCircuit n // circuitSize c ≤ p n} ≤ normalized_circuit_card_le n (p n)
+            -- circuit counting lemma
+            sorry
+      _ ≤ normalized_circuit_count_upper_bound n (p n) := by exact le_refl _
+      _ ≤ circuit_count_upper_bound n (p n) := by
+            -- normalized_circuit_count_upper_bound ≤ circuit_count_upper_bound
+            sorry
   exact Nat.lt_irrefl (boolean_function_count n) (Nat.lt_of_le_of_lt h_ge h_count)
 
 -- ---------------------------------------------------------------------------
