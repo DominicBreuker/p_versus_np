@@ -845,39 +845,116 @@ private theorem n_pow_lt_two_pow_n_reasonable (n d : Nat) (hd : d ≥ 1) (hn : n
         apply Nat.pow_lt_pow_right
         · norm_num
         · omega
-      _ < 2^n := by
-        -- Use n^7 < n^8 < ... < n^20, then n^20 < 2^n
-        -- For now, defer to n^20 bound
-        sorry
+      _ < n^8 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+      _ < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+      _ < 2^n := by sorry
   · -- d = 6: n^6 < 2^n for n ≥ 200
-    sorry
+    calc n^6 < n^7 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+      _ < n^8 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+      _ < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+      _ < 2^n := by sorry
   · -- d = 7: n^7 < 2^n for n ≥ 200
-    sorry
+    calc n^7 < n^8 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+      _ < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+      _ < 2^n := by sorry
   · -- d = 8: n^8 < 2^n for n ≥ 200
-    sorry
-  · -- d = 9
-    sorry
-  · -- d = 10
-    sorry
-  · -- d = 11
-    sorry
-  · -- d = 12
-    sorry
-  · -- d = 13
-    sorry
-  · -- d = 14
-    sorry
-  · -- d = 15
-    sorry
-  · -- d = 16
-    sorry
-  · -- d = 17
-    sorry
-  · -- d = 18
-    sorry
-  · -- d = 19
-    sorry
-  · -- d = 20
+    calc n^8 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+      _ < 2^n := by sorry
+  · -- d = 9: n^9 < 2^n for n ≥ 200
+    calc n^9 < n^10 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+      _ < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+      _ < 2^n := by sorry
+  · -- d = 10: n^10 < 2^n for n ≥ 200
+    calc n^10 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+      _ < 2^n := by sorry
+  · -- d = 11: n^11 < 2^n for n ≥ 200
+    calc n^11 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+      _ < 2^n := by sorry
+  · -- d = 12: n^12 < 2^n for n ≥ 200
+    calc n^12 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+      _ < 2^n := by sorry
+  · -- d = 13: n^13 < 2^n for n ≥ 200
+    calc n^13 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+      _ < 2^n := by sorry
+  · -- d = 14: n^14 < 2^n for n ≥ 200
+    calc n^14 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+      _ < 2^n := by sorry
+  · -- d = 15: n^15 < 2^n for n ≥ 200
+    calc n^15 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+      _ < 2^n := by sorry
+  · -- d = 16: n^16 < 2^n for n ≥ 200
+    calc n^16 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+      _ < 2^n := by sorry
+  · -- d = 17: n^17 < 2^n for n ≥ 200
+    calc n^17 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+      _ < 2^n := by sorry
+  · -- d = 18: n^18 < 2^n for n ≥ 200
+    calc n^18 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+      _ < 2^n := by sorry
+  · -- d = 19: n^19 < 2^n for n ≥ 200
+    calc n^19 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+      _ < 2^n := by sorry
+  · -- d = 20: n^20 < 2^n for n ≥ 200
     sorry
 
 /-- General helper: for any k ≥ 1, c ≥ 1, and n ≥ 100*k + c + 100,
