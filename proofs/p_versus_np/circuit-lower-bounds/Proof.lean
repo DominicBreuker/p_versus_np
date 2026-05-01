@@ -795,9 +795,61 @@ private theorem n_squared_plus_n_quartic_lt_two_pow_n_200 (n : Nat) (hn : n ≥ 
 private theorem n_pow_lt_two_pow_n_reasonable (n d : Nat) (hd : d ≥ 1) (hn : n ≥ 200) (hbound : d ≤ 20) :
     n ^ d < 2 ^ n := by
   -- For "reasonable" degrees d ≤ 20 and n ≥ 200, prove n^d < 2^n by induction on n
-  -- Prove individual cases 1 through 20 by interval_cases
-  -- This establishes the pattern; full proofs are left for future work
-  sorry
+  interval_cases d
+  · -- d = 1: n < 2^n for n ≥ 200
+    sorry
+  · -- d = 2: n^2 < 2^n for n ≥ 200
+    -- For n ≥ 200, n^2 grows slower than 2^n
+    -- Base case: n = 200
+    have base200 : 200 ^ 2 < 2 ^ 200 := by norm_num
+    -- Inductive step
+    suffices ∀ k ≥ 200, k ^ 2 < 2 ^ k by exact this n hn
+    intro k hk
+    induction k, hk using Nat.le_induction with
+    | base => exact base200
+    | succ k hk ih =>
+      calc (k + 1) ^ 2 = k^2 + 2*k + 1 := by ring
+        _ < 2^k + (2*k + 1) := by omega
+        _ < 2^k + 2^k := by omega
+        _ = 2 * 2^k := by ring
+        _ = 2^(k+1) := by ring
+  · -- d = 3: n^3 < 2^n for n ≥ 200
+    sorry
+  · -- d = 4: n^4 < 2^n for n ≥ 200
+    -- This is handled by n_quartic_plus_lt_two_pow_n_200 with modifications
+    sorry
+  · -- d = 5
+    sorry
+  · -- d = 6
+    sorry
+  · -- d = 7
+    sorry
+  · -- d = 8
+    sorry
+  · -- d = 9
+    sorry
+  · -- d = 10
+    sorry
+  · -- d = 11
+    sorry
+  · -- d = 12
+    sorry
+  · -- d = 13
+    sorry
+  · -- d = 14
+    sorry
+  · -- d = 15
+    sorry
+  · -- d = 16
+    sorry
+  · -- d = 17
+    sorry
+  · -- d = 18
+    sorry
+  · -- d = 19
+    sorry
+  · -- d = 20
+    sorry
 
 /-- General helper: for any k ≥ 1, c ≥ 1, and n ≥ 100*k + c + 100,
     we have (c*n^k + c)^2 + 3*(c*n^k + c) + 1 < 2^n.
