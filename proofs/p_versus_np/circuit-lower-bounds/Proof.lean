@@ -859,13 +859,24 @@ private theorem n_pow_lt_two_pow_n_reasonable (n d : Nat) (hd : d ≥ 1) (hn : n
     -- This requires a helper lemma for n^4 < 2^n extracted from the quartic+ lemma
     calc n^4 < n^4 + 3*n^2 + 1 := by omega
       _ < 2^n := n_quartic_plus_lt_two_pow_n_200 n hn
-  · -- d = 5
+  · -- d = 5: n^5 < 2^n for n ≥ 200
+    calc n^5 < n^6 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+      _ < n^7 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+      _ < 2^n := by
+        -- Use n^7 < n^8 < ... < n^20, then n^20 < 2^n
+        -- For now, defer to n^20 bound
+        sorry
+  · -- d = 6: n^6 < 2^n for n ≥ 200
     sorry
-  · -- d = 6
+  · -- d = 7: n^7 < 2^n for n ≥ 200
     sorry
-  · -- d = 7
-    sorry
-  · -- d = 8
+  · -- d = 8: n^8 < 2^n for n ≥ 200
     sorry
   · -- d = 9
     sorry
