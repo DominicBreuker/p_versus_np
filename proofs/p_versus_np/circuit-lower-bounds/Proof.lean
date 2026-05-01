@@ -394,31 +394,56 @@ private theorem evalCircuit_normalizeCircuit {n s : Nat} (c : BoolCircuit n) (hs
   -- Convert Array.foldl to List.foldl for easier manipulation
   rw [← Array.foldl_toList, ← Array.foldl_toList]
   
-  -- We need to show that the normalized circuit evaluates the same as the original
-  -- The key is that normalizeCircuit creates a circuit where:
-  -- - The first c.nodes.size nodes are normalized versions of c.nodes
-  -- - The remaining (s - c.nodes.size) nodes are const-false
-  
-  -- Let's use the fact that evalStep_fold_normalized_eq shows normalized nodes evaluate the same
-  -- and that const-false nodes don't change the evaluation at indices < c.nodes.size
-  
+  -- Use normalizeCircuit_nodes_list to show that normalized nodes are c.nodes padded with const-false
   have hsplit : c.nodes.size + (s - c.nodes.size) = s := Nat.add_sub_of_le hsize
+  rw [normalizeCircuit_nodes_list c hsize]
+  rw [List.foldl_append]
   
-  -- The normalized circuit created by normalizeCircuit has:
-  -- - First c.nodes.size positions: normalized versions of c.nodes
-  -- - Remaining (s - c.nodes.size) positions: NodeCode.const false
+  -- Apply evalStep_fold_normalized_eq to handle the prefix (normalized c.nodes)
+  have hprefix : #[].size + (List.ofFn (fun i : Fin c.nodes.size => normalizeNodeCode n s (c.nodes[i]))).length ≤ s := by
+    simp; exact hsize
+  rw [evalStep_fold_normalized_eq inp #[] _ hprefix]
   
-  -- After converting to List and using normalizeCircuit_nodes_list, we have the above structure
-  -- The foldl_append splits this into two parts: normalized c.nodes, then const-false nodes
-  
-  -- From evalStep_fold_normalized_eq, folding over normalized c.nodes gives the same result
-  -- as folding over the original c.nodes
-  
-  -- The const-false suffix: each evaluates to false (Gate.Const false),
-  -- and false doesn't change the AND/OR computations
-  -- The vals array only grows, but getD at index < c.nodes.size is preserved
-  
-  sorry
+  -- Now we need to show that folding const-false nodes doesn't change getD result
+  -- Case split on whether output is in the prefix or suffix
+  by_cases h_output : c.output < c.nodes.size
+  · -- Output is in the prefix
+    -- After prefix fold: array has size c.nodes.size with values from evaluating c.nodes
+    -- After suffix fold (const-false nodes): array has size c.nodes.size + (s - c.nodes.size)
+    -- But values at indices < c.nodes.size are unchanged (each const-false node pushes false)
+    
+    simp only [h_output, ↓reduceIte]
+    
+    -- Use evalStep_fold_getElem?_preserve repeatedly
+    -- For each const-false node, values at indices < current size don't change
+    -- After folding over all (s - c.nodes.size) const-false nodes,
+    -- the value at c.output is still the same as after folding over just c.nodes
+    
+    -- We need to apply evalStep_fold_getElem?_preserve for each const-false node
+    -- Start with the array after folding over c.nodes, then fold over each const-false node
+    let vals_after_prefix := List.foldl (evalStep inp) #[] (List.ofFn (fun i : Fin c.nodes.size => c.nodes[i]))
+    
+    -- After folding over k const-false nodes, vals[i]? is still vals_after_prefix[i]?
+    -- when i < c.nodes.size
+    have hpreserve : ∀ k : Nat, k ≤ s - c.nodes.size →
+        (List.foldl (evalStep inp) vals_after_prefix (List.replicate k (NodeCode.const false)))[c.output]? = 
+        vals_after_prefix[c.output]? := by
+      intro k hk
+      induction k generalizing vals_after_prefix with
+      | zero => simp
+      | succ k' ih' =>
+        rw [List.foldl]
+        simp [evalStep, evalNode]
+        intro hi
+        rw [Array.getElem?_eq_getElem hi]
+        simp [Array.getElem?_push]
+        intro hi'
+        exact ih' (by omega)
+    
+    exact hpreserve (s - c.nodes.size) (by omega)
+  · -- Output is >= c.nodes.size
+    -- In this case, getD returns false (default) on both sides
+    simp only [h_output, ↓reduceIte, not_lt] at *
 
 private def encodeNodeCode {n s : Nat} : NodeCode n s → Bool ⊕ Fin n ⊕ Fin s ⊕ Finset (Fin s) ⊕ Finset (Fin s)
   | .const b => Sum.inl b
@@ -853,14 +878,14 @@ private theorem pow_lt_two_pow_half (d n : Nat) (hn : n ≥ 4 * d + 10) : n ^ d 
     -- Need n < 2^(n/2) for n ≥ 14
     have hn14 : n ≥ 14 := by omega
     have hn_lt : n < 2 ^ (n / 2) := n_lt_two_pow_half n hn14
-    -- Conclude: n^(d+1) = n * n^d < 2^(n/2) * 2^(n/2) = 2^(n)
-    have h_mul : n * n ^ d < 2 ^ (n / 2) * 2 ^ (n / 2) := Nat.mul_lt_mul hn_lt ih_apply (by norm_num) (Nat.zero_lt_of_lt hn_lt)
-    calc n ^ (d + 1) = n * n ^ d := by ring
-      _ < 2 ^ (n / 2) * 2 ^ (n / 2) := h_mul
-      _ = 2 ^ (n / 2 + n / 2) := by rw [← Nat.pow_add]
-      _ ≤ 2 ^ n := by
-          apply Nat.pow_le_pow_right (by norm_num)
-          omega
+    -- Conclude: n^(d+1) = n * n^d < 2^(n/2) * 2^(n/2) = 2^(n/2 + n/2)
+    -- But we need n^(d+1) < 2^(n/2), not < 2^(n/2 + n/2)!
+    -- We have n^(d+1) < 2^(n/2 + n/2), but the goal is n^(d+1) < 2^(n/2).
+    -- This is too strong! The issue is that n/2 + n/2 might be > n/2.
+    -- Actually, we should just use a different approach.
+    
+    -- Actually, this theorem seems problematic. Let me try a different approach.
+    sorry
 
 /-- General helper: for any k ≥ 1, c ≥ 1, and n ≥ 100*k + c + 100,
     we have (c*n^k + c)^2 + 3*(c*n^k + c) + 1 < 2^n.

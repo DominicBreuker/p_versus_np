@@ -221,3 +221,87 @@ This suggests the proof chain needs to be reconsidered entirely.
 ---
 
 
+
+## Current Issues Discovered
+
+### Issue 1: `evalCircuit_normalizeCircuit` (line ~399)
+**Status:** Partial - proof structure added but incomplete
+
+The proof outline follows the README strategy but encounters technical issues with Array/List conversions in the `rw [normalizeCircuit_nodes_list ...]` step. The high-level strategy is sound:
+- Convert Array.foldl to List.foldl
+- Use `normalizeCircuit_nodes_list` to split into prefix (normalized nodes) and suffix (const-false padding)
+- Apply `evalStep_fold_normalized_eq` to the prefix
+- Use `evalStep_fold_getElem?_preserve` to handle the suffix
+
+**Blocker:** The `rw` tactic doesn't find the pattern, likely due to complexity of the `normalizeCircuit` definition after unfolding.
+
+**Recommendation:** Try using `simp [normalizeCircuit, normalizeCircuit_nodes_list]` instead of `rw`, or construct the proof differently by directly showing the equality without pattern matching.
+
+### Issue 2: `pow_lt_two_pow_half` Mathematical Inconsistency (line ~871)
+**Status:** BLOCKED - Arithmetic inconsistency in theorem statement
+
+**The Problem:** The theorem `pow_lt_two_pow_half` states: `n ^ d < 2 ^ (n / 2)` for `n ≥ 4 * d + 10`.
+
+The proposed proof attempts to show `n^(d+1) < 2^(n/2) * 2^(n/2) = 2^(n/2 + n/2)`, but the goal requires `n^(d+1) < 2^(n/2)`. These are incompatible!
+
+The readme suggests:
+```
+n^(d+1) = n * n^d < 2^(n/2) * 2^(n/2) = 2^(n/2 + n/2) = 2^n (for even n)
+```
+But this proves `n^(d+1) < 2^n`, NOT `n^(d+1) < 2^(n/2)`!
+
+**Evidence:** Counterexample: `n=22, d=2` satisfies `n ≥ 4d+10 = 18` but `22^2 = 484 < 2^11 = 2048` is TRUE for the statement, yet the calc chain derives `22^2 < 32768 = 2^15`, which doesn't match.
+
+Wait, let me reconsider... for n=22, d=2:
+- Statement: 22^2 < 2^11 = 484 < 2048 ✓
+- Proof method tries to show: 22^2 < 2^11 * 2^11 = 2^22 = 484 < 32768 ✓
+
+The proof does work for this case! So maybe the METHOD is sound but the IMPLEMENTATION has bugs.
+
+**Actual Errors:**
+1. `Nat.mul_lt_mul` doesn't exist (Lean 4 Mathlib uses different names)
+2. The `omega` tactic fails in the even/odd case analysis for `n_lt_two_pow_half`
+3. Floor division issue: `2^(n/2) * 2^(n/2) = 2^(n/2 + n/2) ≤ 2^n` is only true if `n` is even. For odd `n`, `n/2 + n/2 = n-1 < n`.
+
+**Analysis:** For the theorem to be provably, we need `n/2 ∈ ℕ` (n even) OR we need to use floor division properties correctly. But wait, `Nat.pow_add` states `a^m * a^n = a^(m+n)` for natural number exponents, not `a^(m+n)`
+
+And `n/2 + n/2 ≤ n` is true! For n=5: 5/2=2, so 2+2=4 ≤ 5 ✓.
+
+So the calc `2^(n/2 + n/2) ≤ 2^n` IS provable!
+
+**Real Issue:** The readme says the proof concludes with `n^(d+1) < 2^n`, but we need `n^(d+1) < 2^(n/2)`. The calc proves a WEAKER bound than needed!
+
+**Conclusion:** The inductive approach CANNOT prove `n^(d+1) < 2^(n/2)`. We need `2^(n/2) >> n`, but the IH only gives us `2^(n/2) >> n^d` (polynomial), not exponential.
+
+**Recommendation for Fix:** Change theorem statement to `n^d < 2^n`. OR prove a different inductive invariant (e.g., `n^d < 2^(n - d)` or similar stronger bound).
+
+### Issue 3: Pigeonhole Principle Step (line ~1367)
+**Status:** BLOCKED - Fintype instance issues
+
+**The Problem:** The pigeonhole argument tries to use `Fintype.card_le_of_injective` with `circuitForFunction : (Fin n → Bool) → {c : BoolCircuit n // circuitSize c ≤ p n}`.
+
+**Error:** `failed to synthesize instance of type class Fintype {c // circuitSize c ≤ p n}` - The subtype of circuits with bounded size doesn't have a Fintype instance.
+
+**Note:** Prior code already creates a similar injection to `NormalizedCircuit n (p n)`, which DOES have a Fintype instance. The proof should likely use `NormalizedCircuit` or directly construct the Fintype instance for bounded circuits.
+
+**Recommendation:** Either:
+(a) Use the existing injection into `NormalizedCircuit n (p n)` and establish the cardinality chain through that type, OR  
+(b) Define and prove a Fintype instance for `{c : BoolCircuit n // circuitSize c ≤ p n}`, OR
+(c) Restructure the proof to avoid the Fintype requirement entirely.
+
+### Issue 4: `n_lt_two_pow_half` even/odd case analysis (line ~847)
+**Status:** DEFERRED - arithmetic verification issues
+
+The split cases and monotonicity arguments need refinement. `omega` fails on base constraints.
+
+## Summary
+
+**Active sorrys:** 5 (lines 399, 871, 1367, 1391, 1392 effectively)
+
+**Priority order for next researcher:**
+1. Investigate Issue 2 (`pow_lt_two_pow_half`) - CRITICAL: mathematical foundation issue
+2. Fix Issue 3 (pigeonhole) - HIGH: needed for Shannon counting
+3. Resolve Issue 1 (`evalCircuit_normalizeCircuit`) - MEDIUM: technical tactic issue
+4. Fix Issue 4 (`n_lt_two_pow_half`) - LOW: arithmetic refinement
+
+**Key learning:** The README's proof strategy for `pow_lt_two_pow_half` appears mathematically inconsistent. The theorem statement `n^d < 2^(n/2)` with hypothesis `n ≥ 4d+10` cannot be proven by the described inductive method because it derives `n^(d+1) < 2^n` instead of the required `n^(d+1) < 2^(n/2)`. This needs theoretical review before proceeding.
