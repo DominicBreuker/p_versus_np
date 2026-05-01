@@ -1321,13 +1321,27 @@ theorem shannon_counting_argument :
     -- 3. So circuits inject into normalized circuits via normalization
     -- 4. This gives us the cardinality bound
     
-    -- For now, we skip the injections and directly use the counting inequality
-    -- since h_count already shows circuit_count_upper_bound n (p n) < boolean_function_count n
-    -- and we have h_all_computable giving us that all functions have circuits.
-    -- The contradiction follows directly without needing to construct explicit injections.
-    --
     -- The key insight: h_all_computable + h_count together are contradictory
-    -- even without explicit Fintype instances
+    -- h_all_computable gives us that every function has a circuit
+    -- This means the assignment f ↦ (some circuit computing f) is a surjection from circuits to functions
+    -- By pigeonhole/counting: |functions| ≤ |circuits|
+    -- But h_count says |circuits| < |functions|, contradiction!
+    
+    -- We construct an injective map from functions to circuits
+    -- For each function f, choose a circuit c_f that computes it (using Classical.choose on h_all_computable)
+    let f_to_circuit : ((Fin n → Bool) → Bool) → BoolCircuit n :=
+      fun f => (Classical.choose (h_all_computable f))
+    
+    -- This map is injective: if f ≠ g, then f_to_circuit f ≠ f_to_circuit g
+    -- Proof: if c computes both f and g, then f = g (since c computes exactly one function)
+    have h_inj : Function.Injective f_to_circuit := by
+      intro f g h_eq
+      -- If f_to_circuit f = f_to_circuit g, then both equal some circuit c
+      -- But c computes a unique function, so f must equal g
+      sorry
+    
+    -- If f_to_circuit is injective, we need that its image consists of valid circuits
+    -- which follows from h_all_computable
     sorry
   exact Nat.lt_irrefl (boolean_function_count n) (Nat.lt_of_le_of_lt h_ge h_count)
 
