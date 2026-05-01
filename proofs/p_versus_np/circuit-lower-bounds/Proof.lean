@@ -845,19 +845,10 @@ private theorem n_20_lt_two_pow_n (n : Nat) (hn : n ≥ 200) : n ^ 20 < 2 ^ n :=
     -- For k > 200, the ratio (k+1)^20/k^20 decreases (converges to 1)
     -- so if it holds at k=200, it holds for all k ≥ 200
     
-    -- We verify the base (k=200) numerically:
-    have h_base : 201 ^ 20 < 2 * 200 ^ 20 := by norm_num
-    -- For the inductive step, we need to show:
-    -- If (k+1)^20 / k^20 < 2, then ((k+1)+1)^20 / (k+1)^20 < 2
-    -- I.e., the ratio is monotonically decreasing
-    -- This is true because d/dk (1 + 1/k)^20 < 0 for k > 0
-    
-    -- Simpler approach: Prove by cases
-    -- For large k, the ratio is very close to 1
-    -- For k near 200, we rely on the base verification
-    
-    -- Since this is technically involved, we leave this as sorry
-    -- The structure is correct and the approach is sound
+    -- Key: We need to show (k+1)^20 < 2^(k+1) = 2 * 2^k
+    -- Strategy: Show (k+1)^20 < 2 * k^20, then use IH to get 2 * 2^k
+    -- (k+1)^20 < 2 * k^20 holds because for k≥200, the ratio (1+1/k)^20 ≤ (201/200)^20 < 2
+    -- We can prove this computationaly for the base or use known bounds
     sorry
 
 /-- For n ≥ 200 and d ≥ 1, we have n^d < 2^n.

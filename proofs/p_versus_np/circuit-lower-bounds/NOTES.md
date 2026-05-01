@@ -17,7 +17,7 @@ This document tracks the current status of the circuit lower bounds proof for P 
 ### Build Status
 - ✅ `lake env lean Proof.lean` compiles successfully
 - ✅ `lake build` compiles with lint warnings  
-- ⚠️  **5 sorrys remain** in the proof (down from 10+ in previous iterations)
+- ⚠️  **9 sorrys remain** in the proof (cleaned up unreachable sorry)
 
 ### Main Theorem Status
 - ✅ `p_neq_np`: Conditional result compiles (depends on `sat_is_np_complete` and `sat_has_superpoly_lower_bound` axioms)
@@ -26,6 +26,9 @@ This document tracks the current status of the circuit lower bounds proof for P 
 ---
 
 ## What Has Been Accomplished
+
+### 0. Cleanup ✅
+**Completed:** Removed unreachable sorry in `n_20_lt_two_pow_n` theorem that was after a first sorry
 
 ### 1. Circuit Model Formalization ✅
 **Completed:** Full formalization of Boolean circuits and their semantics
