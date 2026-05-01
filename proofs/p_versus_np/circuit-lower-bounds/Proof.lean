@@ -406,6 +406,23 @@ private theorem evalCircuit_normalizeCircuit {n s : Nat} (c : BoolCircuit n) (hs
   -- Array.foldl over normalized nodes = Array.foldl over original nodes
   -- We'll use Array.foldl on List.ofFn with the h_nodes equality
   
+  -- Strategy (7 steps from README):
+  -- 1. Use normalizeCircuit_nodes_list to show normalized nodes = [original] ++ [padding]
+  -- 2. Split the foldl over this list
+  -- 3. Use evalStep_fold_normalized_eq to show original nodes don't change evaluation
+  -- 4. Show padding doesn't affect evaluation at indices < c.nodes.size
+  -- 5. Handle the output: if c.output < c.nodes.size, it's preserved
+  -- 6. Otherwise, output is false (const-false padding), which is correct
+  
+  -- Key lemmas available:
+  -- - normalizeCircuit_nodes_list: splits normalized nodes into prefix + suffix
+  -- - evalStep_fold_normalized_eq: shows normalization doesn't change node evaluations
+  -- - evalStep_fold_getElem?_preserve: shows adding nodes doesn't change existing indices
+  
+  -- Technical challenge: Converting between Array.foldl on Array.ofFn and List.foldl
+  -- The normalized circuit uses Array.ofFn (Fin s → NodeCode), while evalStep works with lists
+  -- This requires careful handling of the Array/List conversions
+  
   sorry
 
 private def encodeNodeCode {n s : Nat} : NodeCode n s → Bool ⊕ Fin n ⊕ Fin s ⊕ Finset (Fin s) ⊕ Finset (Fin s)
@@ -831,6 +848,13 @@ private theorem n_pow_lt_two_pow_n_reasonable (n d : Nat) (hd : d ≥ 1) (hn : n
     have h2 : n^2 + 2 * n < 2^n := n_squared_plus_two_n_lt_two_pow_n n hn9
     omega
   · -- d = 3: n^3 < 2^n for n ≥ 200
+    -- Strategy: Prove by induction on n, similar to d=1 case
+    -- Or: Show n^3 ≤ (some bound we know works) < 2^n
+    -- For now, we leave this as sorry - requires either:
+    -- 1. A specific helper lemma for n^3 + ... < 2^n (like n_quartic_plus_lt_two_pow_n_200)
+    -- 2. A monotonicity argument from d=2 case
+    -- 3. Direct induction
+    -- Note: For n ≥ 200, n^3 grows much slower than 2^n, so this holds
     sorry
   · -- d = 4: n^4 < 2^n for n ≥ 200
     -- This is handled by n_quartic_plus_lt_two_pow_n_200 with modifications
