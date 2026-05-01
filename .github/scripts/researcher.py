@@ -1049,6 +1049,10 @@ def main() -> None:
         run_exit_code = 0
         completed_runs = run_index
 
+        if completed_runs > 0:
+            print("Sleeping for 60 seconds to avoid rate limits (speculative... actual rate limits unknown)")
+            time.sleep(60)
+
         try:
             if run_index == 1:
                 print(f"Running Mistral Vibe (pass {run_index}/{args.run_count}) …")
