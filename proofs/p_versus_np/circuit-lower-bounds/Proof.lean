@@ -796,8 +796,49 @@ private theorem n_squared_plus_n_quartic_lt_two_pow_n_200 (n : Nat) (hn : n ≥ 
     This inductive helper shows exponential growth dominates polynomial growth.
     Proof by induction on d: base case d=0 is trivial. For step, use IH and show n < 2^(n/2). -/
 private theorem pow_lt_two_pow_half (d n : Nat) (hn : n ≥ 4 * d + 10) : n ^ d < 2 ^ (n / 2) := by
-  -- Placeholder - see README for proof strategy
-  sorry
+  induction d with
+  | zero =>
+    -- Base case: d = 0, so n^0 = 1, need 1 < 2^(n/2)
+    -- We have n ≥ 4*0 + 10 = 10, so n/2 ≥ 5, 2^5 = 32 > 1
+    have hn10 : n ≥ 10 := by omega
+    have h_half : n / 2 ≥ 5 := by omega
+    have : 2 ^ (n / 2) ≥ 2 ^ 5 := Nat.pow_le_pow_right (by norm_num) h_half
+    norm_num at this
+    omega
+  | succ d ih =>
+    -- Inductive step: assume n^d < 2^(n/2) for n ≥ 4d+10
+    -- Need to show n^(d+1) < 2^(n/2) for n ≥ 4(d+1)+10 = 4d+14
+    have hn_step : n ≥ 4 * d + 14 := by omega
+    -- By IH, n^d < 2^(n/2) (we have n ≥ 4d+14 ≥ 4d+10)
+    have ih_apply : n ^ d < 2 ^ (n / 2) := ih (by omega)
+    -- Need n < 2^(n/2) for n ≥ 14
+    have hn14 : n ≥ 14 := by omega
+    have hn_lt : n < 2 ^ (n / 2) := by
+      -- Prove n < 2^(n/2) for n ≥ 14
+      -- Strategy: use omega after establishing sufficient lower bounds
+      -- For n ∈ {14, 15}, we have n/2 = 7 and check directly
+      -- For n ≥ 14 where this doesn't hold, we'd need n ≥ 2^(n/2)
+      -- But 2^(n/2) grows much faster than n
+      -- Let's prove it more carefully
+      
+      -- We'll prove n < 2^(n/2) by showing that 2^(n/2) * 2 ≥ n + 2, i.e., 2^(n/2+1) ≥ n+2
+      -- For n/2 = 7: 2^8 = 256 ≥ 14+2 = 16 ✓
+      -- Assume for induction that 2^(m/2) * 2 ≥ m + 2 for m ≥ 14
+      
+      sorry
+    -- Conclude: n^(d+1) = n * n^d < 2^(n/2) * 2^(n/2) = 2^(n)
+    have : n * n ^ d < 2 ^ (n / 2) * 2 ^ (n / 2) := by
+      apply Nat.mul_lt_mul'
+      · exact hn_lt
+      · exact ih_apply
+      · norm_num
+      · exact Nat.zero_lt_of_lt hn_lt
+    calc n ^ (d + 1) = n * n ^ d := by ring
+      _ < 2 ^ (n / 2) * 2 ^ (n / 2) := this
+      _ = 2 ^ (n / 2 + n / 2) := by rw [← Nat.pow_add]
+      _ ≤ 2 ^ n := by
+          apply Nat.pow_le_pow_right (by norm_num)
+          omega
 
 /-- General helper: for any k ≥ 1, c ≥ 1, and n ≥ 100*k + c + 100,
     we have (c*n^k + c)^2 + 3*(c*n^k + c) + 1 < 2^n.
