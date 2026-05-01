@@ -800,6 +800,30 @@ private theorem n_squared_plus_n_quartic_lt_two_pow_n_200 (n : Nat) (hn : n ≥ 
 
 
 
+/-- For n ≥ 200, we have n^20 < 2^n. -/
+private theorem n_20_lt_two_pow_n (n : Nat) (hn : n ≥ 200) : n ^ 20 < 2 ^ n := by
+  -- Base case: n = 200
+  have base200 : 200 ^ 20 < 2 ^ 200 := by norm_num
+  -- Inductive step
+  suffices ∀ k ≥ 200, k ^ 20 < 2 ^ k by exact this n hn
+  intro k hk
+  induction k, hk using Nat.le_induction with
+  | base => exact base200
+  | succ k hk_ih =>
+    -- IH: k^20 < 2^k
+    -- Goal: (k+1)^20 < 2^(k+1)
+    -- Key insight: (k+1)^20 / k^20 = (1 + 1/k)^20
+    -- For k ≥ 200, this is maximized at k=200, where (201/200)^20 < 2
+    -- So (k+1)^20 < 2 * k^20 for all k ≥ 200
+    have hk200 : k ≥ 200 := by omega
+    -- Show (k+1)^20 < 2^(k+1)
+    -- Key: For k ≥ 200, (k+1)^20 / k^20 = (1 + 1/k)^20 ≤ (201/200)^20 < 2
+    -- And (201/200)^20 ≈ 1.105 < 2 * 2^k / k^20 = 2 * (2^k / k^20)
+    -- But by IH, 2^k > k^20, so 2 * 2^k > 2 * k^20
+    -- We need to show (k+1)^20 < 2 * 2^k
+    -- We'll show this via a helper lemma about the ratio
+    sorry
+
 /-- For n ≥ 200 and d ≥ 1, we have n^d < 2^n.
     This establishes exponential dominance of 2^n over polynomial n^d for sufficiently large n.
     -/
@@ -825,11 +849,12 @@ private theorem n_pow_lt_two_pow_n_reasonable (n d : Nat) (hd : d ≥ 1) (hn : n
     have h2 : n^2 + 2 * n < 2^n := n_squared_plus_two_n_lt_two_pow_n n hn9
     omega
   · -- d = 3: n^3 < 2^n for n ≥ 200
-    -- Use: n^3 < n^4 < 2^n (from n_quartic_plus_lt_two_pow_n_200)
+    -- Use: n^3 < n^4 < n^4 + 3*n^2 + 1 < 2^n (from n_quartic_plus_lt_two_pow_n_200)
     calc n^3 < n^4 := by
         apply Nat.pow_lt_pow_right
         · norm_num
         · omega
+      _ < n^4 + 3*n^2 + 1 := by omega
       _ < 2^n := n_quartic_plus_lt_two_pow_n_200 n hn
   · -- d = 4: n^4 < 2^n for n ≥ 200
     -- Use: n^4 < n^4 + 3*n^2 + 1 < 2^n (from n_quartic_plus_lt_two_pow_n_200)
@@ -837,125 +862,97 @@ private theorem n_pow_lt_two_pow_n_reasonable (n d : Nat) (hd : d ≥ 1) (hn : n
     calc n^4 < n^4 + 3*n^2 + 1 := by omega
       _ < 2^n := n_quartic_plus_lt_two_pow_n_200 n hn
   · -- d = 5: n^5 < 2^n for n ≥ 200
-    calc n^5 < n^6 := by
+    calc n^5 < n^20 := by
         apply Nat.pow_lt_pow_right
         · norm_num
         · omega
-      _ < n^7 := by
-        apply Nat.pow_lt_pow_right
-        · norm_num
-        · omega
-      _ < n^8 := by
-        apply Nat.pow_lt_pow_right
-        · norm_num
-        · omega
-      _ < n^20 := by
-        apply Nat.pow_lt_pow_right
-        · norm_num
-        · omega
-      _ < 2^n := by sorry
+      _ < 2^n := n_20_lt_two_pow_n n hn
   · -- d = 6: n^6 < 2^n for n ≥ 200
-    calc n^6 < n^7 := by
+    calc n^6 < n^20 := by
         apply Nat.pow_lt_pow_right
         · norm_num
         · omega
-      _ < n^8 := by
-        apply Nat.pow_lt_pow_right
-        · norm_num
-        · omega
-      _ < n^20 := by
-        apply Nat.pow_lt_pow_right
-        · norm_num
-        · omega
-      _ < 2^n := by sorry
+      _ < 2^n := n_20_lt_two_pow_n n hn
   · -- d = 7: n^7 < 2^n for n ≥ 200
-    calc n^7 < n^8 := by
+    calc n^7 < n^20 := by
         apply Nat.pow_lt_pow_right
         · norm_num
         · omega
-      _ < n^20 := by
-        apply Nat.pow_lt_pow_right
-        · norm_num
-        · omega
-      _ < 2^n := by sorry
+      _ < 2^n := n_20_lt_two_pow_n n hn
   · -- d = 8: n^8 < 2^n for n ≥ 200
     calc n^8 < n^20 := by
         apply Nat.pow_lt_pow_right
         · norm_num
         · omega
-      _ < 2^n := by sorry
+      _ < 2^n := n_20_lt_two_pow_n n hn
   · -- d = 9: n^9 < 2^n for n ≥ 200
-    calc n^9 < n^10 := by
+    calc n^9 < n^20 := by
         apply Nat.pow_lt_pow_right
         · norm_num
         · omega
-      _ < n^20 := by
-        apply Nat.pow_lt_pow_right
-        · norm_num
-        · omega
-      _ < 2^n := by sorry
+      _ < 2^n := n_20_lt_two_pow_n n hn
   · -- d = 10: n^10 < 2^n for n ≥ 200
     calc n^10 < n^20 := by
         apply Nat.pow_lt_pow_right
         · norm_num
         · omega
-      _ < 2^n := by sorry
+      _ < 2^n := n_20_lt_two_pow_n n hn
   · -- d = 11: n^11 < 2^n for n ≥ 200
     calc n^11 < n^20 := by
         apply Nat.pow_lt_pow_right
         · norm_num
         · omega
-      _ < 2^n := by sorry
+      _ < 2^n := n_20_lt_two_pow_n n hn
   · -- d = 12: n^12 < 2^n for n ≥ 200
     calc n^12 < n^20 := by
         apply Nat.pow_lt_pow_right
         · norm_num
         · omega
-      _ < 2^n := by sorry
+      _ < 2^n := n_20_lt_two_pow_n n hn
   · -- d = 13: n^13 < 2^n for n ≥ 200
     calc n^13 < n^20 := by
         apply Nat.pow_lt_pow_right
         · norm_num
         · omega
-      _ < 2^n := by sorry
+      _ < 2^n := n_20_lt_two_pow_n n hn
   · -- d = 14: n^14 < 2^n for n ≥ 200
     calc n^14 < n^20 := by
         apply Nat.pow_lt_pow_right
         · norm_num
         · omega
-      _ < 2^n := by sorry
+      _ < 2^n := n_20_lt_two_pow_n n hn
   · -- d = 15: n^15 < 2^n for n ≥ 200
     calc n^15 < n^20 := by
         apply Nat.pow_lt_pow_right
         · norm_num
         · omega
-      _ < 2^n := by sorry
+      _ < 2^n := n_20_lt_two_pow_n n hn
   · -- d = 16: n^16 < 2^n for n ≥ 200
     calc n^16 < n^20 := by
         apply Nat.pow_lt_pow_right
         · norm_num
         · omega
-      _ < 2^n := by sorry
+      _ < 2^n := n_20_lt_two_pow_n n hn
   · -- d = 17: n^17 < 2^n for n ≥ 200
     calc n^17 < n^20 := by
         apply Nat.pow_lt_pow_right
         · norm_num
         · omega
-      _ < 2^n := by sorry
+      _ < 2^n := n_20_lt_two_pow_n n hn
   · -- d = 18: n^18 < 2^n for n ≥ 200
     calc n^18 < n^20 := by
         apply Nat.pow_lt_pow_right
         · norm_num
         · omega
-      _ < 2^n := by sorry
+      _ < 2^n := n_20_lt_two_pow_n n hn
   · -- d = 19: n^19 < 2^n for n ≥ 200
     calc n^19 < n^20 := by
         apply Nat.pow_lt_pow_right
         · norm_num
         · omega
-      _ < 2^n := by sorry
+      _ < 2^n := n_20_lt_two_pow_n n hn
   · -- d = 20: n^20 < 2^n for n ≥ 200
-    sorry
+    exact n_20_lt_two_pow_n n hn
 
 /-- General helper: for any k ≥ 1, c ≥ 1, and n ≥ 100*k + c + 100,
     we have (c*n^k + c)^2 + 3*(c*n^k + c) + 1 < 2^n.

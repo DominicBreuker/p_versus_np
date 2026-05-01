@@ -4,7 +4,7 @@
 
 **Track role:** Main P vs NP proof track.
 
-**Status:** Active — normalized-circuit refactor staged and the file compiles again with `lake build`, but **3 `sorry`s remain** in the new normalization/counting/shannon-counting path.
+**Status:** Active — normalized-circuit refactor staged and the file compiles again with `lake build`, but **4 `sorry`s remain** in the new normalization/counting/shannon-counting path.
 
 IMPORTANT: also read the file `GUIDANCE.md` for a strategic view on completing this proof.
 
@@ -42,11 +42,17 @@ IMPORTANT: also read the file `GUIDANCE.md` for a strategic view on completing t
    - Strategy: Use `normalizeCircuit_nodes_list` to decompose normalized nodes into [original normalized] ++ [const-false padding], then show folding over this equals folding over original nodes
    - Note: Key challenge is working with `Array.foldl` vs `List.foldl` conversions
 
-2. **`n_pow_lt_two_pow_n_general` (line 814)**:
-   - Status: Theorem statement complete, proof placeholder added
-   - What's needed: Prove `n^d < 2^n` for `n ≥ d + 10, d ≥ 1`
-   - Approach: Induct on `d` using pattern from `n_quartic_plus_lt_two_pow_n_200`; base case d=1: n < 2^n for n ≥ 11; inductive step: n^(d+1) = n * n^d
-   - Once this is proven, `poly_quadratic_bound_k_ge_1` for k≥2 (line 940) will unblock
+2. **`n_20_lt_two_pow_n` (line 804)**: NEW
+   - Status: Theorem statement complete with skeleton, proof incomplete
+   - What's needed: Prove `n^20 < 2^n` for `n ≥ 200`
+   - Approach: Use induction on n. Base case n=200 verified by norm_num. Inductive step: show (k+1)^20 < 2^(k+1) given k^20 < 2^k.
+   - Key insight: (k+1)^20 / k^20 = (1 + 1/k)^20 ≤ (201/200)^20 < 2 for k ≥ 200, so (k+1)^20 < 2 * k^20 < 2 * 2^k = 2^(k+1)
+   - This unblocks `n_pow_lt_two_pow_n_reasonable` for d=5 through d=19
+
+3. **`poly_quadratic_bound_k_ge_1` for k≥2 (line 968)**:
+   - Status: Proof structure complete with case split, needs arithmetic bounds
+   - What's needed: Complete the proof for k≥2 cases
+   - Structure: For k≤7, uses `n_pow_lt_two_pow_n_reasonable` (needs `n_20_lt_two_pow_n`). For k>7, left as sorry (needs different approach for large degrees)
 
 3. **`poly_quadratic_bound_k_ge_1` for k≥2 (line 940)**:
    - Status: Proof structure complete, waiting on `n_pow_lt_two_pow_n_general`
@@ -119,9 +125,9 @@ IMPORTANT: also read the file `GUIDANCE.md` for a strategic view on completing t
 
 **Priority Order:**
 1. ⏳ **COMPLEX:** `evalCircuit_normalizeCircuit` (line 386) - Medium complexity - needs Array.foldl/List.foldl conversion handling
-2. ⏳ **COMPLEX:** `n_pow_lt_two_pow_n_reasonable` (line 803) - Arithmetic proof by induction, needs case analysis
-3. ⏳ **BLOCKED:** `poly_quadratic_bound_k_ge_1` for k≥2 (line 816) - Depends on completing #2
-4. ⚠️  **COMPLEX:** Pigeonhole in `shannon_counting_argument` - Cardinality with infinite types, needs advanced technique
+2. ⏳ **COMPLEX:** `n_20_lt_two_pow_n` (line 804) - NEW - Arithmetic proof by induction. Base case n=200 verified. Inductive step needs showing (k+1)^20 < 2*k^20 for k≥200.
+3. ⏳ **COMPLEX:** `poly_quadratic_bound_k_ge_1` for k≥2 (line 968) - Has case split (k≤7 and k>7). k≤7 path needs `n_20_lt_two_pow_n`. k>7 path needs different approach.
+4. ⚠️  **COMPLETE:** Pigeonhole in `shannon_counting_argument` - COMPLETE ✅
 
 **Key Finding:** Replaced mathematically inconsistent `pow_lt_two_pow_half` (n^d < 2^(n/2)) with correct `n_pow_lt_two_pow_n_reasonable` (n^d < 2^n). The old helper had threshold issues - new version targeted for "reasonable" degrees (d ≤ 20) with n ≥ 200.
 
@@ -213,14 +219,22 @@ After restoring code from the 10/10 checkpoint:
    - ⏳ TODO: Assemble proof - use `evalStep_fold_normalized_eq` on prefix, show padding doesn't affect output
    - Estimated effort: MEDIUM
 
-2. **Priority 2: `n_pow_lt_two_pow_n_general` (line 817) → `poly_quadratic_bound_k_ge_1`**
-   - `n_pow_lt_two_pow_n_general`: Prove `n^d < 2^n` for `n ≥ d+10, d ≥ 1` by induction on `d`
-   - `poly_quadratic_bound_k_ge_1` for k≥2: Use the helper, then apply monotonicity (pattern already exists for k=1)
-   - ✅ Threshold `n ≥ 100k + c + 100 ≥ 301` for k≥2 ensures `n^(2k+6) < 2^n` holds
-   - ⏳ TODO: Prove helper lemma (follow pattern of `n_quartic_plus_lt_two_pow_n_200`)
+2. **Priority 2: `n_20_lt_two_pow_n` (line 804)**
+   - ✅ Base case (n=200) verified with norm_num
+   - ⏳ TODO: Prove inductive step - show (k+1)^20 < 2^(k+1) given k^20 < 2^k for k≥200
+   - Key insight: (k+1)^20 / k^20 = (1 + 1/k)^20 ≤ (201/200)^20 < 2 for k≥200
+   - Pattern: Follow `n_quartic_plus_lt_two_pow_n_200` structure
+   - Estimated effort: MEDIUM-HIGH (arithmetic-focused)
+   - **Impact**: Unblocks `n_pow_lt_two_pow_n_reasonable` for d=5..19, which unblocks `poly_quadratic_bound_k_ge_1`
+
+3. **Priority 3: `poly_quadratic_bound_k_ge_1` for k≥2 (line 968)**
+   - ✅ Case split structure complete: k≤7 and k>7
+   - ⏳ k≤7 path: Needs `n_20_lt_two_pow_n` (d=2k+6 ≤ 20 for k≤7)
+   - ⏳ k>7 path: Needs different approach for large degrees (d > 20)
+   - Pattern for k≤7: Use `n_pow_lt_two_pow_n_reasonable` then monotonicity (like k=1 case)
    - Estimated effort: MEDIUM-HIGH (arithmetic-focused)
 
-3. **✅ Priority 3: Pigeonhole argument in `shannon_counting_argument` - COMPLETE**
+4. **✅ Priority 4: Pigeonhole argument in `shannon_counting_argument` - COMPLETE**
    - ✅ The argument now compiles without sorrys
    - ✅ Shows `circuit_count_upper_bound n (p n) < boolean_function_count n` via polynomial-to-exponential bounds
    - ✅ Contradiction with `h_all_computable` is set up correctly
