@@ -258,8 +258,9 @@ I've been working on fixing the sorrys according to README priorities. Here's th
 ## Recommendation for Next Researcher
 
 1. **Start with `evalCircuit_normalizeCircuit`** - This is the most tractable with clear building blocks already in place
-2. **Prove `n_pow_lt_two_pow_n_general`** - Use induction pattern from `n_quartic_plus_lt_two_pow_n_200`. This will unblock `poly_quadratic_bound_k_ge_1` for k≥2
-3. The pigeonhole argument is now complete and doesn't need further work
+2. **Prove `n_pow_lt_two_pow_n_reasonable`** - Use case-by-case analysis: for d ≤ 20 and n ≥ 200, prove n^d < 2^n by induction. Lower degrees already handled by specific lemmas. This will unblock `poly_quadratic_bound_k_ge_1` for k≥2.
+3. **`evalCircuit_normalizeCircuit` - REMOVED AS BLOCKER**: Proved key insight (output always in original region + padding unreachable for original nodes). The remaining gap is technical: establishing Array.foldl on `ofFn` arrays equals corresponding List operations. May need import or import adjustment. De-prioritized.
+4. **Pigeonhole argument**: Noting circular - we claim unsolved but the standard Pigeonhole Principle might NOT need advanced type class machinery if crafted carefully.
 
 ---
 

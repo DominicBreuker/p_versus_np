@@ -386,17 +386,20 @@ private theorem normalizeCircuit_nodes_list {n s : Nat} (c : BoolCircuit n) (hsi
 private theorem evalCircuit_normalizeCircuit {n s : Nat} (c : BoolCircuit n) (hsize : circuitSize c ≤ s)
     (inp : Fin n → Bool) :
     evalCircuit (normalizedToRaw (normalizeCircuit c hsize)) inp = evalCircuit c inp := by
-  -- DECOMPOSITION STRATEGY:
-  -- 1. Use normalizeCircuit_nodes_list: normalizedNodes = [normalized_original] ++ [padding]
-  -- 2. Split evalCircuit into two parts
-  -- 3. Apply evalStep_fold_normalized_eq to show normalization preserves evaluation on original nodes
-  -- 4. Show padding (const-false nodes) doesn't affect the result
-  
-  -- We'll work with the definitions directly without full unfolding
-  unfold evalCircuit at *
-  unfold normalizedToRaw at *
-  unfold normalizeCircuit at *
-  
+  -- STRATEGY:
+  -- The key insight: the normalized circuit's output index is ALWAYS in the original region
+  -- (since c.output < c.nodes.size), and the padding (const-false) nodes are
+  -- UNREACHABLE from any node in the original region (since children are bounded).
+  -- 
+  -- Therefore, we can reason:
+  -- 1. vals_normalized[c.output] = vals_original[c.output] for all positions in original region
+  -- 2. Specifically: vals_normalized[output] = vals_original[output]
+  --
+  -- To prove this rigorously, we need to show:
+  -- - The accumulated values (vals) at positions < c.nodes.size are the same
+  --   for both the original and normalized circuits
+  -- - This holds because evalNode is invariant under normalizeNodeCode
+  --
   sorry
 
 private def encodeNodeCode {n s : Nat} : NodeCode n s → Bool ⊕ Fin n ⊕ Fin s ⊕ Finset (Fin s) ⊕ Finset (Fin s)
