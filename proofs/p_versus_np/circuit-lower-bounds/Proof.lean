@@ -387,11 +387,26 @@ private theorem evalCircuit_normalizeCircuit {n s : Nat} (c : BoolCircuit n) (hs
     (inp : Fin n → Bool) :
     evalCircuit (normalizedToRaw (normalizeCircuit c hsize)) inp = evalCircuit c inp := by
   -- Proof strategy:
-  -- 1. evalCircuit uses Array.foldl to evaluate nodes in order
-  -- 2. normalizedToRaw creates an array with normalized versions of original nodes followed by const-false padding
-  -- 3. evalStep_fold_normalized_eq shows that folding over normalized nodes gives the same result as original
-  -- 4. The const-false padding doesn't affect evaluation of nodes at indices < original size
-  -- Implementation requires careful conversion between Array and List structures
+  -- The normalized circuit has the same first c.nodes.size nodes (normalized) 
+  -- followed by const-false padding. The evaluation of the first c.nodes.size positions
+  -- in the result array depends only on the first c.nodes.size nodes, and the 
+  -- const-false padding doesn't affect these positions.
+  
+  unfold evalCircuit normalizedToRaw normalizeCircuit
+  
+  -- The output of the normalized circuit is either:
+  -- - c.output (if c.output < c.nodes.size), or
+  -- - s (otherwise)
+  -- Either way, the output index is < s (since c.output < c.nodes.size ≤ s)
+  
+  -- Key lemma: evalStep_fold_getElem?_preserve shows that adding extra nodes
+  -- to the fold doesn't change values at indices < vals.size
+  
+  -- We need to show that:
+  -- 1. The fold over normalized nodes gives the same values as the fold over original nodes
+  --    for indices < c.nodes.size
+  -- 2. The output value at an index < c.nodes.size is the same in both circuits
+  
   sorry
 
 private def encodeNodeCode {n s : Nat} : NodeCode n s → Bool ⊕ Fin n ⊕ Fin s ⊕ Finset (Fin s) ⊕ Finset (Fin s)
@@ -798,21 +813,12 @@ private theorem n_squared_plus_n_quartic_lt_two_pow_n_200 (n : Nat) (hn : n ≥ 
     -/
 private theorem n_pow_lt_two_pow_n_general (n d : Nat) (hn : n ≥ d + 10) (hd : d ≥ 1) :
     n ^ d < 2 ^ n := by
-  -- Use the existing pattern from n_quartic_plus_lt_two_pow_n_200
-  -- Induct on a threshold: show that for all m ≥ n, the property holds
-  suffices ∀ m ≥ d + 10, m ^ d < 2 ^ m by exact this n hn
-  intro m hm
-  induction m, hm using Nat.le_induction with
-  | base =>
-    -- Base: m = d + 10
-    -- Need: (d + 10)^d < 2^(d + 10)
-    -- For d = 1: 11 < 2048 ✓
-    sorry
-  | succ m _ ih =>
-    -- Inductive: assume m^d < 2^m for m ≥ d + 10
-    -- Need: (m+1)^d < 2^(m+1) for m+1 ≥ d + 10
-    -- From IH: m^d < 2^m, so (m+1)^d < (... need to relate (m+1) to m ...)
-    sorry
+  -- TODO: Prove this using induction similar to n_quartic_plus_lt_two_pow_n_200
+  -- For now, leave as sorry - this is a standard exponential dominance result
+  -- The key is that n ≥ d + 10 ensures n is large enough for 2^n to dominate n^d
+  -- Base case: for d = 1, need n ≥ 11, and n < 2^n holds
+  -- Inductive step: use that (m+1)^d - m^d = O(m^(d-1)) < 2^m for large m
+  sorry
 
 /-- General helper: for any k ≥ 1, c ≥ 1, and n ≥ 100*k + c + 100,
     we have (c*n^k + c)^2 + 3*(c*n^k + c) + 1 < 2^n.
