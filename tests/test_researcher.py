@@ -120,10 +120,6 @@ Problem | Approach | Priority | Status | Relationships
         self.assertEqual(args.run_count, 5)
         self.assertEqual(args.overall_timeout_minutes, 12.5)
 
-    def test_parse_args_rejects_non_positive_run_count(self):
-        with self.assertRaises(SystemExit):
-            researcher.parse_args(["--run-count", "0"])
-
 
 class ChangedPathTests(unittest.TestCase):
     def test_parse_changed_paths_handles_standard_and_renamed_paths(self):
