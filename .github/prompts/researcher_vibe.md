@@ -64,9 +64,7 @@ Hard constraints:
 
 Validation expectations:
 
-- If the Lean toolchain is available, run `lake build`.
-- If you touch a proof `.lean` file and the Lean toolchain is available, also run:
-  `find proofs -name "*.lean" -print0 | while IFS= read -r -d '' f; do if ! lean "$f"; then exit 1; fi; done`
+- Run `lake env lean proofs/{problem_name}/{approach_name}/Proof.lean` to check for errors
 - If a validation command is unavailable, say that clearly in your final summary.
 
 Finish by printing a short summary that lists:
