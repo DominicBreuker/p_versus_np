@@ -387,41 +387,15 @@ private theorem evalCircuit_normalizeCircuit {n s : Nat} (c : BoolCircuit n) (hs
     (inp : Fin n → Bool) :
     evalCircuit (normalizedToRaw (normalizeCircuit c hsize)) inp = evalCircuit c inp := by
   unfold evalCircuit
-  -- The normalized circuit nodes are [original normalized] ++ [false padding]
-  have h_nodes := normalizeCircuit_nodes_list c hsize
-  -- The key insight: padding with const-false nodes doesn't affect evaluation
-  -- because false values don't propagate through AND/OR gates in a way that
-  -- changes the output at indices < c.nodes.size
-  
-  -- For the output: if c.output < c.nodes.size, it maps to the same position in normalized circuit
-  -- Otherwise, the output defaults to false (const false)
-  -- The key is to use normalizeCircuit_nodes_list to show the node lists match up
-  -- and show that the folded evaluation is the same
-  
-  -- First, let's unfold definitions to see what we're working with
   unfold normalizedToRaw
   simp only [circuitSize, Option.getD]
   
-  -- The approach: show that
-  -- Array.foldl over normalized nodes = Array.foldl over original nodes
-  -- We'll use Array.foldl on List.ofFn with the h_nodes equality
-  
-  -- Strategy (7 steps from README):
-  -- 1. Use normalizeCircuit_nodes_list to show normalized nodes = [original] ++ [padding]
-  -- 2. Split the foldl over this list
-  -- 3. Use evalStep_fold_normalized_eq to show original nodes don't change evaluation
-  -- 4. Show padding doesn't affect evaluation at indices < c.nodes.size
-  -- 5. Handle the output: if c.output < c.nodes.size, it's preserved
-  -- 6. Otherwise, output is false (const-false padding), which is correct
-  
-  -- Key lemmas available:
-  -- - normalizeCircuit_nodes_list: splits normalized nodes into prefix + suffix
-  -- - evalStep_fold_normalized_eq: shows normalization doesn't change node evaluations
-  -- - evalStep_fold_getElem?_preserve: shows adding nodes doesn't change existing indices
-  
-  -- Technical challenge: Converting between Array.foldl on Array.ofFn and List.foldl
-  -- The normalized circuit uses Array.ofFn (Fin s → NodeCode), while evalStep works with lists
-  -- This requires careful handling of the Array/List conversions
+  -- Key: evalCircuit evaluates all nodes then takes vals.getD output
+  -- Normalized circuit has [original nodes] ++ [false padding]
+  -- Since output < original circuit size, we only care about values at indices < original size
+  -- Adding false-padding nodes after doesn't change these values because:
+  -- 1. evalStep_fold_getElem?_preserve shows getD for old indices is preserved
+  -- 2. The output index is < c.nodes.size, so it's in the "before padding" region
   
   sorry
 
