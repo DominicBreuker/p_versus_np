@@ -165,7 +165,7 @@ class VibeExecutionTests(unittest.TestCase):
         line = '{"role":"assistant","content":"Hello from mock vibe."}\n'
         self.assertEqual(
             researcher.format_vibe_output_line(line),
-            "[vibe assistant] Hello from mock vibe.",
+            "🤖 \033[1m[vibe assistant] Hello from mock vibe.\033[0m",
         )
 
     def test_run_vibe_writes_and_cleans_prompt_file(self):
