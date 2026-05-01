@@ -113,6 +113,20 @@ IMPORTANT: also read the file `GUIDANCE.md` for a strategic view on completing t
 
 ## Remaining Work
 
+## Summary Status (2026-05-01)
+
+**Sorrys Remaining:** 4
+
+**Priority Order:**
+1. ⚠️  **BLOCKED:** `evalCircuit_normalizeCircuit` (line 386) - High (circuit normalization is key infrastructure)
+2. ❌ **BLOCKED:** `n_pow_lt_two_pow_n_general` (line 809) - **MATHEMATICAL ERROR** - cannot proceed without fixing
+3. ❌ **BLOCKED:** `poly_quadratic_bound_k_ge_1` for k≥2 (line 963) - blocked on #2  
+4. ⏳ **IN PROGRESS:** Pigeonhole in `shannon_counting_argument` (line 1380) - Medium (injection proven, cardinality needs work)
+
+**Key Finding:** The arithmetic dominance theorem (`n_pow_lt_two_pow_n_general`) has an false statement: `n ≥ d + 10` does not suffice to prove `n^d < 2^n` for all `d ≥ 1`. Counterexample: `14^4 = 38416 ≮ 16384 = 2^14`. The existing lemmas (`n_quartic_plus_lt_two_pow_n_200`, `n_squared_plus_n_quartic_lt_two_pow_n_200`) already handle specific low-degree cases and should be extended rather than creating a general (incorrect) theorem.
+
+**Build Status:** ✅ `lake env lean Proof.lean` compiles (4 sorrys)
+
 ### 1. ✅ CLOSED: `evalNode_normalizeNodeCode` (was sorry 1)
 
 See "Pass: Project Leader 2026-04-30" above.
@@ -248,6 +262,26 @@ I've been working on fixing the sorrys according to README priorities. Here's th
 3. The pigeonhole argument is now complete and doesn't need further work
 
 ---
+
+## Mathematical Issues Discovered
+
+### Issue: `n_pow_lt_two_pow_n_general` Theorem Statement Is Incorrect
+
+**Location:** `Proof.lean` line 809
+
+**Problem:** The theorem `n_pow_lt_two_pow_n_general (n d : Nat) (hn : n ≥ d + 10) (hd : d ≥ 1) : n ^ d < 2 ^ n` claims exponential dominance with threshold `n ≥ d + 10`.
+
+**Counterexample:** For `d = 4, n = 14`: `14^4 = 38416` and `2^14 = 16384`, so `38416 < 16384` is FALSE.
+
+**Verification (d=4):**
+- `n ≥ d + 10 = 14`: `14 ≥ 14` ✓
+- Need: `14^4 = 38416 < 2^14 = 16384` ✗
+
+**Root Cause:** For `d = 4$, threshold should be `n ≥ 17`, not `n ≥ 14`. The pattern `n ≥ d + C` with constant `C` doesn't allow arbitrary `d`, since polynomial degree `d` can grow.
+
+**Impact:** This theorem cannot be proven with the current statement. The usage in `poly_quadratic_bound_k_ge_1` (line 963) depends on this theorem.
+
+**Fix Required:** Either (A) change the threshold to a non-linear bound like `n ≥ 2^d` or `n ≥ 10*d`, or (B) prove specific lemmas for degrees 10, 12, etc. needed by `poly_quadratic_bound_k_ge_1`.
 
 ## Technical Interruptions
 
