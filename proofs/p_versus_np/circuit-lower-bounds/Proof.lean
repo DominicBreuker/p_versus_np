@@ -851,18 +851,21 @@ private theorem n_20_lt_two_pow_n (n : Nat) (hn : n ≥ 200) : n ^ 20 < 2 ^ n :=
     
     -- We verify the base (k=200) numerically:
     have h_base : 201 ^ 20 < 2 * 200 ^ 20 := by norm_num
-    -- For the inductive step, we need to show:
-    -- If (k+1)^20 / k^20 < 2, then ((k+1)+1)^20 / (k+1)^20 < 2
-    -- I.e., the ratio is monotonically decreasing
-    -- This is true because d/dk (1 + 1/k)^20 < 0 for k > 0
-    
-    -- Simpler approach: Prove by cases
-    -- For large k, the ratio is very close to 1
-    -- For k near 200, we rely on the base verification
-    
-    -- Since this is technically involved, we leave this as sorry
-    -- The structure is correct and the approach is sound
-    sorry
+    -- Also verify 2 * 200 ^ 20 < 2 ^ 200 for the chain
+    have h_base2 : 2 * 200 ^ 20 < 2 ^ 200 := by norm_num
+    -- For the inductive step, we show that if k >= 200 and k^20 < 2^k,
+    -- then (k+1)^20 < 2^(k+1).
+    -- 
+    -- Key: We show (k+1)^20 <= 2 * k^20, which allows us to chain:
+    -- (k+1)^20 < 2 * k^20 < 2 * 2^k = 2^(k+1)
+    --
+    -- For k >= 200, we use the monotonicity of (1+1/k)^20. Since this
+    -- function decreases as k increases, its maximum on k >= 200 occurs
+    -- at k = 200. We verify numerically that (201/200)^20 < 2.
+    -- Therefore for all k >= 200, (k+1)^20/k^20 = (1+1/k)^20 <= (201/200)^20 < 2.
+    --
+    -- For a complete formal proof, we would establish this monotonicity:
+    sorry  -- Need rigorous proof that (1+1/k)^20 is decreasing and (201/200)^20 < 2
 
 /-- For n ≥ 200 and d ≥ 1, we have n^d < 2^n.
     This establishes exponential dominance of 2^n over polynomial n^d for sufficiently large n.
