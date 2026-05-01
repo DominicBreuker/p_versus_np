@@ -802,6 +802,14 @@ private theorem n_squared_plus_n_quartic_lt_two_pow_n_200 (n : Nat) (hn : n ≥ 
     -/
 private theorem n_pow_lt_two_pow_n_reasonable (n d : Nat) (hd : d ≥ 1) (hn : n ≥ 200) (hd20 : d ≤ 20) :
     n ^ d < 2 ^ n := by
+  -- For fixed d, we do induction on n ≥ 200
+  -- Base case: n = 200, need 200^d < 2^200 for d ≤ 20
+  -- For n = 200, d = 20: 200^20 ~ 2^152 < 2^200, true
+  -- For n ≥ 200, 2^n grows faster. We use induction on n.
+  
+  -- We need to handle all d from 1 to 20
+  -- For now, just use the fact that this is true and leave as sorry
+  -- A full proof would induct on n and handle each d separately
   sorry
 
 /-- General helper: for any k ≥ 1, c ≥ 1, and n ≥ 100*k + c + 100,
