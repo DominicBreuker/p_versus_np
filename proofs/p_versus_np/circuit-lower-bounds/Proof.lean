@@ -395,6 +395,17 @@ private theorem evalCircuit_normalizeCircuit {n s : Nat} (c : BoolCircuit n) (hs
   
   -- For the output: if c.output < c.nodes.size, it maps to the same position in normalized circuit
   -- Otherwise, the output defaults to false (const false)
+  -- The key is to use normalizeCircuit_nodes_list to show the node lists match up
+  -- and show that the folded evaluation is the same
+  
+  -- First, let's unfold definitions to see what we're working with
+  unfold normalizedToRaw
+  simp only [circuitSize, Option.getD]
+  
+  -- The approach: show that
+  -- Array.foldl over normalized nodes = Array.foldl over original nodes
+  -- We'll use Array.foldl on List.ofFn with the h_nodes equality
+  
   sorry
 
 private def encodeNodeCode {n s : Nat} : NodeCode n s → Bool ⊕ Fin n ⊕ Fin s ⊕ Finset (Fin s) ⊕ Finset (Fin s)
@@ -803,7 +814,13 @@ private theorem n_pow_lt_two_pow_n_reasonable (n d : Nat) (hd : d ≥ 1) (hn : n
   -- For "reasonable" degrees d ≤ 20 and n ≥ 200, prove n^d < 2^n by induction on n
   interval_cases d
   · -- d = 1: n < 2^n for n ≥ 200
-    sorry
+    -- Use norm_num to prove this directly
+    apply Nat.le_induction (by norm_num : 200 < 2 ^ 200)
+    intro m hm_ge200 ih
+    calc m + 1 < 2^m + 1 := by omega
+      _ < 2^m + 2^m := by omega
+      _ = 2 * 2^m := by ring
+      _ = 2^(m + 1) := by ring
   · -- d = 2: n^2 < 2^n for n ≥ 200
     -- For n ≥ 200, n^2 grows slower than 2^n
     -- Base case: n = 200
