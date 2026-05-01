@@ -126,6 +126,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=None,
         help="custom prompt passed to Vibe CLI",
     )
+    parser.add_argument(
+        "--delay",
+        type=positive_int,
+        default=1,
+        help="time in seconds to wait between runs of vibe CLI",
+    )
     return parser.parse_args(argv)
 
 
@@ -1050,8 +1056,8 @@ def main() -> None:
         completed_runs = run_index
 
         if completed_runs > 0:
-            print("Sleeping for 60 seconds to avoid rate limits (speculative... actual rate limits unknown)")
-            time.sleep(60)
+            print(f"Sleeping for {args.delay} seconds to avoid rate limits (speculative... actual rate limits unknown)")
+            time.sleep(args.delay)
 
         try:
             if run_index == 1:

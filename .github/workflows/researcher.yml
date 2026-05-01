@@ -153,6 +153,7 @@ jobs:
           --run-count "${LEAN_RESEARCHER_RUN_COUNT}"
           --overall-timeout-minutes "${RESEARCHER_OVERALL_TIMEOUT_MINUTES}"
           --prompt "${CUSTOM_PROMPT}"
+          --delay 60
 
       - name: Configure Devstral researcher git identity
         run: |
@@ -171,6 +172,7 @@ jobs:
           --run-count "${DEVSTRAL_RESEARCHER_RUN_COUNT}"
           --overall-timeout-minutes "${RESEARCHER_OVERALL_TIMEOUT_MINUTES}"
           --prompt "${CUSTOM_PROMPT}"
+          --delay 60
 
       - name: Clean up trailing whitespace
         if: always()
