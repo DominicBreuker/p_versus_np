@@ -893,108 +893,469 @@ private theorem n_pow_lt_two_pow_n_reasonable (n d : Nat) (hd : d ≥ 1) (hn : n
     omega
   · -- d = 3: n^3 < 2^n for n ≥ 200
     -- Use: n^3 < n^4 < n^4 + 3*n^2 + 1 < 2^n (from n_quartic_plus_lt_two_pow_n_200)
-    calc n^3 < n^4 := by
-        apply Nat.pow_lt_pow_right
-        · norm_num
-        · omega
+    have h_n_pos : 1 < n := by omega
+    have h_3_lt_4 : 3 < 4 := by norm_num
+    calc n^3 < n^4 := Nat.pow_lt_pow_right h_n_pos h_3_lt_4
       _ < n^4 + 3*n^2 + 1 := by omega
       _ < 2^n := n_quartic_plus_lt_two_pow_n_200 n hn
   · -- d = 4: n^4 < 2^n for n ≥ 200
-    -- Use: n^4 < n^4 + 3*n^2 + 1 < 2^n (from n_quartic_plus_lt_two_pow_n_200)
-    -- This requires a helper lemma for n^4 < 2^n extracted from the quartic+ lemma
     calc n^4 < n^4 + 3*n^2 + 1 := by omega
       _ < 2^n := n_quartic_plus_lt_two_pow_n_200 n hn
-  · -- d = 5: n^5 < 2^n for n ≥ 200
+  · -- d =   · -- d = 5: n^5 < 2^n for n ≥ 200
     calc n^5 < n^20 := by
         apply Nat.pow_lt_pow_right
         · norm_num
         · omega
-      _ < 2^n := n_20_lt_two_pow_n n hn
-  · -- d = 6: n^6 < 2^n for n ≥ 200
-    calc n^6 < n^20 := by
+      : n^  · -- d = 5: n^5 < 2^n for n ≥ 200
+    calc n^5 < n^20 := by
         apply Nat.pow_lt_pow_right
         · norm_num
+        · omega
+       < 2^n for n ≥ 200
+    have h_n_pos : 1 < n := by omega  
+    have h_  · -- d = 5: n^5 < 2^n for n ≥ 200
+    calc n^5 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+      _lt_20 :   · -- d = 5: n^5 < 2^n for n ≥ 200
+    calc n^5 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+       < 20 := by norm_num
+    calc n^  · -- d = 5: n^5 < 2^n for n ≥ 200
+    calc n^5 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+       < n^20 := Nat.pow_lt_pow_right h_n_pos h_  · -- d = 5: n^5 < 2^n for n ≥ 200
+    calc n^5 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+      _lt_20
+      5  · -- d = 6: n^6 < 2^n for n ≥ 200
+    have h_n_pos : 1 < n := by omega
+    have h_6_lt_20 : 6 < 20 := by norm_num
+    calc n^6 < n^20 := Nat.pow_lt_pow_right h_n_pos h_6_lt_20
         · omega
       _ < 2^n := n_20_lt_two_pow_n n hn
   · -- d = 7: n^7 < 2^n for n ≥ 200
-    calc n^7 < n^20 := by
-        apply Nat.pow_lt_pow_right
-        · norm_num
+    have h_n_pos : 1 < n := by omega
+    have h_7_lt_20 : 7 < 20 := by norm_num
+    calc n^7 < n^20 := Nat.pow_lt_pow_right h_n_pos h_7_lt_20
         · omega
       _ < 2^n := n_20_lt_two_pow_n n hn
-  · -- d = 8: n^8 < 2^n for n ≥ 200
+  · -- d =   · -- d = 8: n^8 < 2^n for n ≥ 200
     calc n^8 < n^20 := by
         apply Nat.pow_lt_pow_right
         · norm_num
         · omega
-      _ < 2^n := n_20_lt_two_pow_n n hn
-  · -- d = 9: n^9 < 2^n for n ≥ 200
+      : n^  · -- d = 8: n^8 < 2^n for n ≥ 200
+    calc n^8 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+       < 2^n for n ≥ 200
+    have h_n_pos : 1 < n := by omega  
+    have h_  · -- d = 8: n^8 < 2^n for n ≥ 200
+    calc n^8 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+      _lt_20 :   · -- d = 8: n^8 < 2^n for n ≥ 200
+    calc n^8 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+       < 20 := by norm_num
+    calc n^  · -- d = 8: n^8 < 2^n for n ≥ 200
+    calc n^8 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+       < n^20 := Nat.pow_lt_pow_right h_n_pos h_  · -- d = 8: n^8 < 2^n for n ≥ 200
+    calc n^8 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+      _lt_20
+      8  · -- d =   · -- d = 9: n^9 < 2^n for n ≥ 200
     calc n^9 < n^20 := by
         apply Nat.pow_lt_pow_right
         · norm_num
         · omega
-      _ < 2^n := n_20_lt_two_pow_n n hn
-  · -- d = 10: n^10 < 2^n for n ≥ 200
+      : n^  · -- d = 9: n^9 < 2^n for n ≥ 200
+    calc n^9 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+       < 2^n for n ≥ 200
+    have h_n_pos : 1 < n := by omega  
+    have h_  · -- d = 9: n^9 < 2^n for n ≥ 200
+    calc n^9 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+      _lt_20 :   · -- d = 9: n^9 < 2^n for n ≥ 200
+    calc n^9 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+       < 20 := by norm_num
+    calc n^  · -- d = 9: n^9 < 2^n for n ≥ 200
+    calc n^9 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+       < n^20 := Nat.pow_lt_pow_right h_n_pos h_  · -- d = 9: n^9 < 2^n for n ≥ 200
+    calc n^9 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+      _lt_20
+      9  · -- d =   · -- d = 10: n^10 < 2^n for n ≥ 200
     calc n^10 < n^20 := by
         apply Nat.pow_lt_pow_right
         · norm_num
         · omega
-      _ < 2^n := n_20_lt_two_pow_n n hn
-  · -- d = 11: n^11 < 2^n for n ≥ 200
+      : n^  · -- d = 10: n^10 < 2^n for n ≥ 200
+    calc n^10 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+       < 2^n for n ≥ 200
+    have h_n_pos : 1 < n := by omega  
+    have h_  · -- d = 10: n^10 < 2^n for n ≥ 200
+    calc n^10 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+      _lt_20 :   · -- d = 10: n^10 < 2^n for n ≥ 200
+    calc n^10 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+       < 20 := by norm_num
+    calc n^  · -- d = 10: n^10 < 2^n for n ≥ 200
+    calc n^10 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+       < n^20 := Nat.pow_lt_pow_right h_n_pos h_  · -- d = 10: n^10 < 2^n for n ≥ 200
+    calc n^10 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+      _lt_20
+      10  · -- d =   · -- d = 11: n^11 < 2^n for n ≥ 200
     calc n^11 < n^20 := by
         apply Nat.pow_lt_pow_right
         · norm_num
         · omega
-      _ < 2^n := n_20_lt_two_pow_n n hn
-  · -- d = 12: n^12 < 2^n for n ≥ 200
+      : n^  · -- d = 11: n^11 < 2^n for n ≥ 200
+    calc n^11 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+       < 2^n for n ≥ 200
+    have h_n_pos : 1 < n := by omega  
+    have h_  · -- d = 11: n^11 < 2^n for n ≥ 200
+    calc n^11 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+      _lt_20 :   · -- d = 11: n^11 < 2^n for n ≥ 200
+    calc n^11 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+       < 20 := by norm_num
+    calc n^  · -- d = 11: n^11 < 2^n for n ≥ 200
+    calc n^11 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+       < n^20 := Nat.pow_lt_pow_right h_n_pos h_  · -- d = 11: n^11 < 2^n for n ≥ 200
+    calc n^11 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+      _lt_20
+      11  · -- d =   · -- d = 12: n^12 < 2^n for n ≥ 200
     calc n^12 < n^20 := by
         apply Nat.pow_lt_pow_right
         · norm_num
         · omega
-      _ < 2^n := n_20_lt_two_pow_n n hn
-  · -- d = 13: n^13 < 2^n for n ≥ 200
+      : n^  · -- d = 12: n^12 < 2^n for n ≥ 200
+    calc n^12 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+       < 2^n for n ≥ 200
+    have h_n_pos : 1 < n := by omega  
+    have h_  · -- d = 12: n^12 < 2^n for n ≥ 200
+    calc n^12 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+      _lt_20 :   · -- d = 12: n^12 < 2^n for n ≥ 200
+    calc n^12 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+       < 20 := by norm_num
+    calc n^  · -- d = 12: n^12 < 2^n for n ≥ 200
+    calc n^12 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+       < n^20 := Nat.pow_lt_pow_right h_n_pos h_  · -- d = 12: n^12 < 2^n for n ≥ 200
+    calc n^12 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+      _lt_20
+      12  · -- d =   · -- d = 13: n^13 < 2^n for n ≥ 200
     calc n^13 < n^20 := by
         apply Nat.pow_lt_pow_right
         · norm_num
         · omega
-      _ < 2^n := n_20_lt_two_pow_n n hn
-  · -- d = 14: n^14 < 2^n for n ≥ 200
+      : n^  · -- d = 13: n^13 < 2^n for n ≥ 200
+    calc n^13 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+       < 2^n for n ≥ 200
+    have h_n_pos : 1 < n := by omega  
+    have h_  · -- d = 13: n^13 < 2^n for n ≥ 200
+    calc n^13 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+      _lt_20 :   · -- d = 13: n^13 < 2^n for n ≥ 200
+    calc n^13 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+       < 20 := by norm_num
+    calc n^  · -- d = 13: n^13 < 2^n for n ≥ 200
+    calc n^13 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+       < n^20 := Nat.pow_lt_pow_right h_n_pos h_  · -- d = 13: n^13 < 2^n for n ≥ 200
+    calc n^13 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+      _lt_20
+      13  · -- d =   · -- d = 14: n^14 < 2^n for n ≥ 200
     calc n^14 < n^20 := by
         apply Nat.pow_lt_pow_right
         · norm_num
         · omega
-      _ < 2^n := n_20_lt_two_pow_n n hn
-  · -- d = 15: n^15 < 2^n for n ≥ 200
+      : n^  · -- d = 14: n^14 < 2^n for n ≥ 200
+    calc n^14 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+       < 2^n for n ≥ 200
+    have h_n_pos : 1 < n := by omega  
+    have h_  · -- d = 14: n^14 < 2^n for n ≥ 200
+    calc n^14 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+      _lt_20 :   · -- d = 14: n^14 < 2^n for n ≥ 200
+    calc n^14 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+       < 20 := by norm_num
+    calc n^  · -- d = 14: n^14 < 2^n for n ≥ 200
+    calc n^14 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+       < n^20 := Nat.pow_lt_pow_right h_n_pos h_  · -- d = 14: n^14 < 2^n for n ≥ 200
+    calc n^14 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+      _lt_20
+      14  · -- d =   · -- d = 15: n^15 < 2^n for n ≥ 200
     calc n^15 < n^20 := by
         apply Nat.pow_lt_pow_right
         · norm_num
         · omega
-      _ < 2^n := n_20_lt_two_pow_n n hn
-  · -- d = 16: n^16 < 2^n for n ≥ 200
+      : n^  · -- d = 15: n^15 < 2^n for n ≥ 200
+    calc n^15 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+       < 2^n for n ≥ 200
+    have h_n_pos : 1 < n := by omega  
+    have h_  · -- d = 15: n^15 < 2^n for n ≥ 200
+    calc n^15 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+      _lt_20 :   · -- d = 15: n^15 < 2^n for n ≥ 200
+    calc n^15 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+       < 20 := by norm_num
+    calc n^  · -- d = 15: n^15 < 2^n for n ≥ 200
+    calc n^15 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+       < n^20 := Nat.pow_lt_pow_right h_n_pos h_  · -- d = 15: n^15 < 2^n for n ≥ 200
+    calc n^15 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+      _lt_20
+      15  · -- d =   · -- d = 16: n^16 < 2^n for n ≥ 200
     calc n^16 < n^20 := by
         apply Nat.pow_lt_pow_right
         · norm_num
         · omega
-      _ < 2^n := n_20_lt_two_pow_n n hn
-  · -- d = 17: n^17 < 2^n for n ≥ 200
+      : n^  · -- d = 16: n^16 < 2^n for n ≥ 200
+    calc n^16 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+       < 2^n for n ≥ 200
+    have h_n_pos : 1 < n := by omega  
+    have h_  · -- d = 16: n^16 < 2^n for n ≥ 200
+    calc n^16 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+      _lt_20 :   · -- d = 16: n^16 < 2^n for n ≥ 200
+    calc n^16 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+       < 20 := by norm_num
+    calc n^  · -- d = 16: n^16 < 2^n for n ≥ 200
+    calc n^16 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+       < n^20 := Nat.pow_lt_pow_right h_n_pos h_  · -- d = 16: n^16 < 2^n for n ≥ 200
+    calc n^16 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+      _lt_20
+      16  · -- d =   · -- d = 17: n^17 < 2^n for n ≥ 200
     calc n^17 < n^20 := by
         apply Nat.pow_lt_pow_right
         · norm_num
         · omega
-      _ < 2^n := n_20_lt_two_pow_n n hn
-  · -- d = 18: n^18 < 2^n for n ≥ 200
+      : n^  · -- d = 17: n^17 < 2^n for n ≥ 200
+    calc n^17 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+       < 2^n for n ≥ 200
+    have h_n_pos : 1 < n := by omega  
+    have h_  · -- d = 17: n^17 < 2^n for n ≥ 200
+    calc n^17 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+      _lt_20 :   · -- d = 17: n^17 < 2^n for n ≥ 200
+    calc n^17 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+       < 20 := by norm_num
+    calc n^  · -- d = 17: n^17 < 2^n for n ≥ 200
+    calc n^17 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+       < n^20 := Nat.pow_lt_pow_right h_n_pos h_  · -- d = 17: n^17 < 2^n for n ≥ 200
+    calc n^17 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+      _lt_20
+      17  · -- d =   · -- d = 18: n^18 < 2^n for n ≥ 200
     calc n^18 < n^20 := by
         apply Nat.pow_lt_pow_right
         · norm_num
         · omega
-      _ < 2^n := n_20_lt_two_pow_n n hn
-  · -- d = 19: n^19 < 2^n for n ≥ 200
+      : n^  · -- d = 18: n^18 < 2^n for n ≥ 200
+    calc n^18 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+       < 2^n for n ≥ 200
+    have h_n_pos : 1 < n := by omega  
+    have h_  · -- d = 18: n^18 < 2^n for n ≥ 200
+    calc n^18 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+      _lt_20 :   · -- d = 18: n^18 < 2^n for n ≥ 200
+    calc n^18 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+       < 20 := by norm_num
+    calc n^  · -- d = 18: n^18 < 2^n for n ≥ 200
+    calc n^18 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+       < n^20 := Nat.pow_lt_pow_right h_n_pos h_  · -- d = 18: n^18 < 2^n for n ≥ 200
+    calc n^18 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+      _lt_20
+      18  · -- d =   · -- d = 19: n^19 < 2^n for n ≥ 200
     calc n^19 < n^20 := by
         apply Nat.pow_lt_pow_right
         · norm_num
         · omega
-      _ < 2^n := n_20_lt_two_pow_n n hn
-  · -- d = 20: n^20 < 2^n for n ≥ 200
+      : n^  · -- d = 19: n^19 < 2^n for n ≥ 200
+    calc n^19 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+       < 2^n for n ≥ 200
+    have h_n_pos : 1 < n := by omega  
+    have h_  · -- d = 19: n^19 < 2^n for n ≥ 200
+    calc n^19 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+      _lt_20 :   · -- d = 19: n^19 < 2^n for n ≥ 200
+    calc n^19 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+       < 20 := by norm_num
+    calc n^  · -- d = 19: n^19 < 2^n for n ≥ 200
+    calc n^19 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+       < n^20 := Nat.pow_lt_pow_right h_n_pos h_  · -- d = 19: n^19 < 2^n for n ≥ 200
+    calc n^19 < n^20 := by
+        apply Nat.pow_lt_pow_right
+        · norm_num
+        · omega
+      _lt_20
+      19  · -- d = 20: n^20 < 2^n for n ≥ 200
     exact n_20_lt_two_pow_n n hn
 
 /-- General helper: for any k ≥ 1, c ≥ 1, and n ≥ 100*k + c + 100,
