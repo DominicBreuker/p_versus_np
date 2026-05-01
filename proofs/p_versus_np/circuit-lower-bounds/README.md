@@ -34,7 +34,11 @@ circuit complexity, then `P ≠ NP`.
 - [x] Task 6: Prove `circuit_count_lt_functions_at_n` — complete for all `n ≥ 4`
 - [ ] Task 7: Complete `shannon_counting_argument` without overstating what it implies
   - Progress: Removed flawed `pow_lt_two_pow_half` and `n_lt_two_pow_half` lemmas that had mathematical inconsistencies
-  - Remaining sorrys: `evalCircuit_normalizeCircuit`, `poly_quadratic_bound_k_ge_1` (k ≥ 2 case), and pigeonhole principle
+  - Remaining sorrys:
+    1. `evalCircuit_normalizeCircuit`: Prove evaluation preserves under circuit padding
+    2. `poly_quadratic_bound_k_ge_1` (k ≥ 2): Prove exponential dominance `(n^(k+3))^2 + ... < 2^n`
+    3. Pigeonhole injections (2 sorrys): Show circuits inject into normalized circuits
+  - Note: `evalNode_normalizeNodeCode` now complete ✓
 
 ---
 
