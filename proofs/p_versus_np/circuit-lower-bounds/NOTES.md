@@ -17,7 +17,7 @@ This document tracks the current status of the circuit lower bounds proof for P 
 ### Build Status
 - ✅ `lake env lean Proof.lean` compiles successfully
 - ✅ `lake build` compiles with lint warnings  
-- ⚠️  **7 sorrys remain** in the proof (down from 10+ in previous iterations)
+- ⚠️  **5 sorrys remain** in the proof (down from 10+ in previous iterations)
 
 ### Main Theorem Status
 - ✅ `p_neq_np`: Conditional result compiles (depends on `sat_is_np_complete` and `sat_has_superpoly_lower_bound` axioms)
