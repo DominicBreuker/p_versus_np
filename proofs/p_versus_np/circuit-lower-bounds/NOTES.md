@@ -15,9 +15,9 @@ This document tracks the current status of the circuit lower bounds proof for P 
 ## Current Status
 
 ### Build Status
-- ✅ `lake env lean Proof.lean` compiles successfully
-- ✅ `lake build` compiles with lint warnings  
-- ⚠️  **1 sorry remains** in the proof
+- ⚠️  `lake env lean Proof.lean` compiles with errors from other parts
+- ⚠️  There is now 1 sorry in `shannon_counting_argument` (line 2190)
+- ⚠️  Note: Earlier attempts with circuitForFunction_normalized introduced complexity that needs revisiting
 
 ### Main Theorem Status
 - ✅ `p_neq_np`: Conditional result compiles (depends on `sat_is_np_complete` and `sat_has_superpoly_lower_bound` axioms)
@@ -76,7 +76,7 @@ This document tracks the current status of the circuit lower bounds proof for P 
 **Approach:** Direct proofs using existing arithmetic helpers and monotonicity arguments
 
 ### 5. Shannon Counting Argument ⚠️
-**Status:** Proof structure complete, 1 sorry remains
+**Status:** Proof structure complete, 1 sorry remains (at line 2190)
 
 **What's Proven:**
 - Polynomial-to-exponential counting bound: circuit_count_upper_bound n (p n) < boolean_function_count n
@@ -142,9 +142,21 @@ This document tracks the current status of the circuit lower bounds proof for P 
 **Key Challenge:** For k≤7, we have 2k+6 ≤ 20, so can apply bounded-degree helpers. For k>7, need stronger exponential dominance results or different bounding strategy.
 
 ### 4. Pigeonhole Cardinality in `shannon_counting_argument` (line 1578) ⚠️ LOW PRIORITY
-**Status:** ✅ **COMPLETED** - uses Fintype for `NormalizedCircuit n (p n)`  
+**Status:** Status in flux - previous attempt with `circuitForFunction_normalized` had issues  
 **Complexity:** Medium  
-**Estimated Effort:** 1-2 hours → **COMPLETED**
+**Estimated Effort:** 1-2 hours
+
+**What Was Attempted:**
+- Defined `circuitForFunction_normalized` mapping functions to normalized circuits
+- Proved injectivity using `evalCircuit_normalizeCircuit`
+- Got stuck on relating `normalized_circuit_count_upper_bound n (p n) ≤ circuit_count_upper_bound n (p n)`
+
+**Key Issue:** These bounds are NOT equal or easily related:
+- `normalized_circuit_count_upper_bound n s = (s + 1) * (2 ^ (n + s + 4)) ^ s`
+- `circuit_count_upper_bound n s = (s + 1) ^ (s + 1) * 2 ^ s`
+
+**Current Status:** Left with sorry in the counting argument section.
+**Next Steps:** Reconsider approach - maybe keep the original proof structure from commit 629cc9d
 
 **What's Done:**
 - Defined `circuitForFunction_normalized : ((Fin n → Bool) → Bool) → NormalizedCircuit n (p n)` by composing `circuitForFunction` with `normalizeCircuit`
