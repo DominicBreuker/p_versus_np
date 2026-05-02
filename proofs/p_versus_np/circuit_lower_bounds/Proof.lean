@@ -913,15 +913,79 @@ private theorem n_squared_plus_n_quartic_lt_two_pow_n_200 (n : Nat) (hn : n ≥ 
 
 
 
-/-- General helper: for any k ≥ 1, c ≥ 1, and n ≥ 100*k + c + 100,
-    we have (c*n^k + c)^2 + 3*(c*n^k + c) + 1 < 2^n.
-    This handles the k ≥ 1 case of poly_quadratic_bound.
+-- OPTION B — single general dominance lemma. Cleaner statement, but the proof
+-- has the OBSTACLE 1 issue (step lemma doesn't induct on D). The cleanest Lean
+-- route uses induction on n with a separately-proved step lemma.
+--
+-- Pros: One lemma covers all k. Shannon argument stays unrestricted in k.
+-- Cons: The step lemma (n+1)^D ≤ 2 * n^D requires either (a) a binomial bound
+--       calculation or (b) a Mathlib lemma that may or may not exist.
 
-    Mathematical note: For n ≥ 100*k + c + 100, we have n ≥ 200.
-    The LHS is a polynomial in n of degree 2k, while the RHS grows exponentially.
-    For sufficiently large n, exponential growth dominates polynomial growth.
-    The threshold ensures n is large enough for this to hold for all k ≥ 1, c ≥ 1.
-    -/
+-- STEP LEMMA — the heart of the difficulty.
+-- Claim: for n ≥ D^2 + 1 (or similar quadratic threshold), (n+1)^D ≤ 2 * n^D.
+--
+-- TRY MATHLIB FIRST. Search for one of:
+--   #check @Nat.add_pow_le_pow_mul_pow_of_sq_le_sq
+--   #check @Nat.Commute.add_pow
+--   #check @add_pow_le_pow_mul_pow_of_sq
+-- and various forms of "(a+b)^n ≤ ..." over Nat or in ordered semirings.
+--
+-- If nothing in Mathlib gives you (n+1)^D ≤ 2 * n^D directly, here is the
+-- proof skeleton via Bernoulli-style binomial bound:
+private theorem succ_pow_le_two_mul_pow (D n : Nat) (hn : n ≥ D * D + 1) :
+    (n + 1) ^ D ≤ 2 * n ^ D := by
+  -- Proof uses binomial expansion: (n+1)^D = ∑ C(D,i) * n^(D-i) for i=0..D
+  --                              = n^D + ∑_{i=1}^D C(D,i) * n^(D-i)
+  -- We bound the tail by n^D, giving (n+1)^D ≤ 2 * n^D.
+  --
+  -- KEY BOUND: ∑_{i=1}^D C(D,i) * n^(D-i) ≤ n^D when n ≥ D^2.
+  --   Proof:  C(D,i) ≤ D^i.
+  --           So C(D,i) * n^(D-i) ≤ D^i * n^(D-i) = (D/n)^i * n^D.
+  --           For n ≥ D^2, D/n ≤ 1/D, so (D/n)^i ≤ 1/D^i.
+  --           ∑_{i=1}^D 1/D^i ≤ (1/D) / (1 - 1/D) = 1/(D-1) ≤ 1 for D ≥ 2.
+  --
+  -- LEAN-FRIENDLY VERSION: instead of fractions, use multiplied form.
+  --   We want: ∑_{i=1}^D C(D,i) * n^(D-i) * D^i ≤ n^D * D     (?)
+  --   ... fiddly.
+  --
+  -- PRAGMATIC ALTERNATIVE: just prove the CONCRETE BOUND we need at
+  -- specific D = 2k+3 for k = 2..K_max via norm_num at base n = 100*k+101,
+  -- and induction on n with a hand-crafted step.
+  -- This punts the abstraction back to Option A.
+  --
+  -- IF YOU PROCEED WITH THIS LEMMA: try the following sequence of tactics
+  -- in order, stopping when one closes:
+  --   1. exact?            -- Mathlib search
+  --   2. polyrith          -- if it's a polynomial identity in disguise
+  --   3. nlinarith [hn, sq_nonneg n, sq_nonneg D, Nat.mul_le_mul_right ..]
+  --   4. Manual binomial expansion via Finset.sum and Nat.choose.
+  -- Realistically, 1-3 will not close it. You will need the manual proof.
+  sorry
+
+-- MAIN GENERAL LEMMA. Threshold T(D) = D^2 + 100 (chosen because:
+--   - T(7) = 149 ≤ 301 (which is what k=2, c=1 gives in your call site)
+--   - T(D) is ≤ 50*D - 49 for D ≥ 8 with growing slack
+-- which lets us slot directly into poly_quadratic_bound_k_ge_1 for k≥2.)
+private theorem n_pow_D_lt_two_pow_n (D : Nat) (n : Nat) (hn : n ≥ D * D + 100) :
+    n ^ D < 2 ^ n := by
+  -- Induction on n with base n = D * D + 100.
+  -- Reduction step uses succ_pow_le_two_mul_pow above.
+  --
+  -- BASE CASE: n = D * D + 100. Need (D*D+100)^D < 2^(D*D+100).
+  -- This is true but cannot be discharged by norm_num for symbolic D.
+  -- Need a separate induction on D for the base. Outline:
+  --   For D = 0: 1 < 2^100. ✓ by norm_num.
+  --   For D = 1: 101 < 2^101. ✓.
+  --   For D ≥ 2: assume (D*D+100)^D < 2^(D*D+100), show ((D+1)*(D+1)+100)^(D+1) < 2^((D+1)^2+100).
+  --   This sub-induction is itself fiddly.
+  --
+  -- ALTERNATIVE BASE: use an even larger threshold T(D) = 4^(D+1) + 100
+  -- where the base case has more slack. (4^(D+1)+100)^D vs 2^(4^(D+1)+100).
+  -- Take log: D * log2(4^(D+1)+100) ≤ D * (2*(D+1) + 1) = 2D^2 + 3D vs 4^(D+1)+100.
+  -- For D ≥ 1: 4^(D+1) ≥ 4*4 = 16 > 2D^2+3D-100? For D=1: 4^2=16, RHS = 5. ✓
+  -- This threshold is exponential in D, blowing the budget.
+  sorry
+
 private theorem poly_quadratic_bound_k_ge_1 (k c n : Nat) (hk : k ≥ 1) (hc : c ≥ 1)
     (hn : n ≥ 100 * k + c + 100) :
     (c * n ^ k + c) ^ 2 + 3 * (c * n ^ k + c) + 1 < 2 ^ n := by
@@ -984,7 +1048,27 @@ private theorem poly_quadratic_bound_k_ge_1 (k c n : Nat) (hk : k ≥ 1) (hc : c
       -- For now, leave this as sorry
       sorry
 
-/-- Helper for k=0: For c ≥ 0 and n ≥ 2*c + 5, 4*c^2 + 6*c + 1 < 2^n. -/
+-- ============================================================================
+-- SORRY 2 INFRASTRUCTURE — generic dominance lemma n^D < 2^n
+-- ============================================================================
+--
+-- We need n^D < 2^n for n ≥ T(D) where T(D) is small enough that
+-- T(2k+3) ≤ 100*k + 101 for all k ≥ 2. Numerically T(D) ≈ 50*D-49 suffices,
+-- so any T(D) growing slower than 50*D works. We use T(D) = D^2 + 100.
+--
+-- The proof has TWO independent obstacles. Read carefully before starting.
+--
+-- OBSTACLE 1: the "step" lemma (n+1)^D ≤ 2 * n^D for n ≥ 2D.
+--   This is mathematically true (since (1 + 1/n)^D ≤ e^(D/n) ≤ e^(1/2) < 2)
+--   but does NOT prove by simple induction on D, because the IH at D gives
+--   (n+1)^D ≤ 2*n^D, then (n+1)^(D+1) = (n+1)*(n+1)^D ≤ 2*(n+1)*n^D,
+--   and we'd want this ≤ 2*n^(D+1) = 2*n*n^D, which would require n+1 ≤ n. ✗
+--
+-- OBSTACLE 2: the "base" case at n = T(D).
+--   For T(D) = D^2 + 100, base is (D^2 + 100)^D < 2^(D^2 + 100), which is
+--   true but cannot be discharged by `norm_num` for general D — it needs
+--   a separate induction on D.
+-- We proceed with OPTION B to solve this
 private theorem poly_quadratic_bound_k0 (c : Nat) (n : Nat) (hn : n ≥ 2 * c + 5) :
     4 * c ^ 2 + 6 * c + 1 < 2 ^ n := by
   -- We'll show 4*c^2 + 6*c + 1 < 2^(2*c + 5) ≤ 2^n
