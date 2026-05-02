@@ -2180,18 +2180,49 @@ theorem shannon_counting_argument :
     -- then by the pigeonhole principle, circuitForFunction cannot be injective
     -- But we've shown it is injective (h_injective), so we must have boolean_function_count n ≤ circuit_count_upper_bound n (p n)
 
-    -- For now, we use a direct approach based on the definitions
+    -- We use the pigeonhole principle with Fintype instances for normalized circuits
     have h_ge : boolean_function_count n ≤ circuit_count_upper_bound n (p n) := by
-      -- We use the pigeonhole principle with Fintype instances
-      -- Since circuitForFunction is injective (h_injective),
-      -- and maps functions ((Fin n -> Bool) -> Bool) to BoolCircuits of size <= p n,
-      -- we have: #functions ≤ #circuits
+      -- Define a function from Boolean functions to NormalizedCircuit n (p n)
+      -- by normalizing the circuit for each function
+      let circuitForFunction_normalized : ((Fin n → Bool) → Bool) → NormalizedCircuit n (p n) :=
+        fun f => normalizeCircuit (circuitForFunction f) (Classical.choose_spec (h_all_computable f)).1
       
-      -- Since ((Fin n -> Bool) -> Bool) has a Fintype instance,
-      -- and the set of circuits of size <= p n has bounded cardinality,
-      -- we get the desired inequality.
+      -- Show this function is injective
+      have h_inj_normalized : Function.Injective circuitForFunction_normalized := by
+        intro f g hfg
+        -- If normalized circuits are equal, then the original circuits are equal (by evalCircuit_normalizeCircuit)
+        -- From this, we get f = g, and thus circuitForFunction f = circuitForFunction g
+        apply h_injective
+        -- It suffices to show f = g by function extensionality
+        ext inp
+        -- Show f inp = g inp by showing both equal evalCircuit (circuitForFunction f) inp
+        calc f inp
+            = evalCircuit c_f inp := (Classical.choose_spec (h_all_computable f)).2 inp
+          _ = evalCircuit (normalizedToRaw (normalizeCircuit c_f (Classical.choose_spec (h_all_computable f)).1)) inp := 
+              (evalCircuit_normalizeCircuit c_f (Classical.choose_spec (h_all_computable f)).1 inp).symm
+          _ = evalCircuit (normalizedToRaw (normalizeCircuit c_g (Classical.choose_spec (h_all_computable g)).1)) inp := by rw [hfg]
+          _ = evalCircuit (normalizedToRaw (normalizeCircuit c_g (Classical.choose_spec (h_all_computable g)).1)) inp := rfl
+          _ = evalCircuit c_g inp := evalCircuit_normalizeCircuit c_g (Classical.choose_spec (h_all_computable g)).1 inp
+          _ = g inp := (Classical.choose_spec (h_all_computable g)).2 inp
       
-      sorry
+      -- Now use Fintype cardinality
+      -- The domain has cardinality boolean_function_count n
+      -- The image is in NormalizedCircuit n (p n), which has cardinality ≤ normalized_circuit_count_upper_bound n (p n)
+      -- By injectivity, boolean_function_count n ≤ Fintype.card (NormalizedCircuit n (p n))
+      have h_card_le : Fintype.card (NormalizedCircuit n (p n)) ≤ normalized_circuit_count_upper_bound n (p n) :=
+        normalized_circuit_card_le n (p n)
+      
+      -- We have h_inj_normalized, so we need a lemma that says
+      -- for an injective function f : α → β where β has Fintype,
+      -- Fintype.card α ≤ Fintype.card β
+      have h_domain_card : Fintype.card ((Fin n → Bool) → Bool) = boolean_function_count n := by rfl
+      rw [h_domain_card]
+      calc boolean_function_count n
+          = Fintype.card ((Fin n → Bool) → Bool) := by rfl
+        _ ≤ Fintype.card (NormalizedCircuit n (p n)) :=
+            Fintype.card_le_of_injective circuitForFunction_normalized h_inj_normalized
+        _ ≤ normalized_circuit_count_upper_bound n (p n) := h_card_le
+        _ = circuit_count_upper_bound n (p n) := by rfl
   -- Now we have boolean_function_count n ≤ circuit_count_upper_bound n (p n)
   -- and circuit_count_upper_bound n (p n) < boolean_function_count n
   -- This is a contradiction

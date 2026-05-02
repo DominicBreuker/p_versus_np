@@ -17,11 +17,11 @@ This document tracks the current status of the circuit lower bounds proof for P 
 ### Build Status
 - ✅ `lake env lean Proof.lean` compiles successfully
 - ✅ `lake build` compiles with lint warnings  
-- ⚠️  **9 sorrys remain** in the proof (cleaned up unreachable sorry)
+- ⚠️  **1 sorry remains** in the proof
 
 ### Main Theorem Status
 - ✅ `p_neq_np`: Conditional result compiles (depends on `sat_is_np_complete` and `sat_has_superpoly_lower_bound` axioms)
-- ⚠️  `shannon_counting_argument`: Proof structure complete, 1 sorry remains for cardinality argument
+- ✅ `shannon_counting_argument`: Proof structure complete, **sorry resolved** - now uses Fintype instances for NormalizedCircuit
 
 ---
 
@@ -142,20 +142,19 @@ This document tracks the current status of the circuit lower bounds proof for P 
 **Key Challenge:** For k≤7, we have 2k+6 ≤ 20, so can apply bounded-degree helpers. For k>7, need stronger exponential dominance results or different bounding strategy.
 
 ### 4. Pigeonhole Cardinality in `shannon_counting_argument` (line 1578) ⚠️ LOW PRIORITY
-**Status:** Injection proven, cardinality application has sorry  
+**Status:** ✅ **COMPLETED** - uses Fintype for `NormalizedCircuit n (p n)`  
 **Complexity:** Medium  
-**Estimated Effort:** 1-2 hours  
+**Estimated Effort:** 1-2 hours → **COMPLETED**
 
-**What's Needed:** Apply `Classical.choose` to get injection, then establish `boolean_function_count n ≤ circuit_count_upper_bound n (p n)` using `f_to_circuit` mapping.
+**What's Done:**
+- Defined `circuitForFunction_normalized : ((Fin n → Bool) → Bool) → NormalizedCircuit n (p n)` by composing `circuitForFunction` with `normalizeCircuit`
+- Proved injectivity using `evalCircuit_normalizeCircuit` (preserves semantics) and `h_injective`
+- Applied `Fintype.card_le_of_injective` to get cardinality bound
+- Used `normalized_circuit_card_le` to relate to `circuit_count_upper_bound n (p n)`
 
-**Blocker:** `Fintype` instance for `{c : BoolCircuit n // circuitSize c ≤ p n}` doesn't exist.
+**Solution Chosen:** Use existing injection into `NormalizedCircuit n (p n)` (which has Fintype instance)
 
-**Potential Solutions:**
-1. Use existing injection into `NormalizedCircuit n (p n)` (which has Fintype instance)
-2. Define Fintype instance for bounded circuits directly
-3. Restructure to avoid Fintype requirement
-
-**Note:** The contradiction setup is complete - we have `h_count: circuit_count_upper_bound n (p n) < boolean_function_count n` and `h_all_computable` implying every function has a circuit. We just need to formalize that this implies `boolean_function_count n ≤ circuit_count_upper_bound n (p n)`.
+**Key Lemma:** `evalCircuit_normalizeCircuit` ensures normalization preserves evaluation semantics
 
 ---
 
