@@ -463,7 +463,7 @@ private theorem node_code_card_le (n s : Nat) :
   have htwo : 2 ≤ 2 ^ (n + s + 1) := by
     have h1 : 1 ≤ n + s + 1 := by omega
     calc 2 = 2 ^ 1 := by norm_num
-      _ ≤ 2 ^ (n + s + 1) := Nat.pow_le_pow_right (by decide) h1
+      _ ≤ 2 ^ (n + s + 1) := Nat.pow_le_pow_right (by norm_num) h1
   calc
     Fintype.card (NodeCode n s) ≤ 2 + n + s + 2 ^ s + 2 ^ s := hcard
     _ ≤ 2 ^ (n + s + 1) + 2 ^ (n + s + 1) + 2 ^ (n + s + 1) + 2 ^ (n + s + 1) + 2 ^ (n + s + 1) := by omega
@@ -509,7 +509,7 @@ private theorem n_plus_one_le_two_pow_n (n : Nat) (hn : n ≥ 1) : n + 1 ≤ 2 ^
         _ ≤ 2 ^ (n + 1) + 2 ^ (n + 1) := by
           have : 1 ≤ 2 ^ (n + 1) := by
             have : n + 1 ≥ 1 := by omega
-            exact Nat.one_le_pow (n + 1) 2 (by decide)
+            exact Nat.one_le_pow (n + 1) 2 (by norm_num)
           omega
         _ = 2 * 2 ^ (n + 1) := by ring
         _ = 2 ^ (n + 2) := by rw [Nat.pow_succ]; ring
@@ -551,7 +551,7 @@ private theorem n_squared_plus_two_n_lt_two_pow_n (n : Nat) (hn : n ≥ 9) :
                       have : m ≥ 1 := by omega
                       have : 1 ≤ m := by omega
                       calc 2 = 2 ^ 1 := by norm_num
-                        _ ≤ 2 ^ m := Nat.pow_le_pow_right (by decide) this
+                        _ ≤ 2 ^ m := Nat.pow_le_pow_right (by norm_num) this
                     omega
                 _ = 2 * 2 ^ m := by ring
                 _ = 2 ^ (m + 1) := by rw [Nat.pow_succ]; ring
@@ -646,7 +646,7 @@ private theorem four_n_squared_plus_six_n_plus_one_lt_two_pow_n (n : Nat) (hn : 
                     have : 8 ≤ 2 ^ m := by
                       have : m ≥ 3 := by omega
                       calc 8 = 2 ^ 3 := by norm_num
-                        _ ≤ 2 ^ m := Nat.pow_le_pow_right (by decide) this
+                        _ ≤ 2 ^ m := Nat.pow_le_pow_right (by norm_num) this
                     omega
                 _ = 2 * 2 ^ m := by ring
                 _ = 2 ^ (m + 1) := by rw [Nat.pow_succ]; ring
@@ -1079,7 +1079,7 @@ private theorem poly_quadratic_bound_k_ge_1 (k c n : Nat) (hk : k ≥ 1) (hc : c
               have : n ^ 20 ≤ 1023 ^ 20 := by
                 apply Nat.pow_le_pow_left
                 omega
-              have : 1023 ^ 20 < 1024 ^ 20 := by decide
+              have : 1023 ^ 20 < 1024 ^ 20 := by norm_num
               omega
             omega
           have h_1024_20 : 1024 ^ 20 = 2 ^ 200 := by
@@ -1123,7 +1123,7 @@ private theorem poly_quadratic_bound_k_ge_1 (k c n : Nat) (hk : k ≥ 1) (hc : c
                 have : n ^ 40 ≤ 2047 ^ 40 := by
                   apply Nat.pow_le_pow_left
                   omega
-                have : 2047 ^ 40 < 2048 ^ 40 := by decide
+                have : 2047 ^ 40 < 2048 ^ 40 := by norm_num
                 omega
               omega
             have h_2048_40 : 2048 ^ 40 = 2 ^ 440 := by
@@ -1167,7 +1167,7 @@ private theorem poly_quadratic_bound_k_ge_1 (k c n : Nat) (hk : k ≥ 1) (hc : c
                   have : n ^ 80 ≤ 4095 ^ 80 := by
                     apply Nat.pow_le_pow_left
                     omega
-                  have : 4095 ^ 80 < 4096 ^ 80 := by decide
+                  have : 4095 ^ 80 < 4096 ^ 80 := by norm_num
                   omega
                 omega
               have h_4096_80 : 4096 ^ 80 = 2 ^ 960 := by
@@ -1211,7 +1211,7 @@ private theorem poly_quadratic_bound_k_ge_1 (k c n : Nat) (hk : k ≥ 1) (hc : c
                     have : n ^ 162 ≤ 8191 ^ 162 := by
                       apply Nat.pow_le_pow_left
                       omega
-                    have : 8191 ^ 162 < 8192 ^ 162 := by decide
+                    have : 8191 ^ 162 < 8192 ^ 162 := by norm_num
                     omega
                   omega
                 have h_8192_162 : 8192 ^ 162 = 2 ^ 2106 := by
@@ -1347,19 +1347,25 @@ private theorem poly_quadratic_bound_k_ge_1 (k c n : Nat) (hk : k ≥ 1) (hc : c
                       have h1 : n ^ (2 * k + 6) ≤ n ^ 654 := by
                         apply Nat.pow_le_pow_right h_n_pos; omega
                       have h2 : n ^ 654 < 2 ^ (n - 1) := by
-                        have h3 : n ^ 654 ≤ 32767 ^ 654 := by apply Nat.pow_le_pow_left; omega
+                        have h3 : n ^ 654 ≤ 32767 ^ 654 := by
+                          apply Nat.pow_le_pow_left
+                          omega
                         have h4 : 32767 ^ 654 < 2 ^ 9810 := by
-                          have h_mono : StrictMono (· ^ 654 : Nat → Nat) := Nat.pow_left_strictMono (by decide)
-                          calc 32767 ^ 654 < 32768 ^ 654 := h_mono (by decide)
-                            _ = (2 ^ 15) ^ 654 := by rw [show 32768 = 2 ^ 15 by rfl]
+                          have h_mono : StrictMono (· ^ 654 : Nat → Nat) := Nat.pow_left_strictMono (by norm_num)
+                          calc 32767 ^ 654 < 32768 ^ 654 := h_mono (by norm_num)
+                            _ = (2 ^ 15) ^ 654 := by rw [show 32768 = 2 ^ 15 by norm_num]
                             _ = 2 ^ (15 * 654) := by rw [← Nat.pow_mul]
-                            _ = 2 ^ 9810 := by rfl
-                        have h5 : 2 ^ 9810 < 2 ^ (n - 1) := by apply Nat.pow_lt_pow_right; decide; omega
-                        omega
-                      omega
+                            _ = 2 ^ 9810 := by norm_num
+                        have h5 : 2 ^ 9810 < 2 ^ (n - 1) := by
+                          apply Nat.pow_lt_pow_right
+                          · norm_num
+                          · omega
+                        calc n ^ 654 ≤ 32767 ^ 654 := h3
+                          _ < 2 ^ 9810 := h4
+                          _ < 2 ^ (n - 1) := h5
                     calc (n ^ (k + 3)) ^ 2 + 3 * (n ^ (k + 3)) + 1
                         ≤ 2 * n ^ (2 * k + 6) := h_poly_bound2
-                      _ < 2 * (2 ^ (n - 1)) := by rw [Nat.mul_lt_mul_left (by decide)]; exact h_pow_final
+                      _ < 2 * (2 ^ (n - 1)) := by rw [Nat.mul_lt_mul_left (by norm_num)]; exact h_pow_final
                       _ = 2 ^ n := by ring; congr 1; omega
                   · -- Case 2b2b2b: n ≥ 32768
                     push Not at hn_32768
@@ -1370,19 +1376,26 @@ private theorem poly_quadratic_bound_k_ge_1 (k c n : Nat) (hk : k ≥ 1) (hc : c
                         have h1 : n ^ (2 * k + 6) ≤ n ^ 1310 := by
                           apply Nat.pow_le_pow_right h_n_pos; omega
                         have h2 : n ^ 1310 < 2 ^ (n - 1) := by
-                          have h3 : n ^ 1310 ≤ 65535 ^ 1310 := by apply Nat.pow_le_pow_left; omega
+                          have h3 : n ^ 1310 ≤ 65535 ^ 1310 := by
+                            apply Nat.pow_le_pow_left
+                            omega
                           have h4 : 65535 ^ 1310 < 2 ^ 20960 := by
-                            have h_mono : StrictMono (· ^ 1310 : Nat → Nat) := Nat.pow_left_strictMono (by decide)
-                            calc 65535 ^ 1310 < 65536 ^ 1310 := h_mono (by decide)
-                              _ = (2 ^ 16) ^ 1310 := by rw [show 65536 = 2 ^ 16 by rfl]
+                            have h_mono : StrictMono (· ^ 1310 : Nat → Nat) := Nat.pow_left_strictMono (by norm_num)
+                            calc 65535 ^ 1310 < 65536 ^ 1310 := h_mono (by norm_num)
+                              _ = (2 ^ 16) ^ 1310 := by rw [show 65536 = 2 ^ 16 by norm_num]
                               _ = 2 ^ (16 * 1310) := by rw [← Nat.pow_mul]
-                              _ = 2 ^ 20960 := by rfl
-                          have h5 : 2 ^ 20960 < 2 ^ (n - 1) := by apply Nat.pow_lt_pow_right; decide; omega
-                          omega
+                              _ = 2 ^ 20960 := by norm_num
+                          have h5 : 2 ^ 20960 < 2 ^ (n - 1) := by
+                            apply Nat.pow_lt_pow_right
+                            · norm_num
+                            · omega
+                          calc n ^ 1310 ≤ 65535 ^ 1310 := h3
+                            _ < 2 ^ 20960 := h4
+                            _ < 2 ^ (n - 1) := h5
                         omega
                       calc (n ^ (k + 3)) ^ 2 + 3 * (n ^ (k + 3)) + 1
                           ≤ 2 * n ^ (2 * k + 6) := h_poly_bound2
-                        _ < 2 * (2 ^ (n - 1)) := by rw [Nat.mul_lt_mul_left (by decide)]; exact h_pow_final
+                        _ < 2 * (2 ^ (n - 1)) := by rw [Nat.mul_lt_mul_left (by norm_num)]; exact h_pow_final
                         _ = 2 ^ n := by ring; congr 1; omega
                     · -- Case 2b2b2b2: n ≥ 65536
                       push Not at hn_65536
@@ -1393,19 +1406,26 @@ private theorem poly_quadratic_bound_k_ge_1 (k c n : Nat) (hk : k ≥ 1) (hc : c
                           have h1 : n ^ (2 * k + 6) ≤ n ^ 2622 := by
                             apply Nat.pow_le_pow_right h_n_pos; omega
                           have h2 : n ^ 2622 < 2 ^ (n - 1) := by
-                            have h3 : n ^ 2622 ≤ 131071 ^ 2622 := by apply Nat.pow_le_pow_left; omega
+                            have h3 : n ^ 2622 ≤ 131071 ^ 2622 := by
+                              apply Nat.pow_le_pow_left
+                              omega
                             have h4 : 131071 ^ 2622 < 2 ^ 44574 := by
-                              have h_mono : StrictMono (· ^ 2622 : Nat → Nat) := Nat.pow_left_strictMono (by decide)
-                              calc 131071 ^ 2622 < 131072 ^ 2622 := h_mono (by decide)
-                                _ = (2 ^ 17) ^ 2622 := by rw [show 131072 = 2 ^ 17 by rfl]
+                              have h_mono : StrictMono (· ^ 2622 : Nat → Nat) := Nat.pow_left_strictMono (by norm_num)
+                              calc 131071 ^ 2622 < 131072 ^ 2622 := h_mono (by norm_num)
+                                _ = (2 ^ 17) ^ 2622 := by rw [show 131072 = 2 ^ 17 by norm_num]
                                 _ = 2 ^ (17 * 2622) := by rw [← Nat.pow_mul]
-                                _ = 2 ^ 44574 := by rfl
-                            have h5 : 2 ^ 44574 < 2 ^ (n - 1) := by apply Nat.pow_lt_pow_right; decide; omega
-                            omega
+                                _ = 2 ^ 44574 := by norm_num
+                            have h5 : 2 ^ 44574 < 2 ^ (n - 1) := by
+                              apply Nat.pow_lt_pow_right
+                              · norm_num
+                              · omega
+                            calc n ^ 2622 ≤ 131071 ^ 2622 := h3
+                              _ < 2 ^ 44574 := h4
+                              _ < 2 ^ (n - 1) := h5
                           omega
                         calc (n ^ (k + 3)) ^ 2 + 3 * (n ^ (k + 3)) + 1
                             ≤ 2 * n ^ (2 * k + 6) := h_poly_bound2
-                          _ < 2 * (2 ^ (n - 1)) := by rw [Nat.mul_lt_mul_left (by decide)]; exact h_pow_final
+                          _ < 2 * (2 ^ (n - 1)) := by rw [Nat.mul_lt_mul_left (by norm_num)]; exact h_pow_final
                           _ = 2 ^ n := by ring; congr 1; omega
                       · -- Case 2b2b2b2b: n ≥ 131072
                         push Not at hn_131072
@@ -1416,19 +1436,26 @@ private theorem poly_quadratic_bound_k_ge_1 (k c n : Nat) (hk : k ≥ 1) (hc : c
                             have h1 : n ^ (2 * k + 6) ≤ n ^ 5242 := by
                               apply Nat.pow_le_pow_right h_n_pos; omega
                             have h2 : n ^ 5242 < 2 ^ (n - 1) := by
-                              have h3 : n ^ 5242 ≤ 262143 ^ 5242 := by apply Nat.pow_le_pow_left; omega
+                              have h3 : n ^ 5242 ≤ 262143 ^ 5242 := by
+                                apply Nat.pow_le_pow_left
+                                omega
                               have h4 : 262143 ^ 5242 < 2 ^ 94356 := by
-                                have h_mono : StrictMono (· ^ 5242 : Nat → Nat) := Nat.pow_left_strictMono (by decide)
-                                calc 262143 ^ 5242 < 262144 ^ 5242 := h_mono (by decide)
-                                  _ = (2 ^ 18) ^ 5242 := by rw [show 262144 = 2 ^ 18 by rfl]
+                                have h_mono : StrictMono (· ^ 5242 : Nat → Nat) := Nat.pow_left_strictMono (by norm_num)
+                                calc 262143 ^ 5242 < 262144 ^ 5242 := h_mono (by norm_num)
+                                  _ = (2 ^ 18) ^ 5242 := by rw [show 262144 = 2 ^ 18 by norm_num]
                                   _ = 2 ^ (18 * 5242) := by rw [← Nat.pow_mul]
-                                  _ = 2 ^ 94356 := by rfl
-                              have h5 : 2 ^ 94356 < 2 ^ (n - 1) := by apply Nat.pow_lt_pow_right; decide; omega
-                              omega
+                                  _ = 2 ^ 94356 := by norm_num
+                              have h5 : 2 ^ 94356 < 2 ^ (n - 1) := by
+                                apply Nat.pow_lt_pow_right
+                                · norm_num
+                                · omega
+                              calc n ^ 5242 ≤ 262143 ^ 5242 := h3
+                                _ < 2 ^ 94356 := h4
+                                _ < 2 ^ (n - 1) := h5
                             omega
                           calc (n ^ (k + 3)) ^ 2 + 3 * (n ^ (k + 3)) + 1
                               ≤ 2 * n ^ (2 * k + 6) := h_poly_bound2
-                            _ < 2 * (2 ^ (n - 1)) := by rw [Nat.mul_lt_mul_left (by decide)]; exact h_pow_final
+                            _ < 2 * (2 ^ (n - 1)) := by rw [Nat.mul_lt_mul_left (by norm_num)]; exact h_pow_final
                             _ = 2 ^ n := by ring; congr 1; omega
                         · -- Case 2b2b2b2b2: n ≥ 262144
                           push Not at hn_262144
@@ -1439,18 +1466,26 @@ private theorem poly_quadratic_bound_k_ge_1 (k c n : Nat) (hk : k ≥ 1) (hc : c
                               have h1 : n ^ (2 * k + 6) ≤ n ^ 10482 := by
                                 apply Nat.pow_le_pow_right h_n_pos; omega
                               have h2 : n ^ 10482 < 2 ^ (n - 1) := by
-                                have h3 : n ^ 10482 ≤ 524287 ^ 10482 := by apply Nat.pow_le_pow_left; omega
+                                have h3 : n ^ 10482 ≤ 524287 ^ 10482 := by
+                                  apply Nat.pow_le_pow_left
+                                  omega
                                 have h4 : 524287 ^ 10482 < 2 ^ 200158 := by
-                                  have h_mono : StrictMono (· ^ 10482 : Nat → Nat) := Nat.pow_left_strictMono (by decide)
-                                  calc 524287 ^ 10482 < 524288 ^ 10482 := h_mono (by decide)
-                                    _ = (2 ^ 19) ^ 10482 := by rw [show 524288 = 2 ^ 19 by rfl]
-                                    _ = 2 ^ 200158 := by rw [← Nat.pow_mul]; norm_num
-                                have h5 : 2 ^ 200158 < 2 ^ (n - 1) := by apply Nat.pow_lt_pow_right; decide; omega
-                                omega
+                                  have h_mono : StrictMono (· ^ 10482 : Nat → Nat) := Nat.pow_left_strictMono (by norm_num)
+                                  calc 524287 ^ 10482 < 524288 ^ 10482 := h_mono (by norm_num)
+                                    _ = (2 ^ 19) ^ 10482 := by rw [show 524288 = 2 ^ 19 by norm_num]
+                                    _ = 2 ^ (19 * 10482) := by rw [← Nat.pow_mul]
+                                    _ = 2 ^ 200158 := by norm_num
+                                have h5 : 2 ^ 200158 < 2 ^ (n - 1) := by
+                                  apply Nat.pow_lt_pow_right
+                                  · norm_num
+                                  · omega
+                                calc n ^ 10482 ≤ 524287 ^ 10482 := h3
+                                  _ < 2 ^ 200158 := h4
+                                  _ < 2 ^ (n - 1) := h5
                               omega
                             calc (n ^ (k + 3)) ^ 2 + 3 * (n ^ (k + 3)) + 1
                                 ≤ 2 * n ^ (2 * k + 6) := h_poly_bound2
-                              _ < 2 * (2 ^ (n - 1)) := by rw [Nat.mul_lt_mul_left (by decide)]; exact h_pow_final
+                              _ < 2 * (2 ^ (n - 1)) := by rw [Nat.mul_lt_mul_left (by norm_num)]; exact h_pow_final
                               _ = 2 ^ n := by ring; congr 1; omega
                           · -- Case 2b2b2b2b2b: n ≥ 524288
                             push Not at hn_524288
@@ -1461,19 +1496,26 @@ private theorem poly_quadratic_bound_k_ge_1 (k c n : Nat) (hk : k ≥ 1) (hc : c
                                 have h1 : n ^ (2 * k + 6) ≤ n ^ 20966 := by
                                   apply Nat.pow_le_pow_right h_n_pos; omega
                                 have h2 : n ^ 20966 < 2 ^ (n - 1) := by
-                                  have h3 : n ^ 20966 ≤ 1048575 ^ 20966 := by apply Nat.pow_le_pow_left; omega
+                                  have h3 : n ^ 20966 ≤ 1048575 ^ 20966 := by
+                                    apply Nat.pow_le_pow_left
+                                    omega
                                   have h4 : 1048575 ^ 20966 < 2 ^ 419320 := by
-                                    have h_mono : StrictMono (· ^ 20966 : Nat → Nat) := Nat.pow_left_strictMono (by decide)
-                                    calc 1048575 ^ 20966 < 1048576 ^ 20966 := h_mono (by decide)
-                                      _ = (2 ^ 20) ^ 20966 := by rw [show 1048576 = 2 ^ 20 by rfl]
+                                    have h_mono : StrictMono (· ^ 20966 : Nat → Nat) := Nat.pow_left_strictMono (by norm_num)
+                                    calc 1048575 ^ 20966 < 1048576 ^ 20966 := h_mono (by norm_num)
+                                      _ = (2 ^ 20) ^ 20966 := by rw [show 1048576 = 2 ^ 20 by norm_num]
                                       _ = 2 ^ (20 * 20966) := by rw [← Nat.pow_mul]
-                                      _ = 2 ^ 419320 := by rfl
-                                  have h5 : 2 ^ 419320 < 2 ^ (n - 1) := by apply Nat.pow_lt_pow_right; decide; omega
-                                  omega
+                                      _ = 2 ^ 419320 := by norm_num
+                                  have h5 : 2 ^ 419320 < 2 ^ (n - 1) := by
+                                    apply Nat.pow_lt_pow_right
+                                    · norm_num
+                                    · omega
+                                  calc n ^ 20966 ≤ 1048575 ^ 20966 := h3
+                                    _ < 2 ^ 419320 := h4
+                                    _ < 2 ^ (n - 1) := h5
                                 omega
                               calc (n ^ (k + 3)) ^ 2 + 3 * (n ^ (k + 3)) + 1
                                   ≤ 2 * n ^ (2 * k + 6) := h_poly_bound2
-                                _ < 2 * (2 ^ (n - 1)) := by rw [Nat.mul_lt_mul_left (by decide)]; exact h_pow_final
+                                _ < 2 * (2 ^ (n - 1)) := by rw [Nat.mul_lt_mul_left (by norm_num)]; exact h_pow_final
                                 _ = 2 ^ n := by ring; congr 1; omega
                             · -- Case 2b2b2b2b2b2: n ≥ 1048576
                               push Not at hn_1048576
@@ -1484,19 +1526,26 @@ private theorem poly_quadratic_bound_k_ge_1 (k c n : Nat) (hk : k ≥ 1) (hc : c
                                   have h1 : n ^ (2 * k + 6) ≤ n ^ 41926 := by
                                     apply Nat.pow_le_pow_right h_n_pos; omega
                                   have h2 : n ^ 41926 < 2 ^ (n - 1) := by
-                                    have h3 : n ^ 41926 ≤ 2097151 ^ 41926 := by apply Nat.pow_le_pow_left; omega
+                                    have h3 : n ^ 41926 ≤ 2097151 ^ 41926 := by
+                                      apply Nat.pow_le_pow_left
+                                      omega
                                     have h4 : 2097151 ^ 41926 < 2 ^ 880446 := by
-                                      have h_mono : StrictMono (· ^ 41926 : Nat → Nat) := Nat.pow_left_strictMono (by decide)
-                                      calc 2097151 ^ 41926 < 2097152 ^ 41926 := h_mono (by decide)
-                                        _ = (2 ^ 21) ^ 41926 := by rw [show 2097152 = 2 ^ 21 by rfl]
+                                      have h_mono : StrictMono (· ^ 41926 : Nat → Nat) := Nat.pow_left_strictMono (by norm_num)
+                                      calc 2097151 ^ 41926 < 2097152 ^ 41926 := h_mono (by norm_num)
+                                        _ = (2 ^ 21) ^ 41926 := by rw [show 2097152 = 2 ^ 21 by norm_num]
                                         _ = 2 ^ (21 * 41926) := by rw [← Nat.pow_mul]
-                                        _ = 2 ^ 880446 := by rfl
-                                    have h5 : 2 ^ 880446 < 2 ^ (n - 1) := by apply Nat.pow_lt_pow_right; decide; omega
-                                    omega
+                                        _ = 2 ^ 880446 := by norm_num
+                                    have h5 : 2 ^ 880446 < 2 ^ (n - 1) := by
+                                      apply Nat.pow_lt_pow_right
+                                      · norm_num
+                                      · omega
+                                    calc n ^ 41926 ≤ 2097151 ^ 41926 := h3
+                                      _ < 2 ^ 880446 := h4
+                                      _ < 2 ^ (n - 1) := h5
                                   omega
                                 calc (n ^ (k + 3)) ^ 2 + 3 * (n ^ (k + 3)) + 1
                                     ≤ 2 * n ^ (2 * k + 6) := h_poly_bound2
-                                  _ < 2 * (2 ^ (n - 1)) := by rw [Nat.mul_lt_mul_left (by decide)]; exact h_pow_final
+                                  _ < 2 * (2 ^ (n - 1)) := by rw [Nat.mul_lt_mul_left (by norm_num)]; exact h_pow_final
                                   _ = 2 ^ n := by ring; congr 1; omega
                               · -- Case 2b2b2b2b2b2b: n ≥ 2097152
                                 push Not at hn_2097152
@@ -1507,19 +1556,26 @@ private theorem poly_quadratic_bound_k_ge_1 (k c n : Nat) (hk : k ≥ 1) (hc : c
                                     have h1 : n ^ (2 * k + 6) ≤ n ^ 83846 := by
                                       apply Nat.pow_le_pow_right h_n_pos; omega
                                     have h2 : n ^ 83846 < 2 ^ (n - 1) := by
-                                      have h3 : n ^ 83846 ≤ 4194303 ^ 83846 := by apply Nat.pow_le_pow_left; omega
+                                      have h3 : n ^ 83846 ≤ 4194303 ^ 83846 := by
+                                        apply Nat.pow_le_pow_left
+                                        omega
                                       have h4 : 4194303 ^ 83846 < 2 ^ 1844612 := by
-                                        have h_mono : StrictMono (· ^ 83846 : Nat → Nat) := Nat.pow_left_strictMono (by decide)
-                                        calc 4194303 ^ 83846 < 4194304 ^ 83846 := h_mono (by decide)
-                                          _ = (2 ^ 22) ^ 83846 := by rw [show 4194304 = 2 ^ 22 by rfl]
+                                        have h_mono : StrictMono (· ^ 83846 : Nat → Nat) := Nat.pow_left_strictMono (by norm_num)
+                                        calc 4194303 ^ 83846 < 4194304 ^ 83846 := h_mono (by norm_num)
+                                          _ = (2 ^ 22) ^ 83846 := by rw [show 4194304 = 2 ^ 22 by norm_num]
                                           _ = 2 ^ (22 * 83846) := by rw [← Nat.pow_mul]
-                                          _ = 2 ^ 1844612 := by rfl
-                                      have h5 : 2 ^ 1844612 < 2 ^ (n - 1) := by apply Nat.pow_lt_pow_right; decide; omega
-                                      omega
+                                          _ = 2 ^ 1844612 := by norm_num
+                                      have h5 : 2 ^ 1844612 < 2 ^ (n - 1) := by
+                                        apply Nat.pow_lt_pow_right
+                                        · norm_num
+                                        · omega
+                                      calc n ^ 83846 ≤ 4194303 ^ 83846 := h3
+                                        _ < 2 ^ 1844612 := h4
+                                        _ < 2 ^ (n - 1) := h5
                                     omega
                                   calc (n ^ (k + 3)) ^ 2 + 3 * (n ^ (k + 3)) + 1
                                       ≤ 2 * n ^ (2 * k + 6) := h_poly_bound2
-                                    _ < 2 * (2 ^ (n - 1)) := by rw [Nat.mul_lt_mul_left (by decide)]; exact h_pow_final
+                                    _ < 2 * (2 ^ (n - 1)) := by rw [Nat.mul_lt_mul_left (by norm_num)]; exact h_pow_final
                                     _ = 2 ^ n := by ring; congr 1; omega
                                 · -- Case 2b2b2b2b2b2b2: n ≥ 4194304
                                   push Not at hn_4194304
@@ -1530,19 +1586,26 @@ private theorem poly_quadratic_bound_k_ge_1 (k c n : Nat) (hk : k ≥ 1) (hc : c
                                       have h1 : n ^ (2 * k + 6) ≤ n ^ 167726 := by
                                         apply Nat.pow_le_pow_right h_n_pos; omega
                                       have h2 : n ^ 167726 < 2 ^ (n - 1) := by
-                                        have h3 : n ^ 167726 ≤ 8388607 ^ 167726 := by apply Nat.pow_le_pow_left; omega
+                                        have h3 : n ^ 167726 ≤ 8388607 ^ 167726 := by
+                                          apply Nat.pow_le_pow_left
+                                          omega
                                         have h4 : 8388607 ^ 167726 < 2 ^ 3857698 := by
-                                          have h_mono : StrictMono (· ^ 167726 : Nat → Nat) := Nat.pow_left_strictMono (by decide)
-                                          calc 8388607 ^ 167726 < 8388608 ^ 167726 := h_mono (by decide)
-                                            _ = (2 ^ 23) ^ 167726 := by rw [show 8388608 = 2 ^ 23 by rfl]
+                                          have h_mono : StrictMono (· ^ 167726 : Nat → Nat) := Nat.pow_left_strictMono (by norm_num)
+                                          calc 8388607 ^ 167726 < 8388608 ^ 167726 := h_mono (by norm_num)
+                                            _ = (2 ^ 23) ^ 167726 := by rw [show 8388608 = 2 ^ 23 by norm_num]
                                             _ = 2 ^ (23 * 167726) := by rw [← Nat.pow_mul]
-                                            _ = 2 ^ 3857698 := by rfl
-                                        have h5 : 2 ^ 3857698 < 2 ^ (n - 1) := by apply Nat.pow_lt_pow_right; decide; omega
-                                        omega
+                                            _ = 2 ^ 3857698 := by norm_num
+                                        have h5 : 2 ^ 3857698 < 2 ^ (n - 1) := by
+                                          apply Nat.pow_lt_pow_right
+                                          · norm_num
+                                          · omega
+                                        calc n ^ 167726 ≤ 8388607 ^ 167726 := h3
+                                          _ < 2 ^ 3857698 := h4
+                                          _ < 2 ^ (n - 1) := h5
                                       omega
                                     calc (n ^ (k + 3)) ^ 2 + 3 * (n ^ (k + 3)) + 1
                                         ≤ 2 * n ^ (2 * k + 6) := h_poly_bound2
-                                      _ < 2 * (2 ^ (n - 1)) := by rw [Nat.mul_lt_mul_left (by decide)]; exact h_pow_final
+                                      _ < 2 * (2 ^ (n - 1)) := by rw [Nat.mul_lt_mul_left (by norm_num)]; exact h_pow_final
                                       _ = 2 ^ n := by ring; congr 1; omega
                                   · -- Case 2b2b2b2b2b2b2b: n ≥ 8388608
                                     push Not at hn_8388608
@@ -1553,19 +1616,26 @@ private theorem poly_quadratic_bound_k_ge_1 (k c n : Nat) (hk : k ≥ 1) (hc : c
                                         have h1 : n ^ (2 * k + 6) ≤ n ^ 335486 := by
                                           apply Nat.pow_le_pow_right h_n_pos; omega
                                         have h2 : n ^ 335486 < 2 ^ (n - 1) := by
-                                          have h3 : n ^ 335486 ≤ 16777215 ^ 335486 := by apply Nat.pow_le_pow_left; omega
+                                          have h3 : n ^ 335486 ≤ 16777215 ^ 335486 := by
+                                            apply Nat.pow_le_pow_left
+                                            omega
                                           have h4 : 16777215 ^ 335486 < 2 ^ 8051664 := by
-                                            have h_mono : StrictMono (· ^ 335486 : Nat → Nat) := Nat.pow_left_strictMono (by decide)
-                                            calc 16777215 ^ 335486 < 16777216 ^ 335486 := h_mono (by decide)
-                                              _ = (2 ^ 24) ^ 335486 := by rw [show 16777216 = 2 ^ 24 by rfl]
+                                            have h_mono : StrictMono (· ^ 335486 : Nat → Nat) := Nat.pow_left_strictMono (by norm_num)
+                                            calc 16777215 ^ 335486 < 16777216 ^ 335486 := h_mono (by norm_num)
+                                              _ = (2 ^ 24) ^ 335486 := by rw [show 16777216 = 2 ^ 24 by norm_num]
                                               _ = 2 ^ (24 * 335486) := by rw [← Nat.pow_mul]
-                                              _ = 2 ^ 8051664 := by rfl
-                                          have h5 : 2 ^ 8051664 < 2 ^ (n - 1) := by apply Nat.pow_lt_pow_right; decide; omega
-                                          omega
+                                              _ = 2 ^ 8051664 := by norm_num
+                                          have h5 : 2 ^ 8051664 < 2 ^ (n - 1) := by
+                                            apply Nat.pow_lt_pow_right
+                                            · norm_num
+                                            · omega
+                                          calc n ^ 335486 ≤ 16777215 ^ 335486 := h3
+                                            _ < 2 ^ 8051664 := h4
+                                            _ < 2 ^ (n - 1) := h5
                                         omega
                                       calc (n ^ (k + 3)) ^ 2 + 3 * (n ^ (k + 3)) + 1
                                           ≤ 2 * n ^ (2 * k + 6) := h_poly_bound2
-                                        _ < 2 * (2 ^ (n - 1)) := by rw [Nat.mul_lt_mul_left (by decide)]; exact h_pow_final
+                                        _ < 2 * (2 ^ (n - 1)) := by rw [Nat.mul_lt_mul_left (by norm_num)]; exact h_pow_final
                                         _ = 2 ^ n := by ring; congr 1; omega
                                     · -- Case 2b2b2b2b2b2b2b2: n ≥ 16777216
                                       push Not at hn_16777216
@@ -1576,19 +1646,26 @@ private theorem poly_quadratic_bound_k_ge_1 (k c n : Nat) (hk : k ≥ 1) (hc : c
                                           have h1 : n ^ (2 * k + 6) ≤ n ^ 671046 := by
                                             apply Nat.pow_le_pow_right h_n_pos; omega
                                           have h2 : n ^ 671046 < 2 ^ (n - 1) := by
-                                            have h3 : n ^ 671046 ≤ 33554431 ^ 671046 := by apply Nat.pow_le_pow_left; omega
+                                            have h3 : n ^ 671046 ≤ 33554431 ^ 671046 := by
+                                              apply Nat.pow_le_pow_left
+                                              omega
                                             have h4 : 33554431 ^ 671046 < 2 ^ 16776150 := by
-                                              have h_mono : StrictMono (· ^ 671046 : Nat → Nat) := Nat.pow_left_strictMono (by decide)
-                                              calc 33554431 ^ 671046 < 33554432 ^ 671046 := h_mono (by decide)
-                                                _ = (2 ^ 25) ^ 671046 := by rw [show 33554432 = 2 ^ 25 by rfl]
+                                              have h_mono : StrictMono (· ^ 671046 : Nat → Nat) := Nat.pow_left_strictMono (by norm_num)
+                                              calc 33554431 ^ 671046 < 33554432 ^ 671046 := h_mono (by norm_num)
+                                                _ = (2 ^ 25) ^ 671046 := by rw [show 33554432 = 2 ^ 25 by norm_num]
                                                 _ = 2 ^ (25 * 671046) := by rw [← Nat.pow_mul]
-                                                _ = 2 ^ 16776150 := by rfl
-                                            have h5 : 2 ^ 16776150 < 2 ^ (n - 1) := by apply Nat.pow_lt_pow_right; decide; omega
-                                            omega
+                                                _ = 2 ^ 16776150 := by norm_num
+                                            have h5 : 2 ^ 16776150 < 2 ^ (n - 1) := by
+                                              apply Nat.pow_lt_pow_right
+                                              · norm_num
+                                              · omega
+                                            calc n ^ 671046 ≤ 33554431 ^ 671046 := h3
+                                              _ < 2 ^ 16776150 := h4
+                                              _ < 2 ^ (n - 1) := h5
                                           omega
                                         calc (n ^ (k + 3)) ^ 2 + 3 * (n ^ (k + 3)) + 1
                                             ≤ 2 * n ^ (2 * k + 6) := h_poly_bound2
-                                          _ < 2 * (2 ^ (n - 1)) := by rw [Nat.mul_lt_mul_left (by decide)]; exact h_pow_final
+                                          _ < 2 * (2 ^ (n - 1)) := by rw [Nat.mul_lt_mul_left (by norm_num)]; exact h_pow_final
                                           _ = 2 ^ n := by ring; congr 1; omega
                                       · -- Case 2b2b2b2b2b2b2b2b: n ≥ 33554432
                                         push Not at hn_33554432
@@ -1599,19 +1676,26 @@ private theorem poly_quadratic_bound_k_ge_1 (k c n : Nat) (hk : k ≥ 1) (hc : c
                                             have h1 : n ^ (2 * k + 6) ≤ n ^ 1342126 := by
                                               apply Nat.pow_le_pow_right h_n_pos; omega
                                             have h2 : n ^ 1342126 < 2 ^ (n - 1) := by
-                                              have h3 : n ^ 1342126 ≤ 67108863 ^ 1342126 := by apply Nat.pow_le_pow_left; omega
-                                              have h4 : 67108863 ^ 1342126 < 2 ^ 25486924 := by
-                                                have h_mono : StrictMono (· ^ 1342126 : Nat → Nat) := Nat.pow_left_strictMono (by decide)
-                                                calc 67108863 ^ 1342126 < 67108864 ^ 1342126 := h_mono (by decide)
-                                                  _ = (2 ^ 26) ^ 1342126 := by rw [show 67108864 = 2 ^ 26 by rfl]
+                                              have h3 : n ^ 1342126 ≤ 67108863 ^ 1342126 := by
+                                                apply Nat.pow_le_pow_left
+                                                exact Nat.lt_succ_iff.mp hn_67108864
+                                              have h4 : 67108863 ^ 1342126 < 2 ^ 34895276 := by
+                                                have h_mono : StrictMono (· ^ 1342126 : Nat → Nat) := Nat.pow_left_strictMono (by norm_num)
+                                                calc 67108863 ^ 1342126 < 67108864 ^ 1342126 := h_mono (by norm_num)
+                                                  _ = (2 ^ 26) ^ 1342126 := by rw [show 67108864 = 2 ^ 26 by norm_num]
                                                   _ = 2 ^ (26 * 1342126) := by rw [← Nat.pow_mul]
-                                                  _ = 2 ^ 34895276 := by rfl
-                                              have h5 : 2 ^ 34895276 < 2 ^ (n - 1) := by apply Nat.pow_lt_pow_right; decide; omega
-                                              omega
+                                                  _ = 2 ^ 34895276 := by norm_num
+                                              have h5 : 2 ^ 34895276 < 2 ^ (n - 1) := by
+                                                apply Nat.pow_lt_pow_right
+                                                · norm_num
+                                                · omega
+                                              calc n ^ 1342126 ≤ 67108863 ^ 1342126 := h3
+                                                _ < 2 ^ 34895276 := h4
+                                                _ < 2 ^ (n - 1) := h5
                                             omega
                                           calc (n ^ (k + 3)) ^ 2 + 3 * (n ^ (k + 3)) + 1
                                               ≤ 2 * n ^ (2 * k + 6) := h_poly_bound2
-                                            _ < 2 * (2 ^ (n - 1)) := by rw [Nat.mul_lt_mul_left (by decide)]; exact h_pow_final
+                                            _ < 2 * (2 ^ (n - 1)) := by rw [Nat.mul_lt_mul_left (by norm_num)]; exact h_pow_final
                                             _ = 2 ^ n := by ring; congr 1; omega
                                         · -- Case 2b2b2b2b2b2b2b2b2: n ≥ 67108864
                                           push Not at hn_67108864
@@ -1632,7 +1716,7 @@ private theorem poly_quadratic_bound_k0 (c : Nat) (n : Nat) (hn : n ≥ 2 * c + 
     4 * c ^ 2 + 6 * c + 1 < 2 ^ n := by
   -- We'll show 4*c^2 + 6*c + 1 < 2^(2*c + 5) ≤ 2^n
   have hn_ge : n ≥ 2 * c + 5 := hn
-  have h_pow : 2 ^ n ≥ 2 ^ (2 * c + 5) := Nat.pow_le_pow_right (by decide) hn_ge
+  have h_pow : 2 ^ n ≥ 2 ^ (2 * c + 5) := Nat.pow_le_pow_right (by norm_num) hn_ge
   suffices 4 * c ^ 2 + 6 * c + 1 < 2 ^ (2 * c + 5) by
     calc 4 * c ^ 2 + 6 * c + 1 < 2 ^ (2 * c + 5) := this
       _ ≤ 2 ^ n := h_pow
@@ -1658,7 +1742,7 @@ private theorem poly_quadratic_bound_k0 (c : Nat) (n : Nat) (hn : n ≥ 2 * c + 
                   _ ≤ 2 ^ (2 * m + 5) + 2 ^ (2 * m + 5) := by
                       have : 8 ≤ 2 ^ (2 * m + 5) := by
                         have : 2 * m + 5 ≥ 5 := by omega
-                        have : 2 ^ (2 * m + 5) ≥ 2 ^ 5 := Nat.pow_le_pow_right (by decide) this
+                        have : 2 ^ (2 * m + 5) ≥ 2 ^ 5 := Nat.pow_le_pow_right (by norm_num) this
                         norm_num at this ⊢
                         omega
                       omega
