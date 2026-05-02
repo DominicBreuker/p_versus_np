@@ -31,9 +31,10 @@ Recent git log for this target:
 
 Your primary job is to complete the proof, found in `proofs/{problem_name}/{approach_name}/Proof.lean`. 
 
-First, run `timeout 60 lake env lean proofs/p_versus_np/circuit-lower-bounds/Proof.lean 2>&1 | head -100` and ensure the proof is free of errors.
+First, run `timeout 60 lake env lean proofs/{problem_name}/{approach_name}/Proof.lean 2>&1 | head -100` and ensure the proof is free of errors.
 Fixing errors has priority over advancing the proof.
 The command should not time out! If it does, we may have computationally intensive errors, e.g., related to recursion depth. Troubleshoot!
+IMPORTANT: Ensure `lake env lean proofs/{problem_name}/{approach_name}/Proof.lean` does not take too long! Target < 1 minute. See `FAILED_ATTEMPTS.md` if exists for previous proofs that far exceeded the runtime.
 
 If the proof is in good shape, you proceed as follows:
 
