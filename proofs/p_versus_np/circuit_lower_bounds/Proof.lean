@@ -384,7 +384,83 @@ private theorem normalizeCircuit_nodes_list {n s : Nat} (c : BoolCircuit n) (hsi
 private theorem evalCircuit_normalizeCircuit {n s : Nat} (c : BoolCircuit n) (hsize : circuitSize c ≤ s)
     (inp : Fin n → Bool) :
     evalCircuit (normalizedToRaw (normalizeCircuit c hsize)) inp = evalCircuit c inp := by
-  sorry
+  let rawVals : Array Bool := List.foldl (evalStep inp) #[] c.nodes.toList
+  let canonVals : Array Bool :=
+    List.foldl (evalStep inp) #[]
+      (c.nodes.toList.map (fun node => nodeCodeToRaw (normalizeNodeCode n s node)))
+  have hcanon : canonVals = rawVals := by
+    dsimp [canonVals, rawVals]
+    exact evalStep_fold_normalized_eq inp #[] c.nodes.toList (by simpa)
+  have hnodeListCodes : List.ofFn (normalizeCircuit c hsize).2 =
+      List.ofFn (fun i : Fin c.nodes.size => normalizeNodeCode n s (c.nodes[i])) ++
+        List.replicate (s - c.nodes.size) (NodeCode.const false) := normalizeCircuit_nodes_list c hsize
+  have hnodeList : List.ofFn (fun i : Fin s => nodeCodeToRaw ((normalizeCircuit c hsize).2 i)) =
+      (c.nodes.toList.map (fun node => nodeCodeToRaw (normalizeNodeCode n s node))) ++
+        List.replicate (s - c.nodes.size) falseNode := by
+    rw [List.ofFn_comp', hnodeListCodes, List.map_append, List.map_replicate]
+    congr 1
+    rw [← List.ofFn_comp']
+    congr
+    ext i
+    rfl
+  have hnormVals :
+      Array.foldl (fun acc node => acc.push (evalNode inp acc node)) #[]
+          (normalizedToRaw (normalizeCircuit c hsize)).nodes =
+        List.foldl (evalStep inp) #[] ((c.nodes.toList.map (fun node => nodeCodeToRaw (normalizeNodeCode n s node))) ++
+          List.replicate (s - c.nodes.size) falseNode) := by
+    have : (normalizedToRaw (normalizeCircuit c hsize)).nodes.toList = 
+           List.ofFn (fun i : Fin s => nodeCodeToRaw ((normalizeCircuit c hsize).2 i)) := by
+      simp [normalizedToRaw, Array.toList_ofFn]
+    rw [← Array.foldl_toList, this, hnodeList]
+    rfl
+  have hrawVals :
+      Array.foldl (fun acc node => acc.push (evalNode inp acc node)) #[] c.nodes = rawVals := by
+    rw [← Array.foldl_toList]
+    rfl
+  unfold evalCircuit
+  rw [hnormVals, hrawVals, List.foldl_append]
+  simp only [rawVals]
+  -- The inner List.foldl is canonVals
+  have : List.foldl (evalStep inp) #[] (List.map (fun node => nodeCodeToRaw (normalizeNodeCode n s node)) c.nodes.toList) = canonVals := by
+    rfl
+  rw [this, hcanon]
+  by_cases houtput : c.output < c.nodes.size
+  · have hsizeVals : rawVals.size = c.nodes.size := by
+      dsimp [rawVals]
+      simpa using evalStep_fold_size inp #[] c.nodes.toList
+    have hprefix : (List.foldl (evalStep inp) rawVals (List.replicate (s - c.nodes.size) falseNode))[c.output]? =
+        rawVals[c.output]? := by
+      apply evalStep_fold_getElem?_preserve inp rawVals (List.replicate (s - c.nodes.size) falseNode) c.output
+      simpa [hsizeVals] using houtput
+    have h_output_eq : (normalizedToRaw (normalizeCircuit c hsize)).output = c.output := by
+      simp [normalizedToRaw, normalizeCircuit, houtput]
+    rw [h_output_eq]
+    -- We need: (List.foldl ...).getD c.output false = (List.foldl ...).getD c.output false
+    -- From hprefix: (List.foldl ...)[c.output]? = rawVals[c.output]?
+    -- And c.output < rawVals.size, so both are some value
+    have h_lt : c.output < rawVals.size := by rw [hsizeVals]; exact houtput
+    have : (List.foldl (evalStep inp) rawVals (List.replicate (s - c.nodes.size) falseNode)).getD c.output false = 
+           rawVals.getD c.output false := by
+      have : (List.foldl (evalStep inp) rawVals (List.replicate (s - c.nodes.size) falseNode))[c.output]? = rawVals[c.output]? := hprefix
+      simp [List.getD, this, h_lt]
+    rw [this]
+  · have hsizeVals : rawVals.size = c.nodes.size := by
+      dsimp [rawVals]
+      simpa using evalStep_fold_size inp #[] c.nodes.toList
+    have h_ge : c.nodes.size ≤ c.output := not_lt.mp houtput
+    have h_output_eq : (normalizedToRaw (normalizeCircuit c hsize)).output = s := by
+      simp [normalizedToRaw, normalizeCircuit, houtput]
+    rw [h_output_eq]
+    -- Both sides are false because the index is out of bounds
+    have h_norm_size : (List.foldl (evalStep inp) rawVals (List.replicate (s - c.nodes.size) falseNode)).size = s := by
+      have : c.nodes.size + (s - c.nodes.size) = s := by
+        have : c.nodes.size ≤ s := hsize
+        omega
+      simp [evalStep_fold_size, hsizeVals, this]
+    have h_raw_size : (Array.foldl (evalStep inp) #[] c.nodes).size = c.nodes.size := by
+      have : Array.foldl (evalStep inp) #[] c.nodes = rawVals := hrawVals
+      rw [this, hsizeVals]
+    simp [List.getD, Array.getD, h_norm_size, h_raw_size, h_ge]
 
 private def encodeNodeCode {n s : Nat} : NodeCode n s → Bool ⊕ Fin n ⊕ Fin s ⊕ Finset (Fin s) ⊕ Finset (Fin s)
   | .const b => Sum.inl b
