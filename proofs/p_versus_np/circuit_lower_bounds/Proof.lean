@@ -365,6 +365,11 @@ private theorem evalStep_fold_normalized_eq {n s : Nat} (inp : Fin n → Bool)
       apply ih
       simpa [Array.size_push, Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using hbound
 
+private theorem array_foldl_ofFn_eq_list_foldl {α β : Type} {n : Nat} (f : β → α → β) (init : β) 
+    (g : Fin n → α) :
+    Array.foldl f init (Array.ofFn g) = List.foldl f init (List.ofFn g) := by
+  sorry
+
 private theorem normalizeCircuit_nodes_list {n s : Nat} (c : BoolCircuit n) (hsize : circuitSize c ≤ s) :
     List.ofFn (normalizeCircuit c hsize).2 =
       List.ofFn (fun i : Fin c.nodes.size => normalizeNodeCode n s (c.nodes[i])) ++
@@ -400,8 +405,12 @@ private theorem evalCircuit_normalizeCircuit {n s : Nat} (c : BoolCircuit n) (hs
         List.foldl (evalStep inp) #[] ((c.nodes.toList.map (fun node => nodeCodeToRaw (normalizeNodeCode n s node))) ++
           List.replicate (s - c.nodes.size) falseNode) := by
     -- This follows from the fact that normalizedToRaw (normalizeCircuit c hsize) creates
-    -- an array whose toList is exactly (c.nodes.toList.map ... ++ replicate ...)
-    -- and Array.foldl over that array equals List.foldl over the list
+    -- an array whose elements match the list after mapping nodeCodeToRaw and appending padding
+    unfold normalizedToRaw
+    rw [array_foldl_ofFn_eq_list_foldl]
+    -- Now show: List.foldl ... (List.ofFn ...) = List.foldl ... (c.nodes.toList.map ... ++ ...)
+    -- The key observation is that the normalized circuit evaluates the same as the original
+    -- We skip this proof for now and come back to it
     sorry
   have hrawVals :
       Array.foldl (fun acc node => acc.push (evalNode inp acc node)) #[] c.nodes = rawVals := by
