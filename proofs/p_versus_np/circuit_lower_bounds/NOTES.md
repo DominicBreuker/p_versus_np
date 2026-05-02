@@ -16,7 +16,7 @@ This document tracks the current status of the circuit lower bounds proof for P 
 ### Build Status
 - ✅ `lake env lean Proof.lean` compiles successfully
 - ✅ `lake build` compiles with no errors or warnings
-- ❌ **3 sorrys remain** in the proof file (not "all sorrys resolved" as previously claimed)
+- ⚠️ **5 sorrys remain** in the proof file (NOTES.md not updated with current state)
 
 ### Main Theorem Status
 
@@ -25,12 +25,17 @@ This document tracks the current status of the circuit lower bounds proof for P 
 - ✅ `sat_superpolynomial_implies_p_neq_np`: Connection theorem complete
 - ✅ `circuit_count_lt_functions_at_n`: Counting argument for n ≥ 4 complete
 - ✅ `poly_quadratic_bound_k0`: k=0 case complete
-- ✅ `poly_quadratic_bound`: Main polynomial-exponential bound theorem (uses sorry in k≥2 case)
+- ⚠️ `poly_quadratic_bound`: Main polynomial-exponential bound theorem (complete for k=0,1; sorry for k≥2)
 
 #### Theorems with Sorrys
-- ❌ `evalCircuit_normalizeCircuit` (line 387): **SORRY** - Normalization preserves evaluation
-- ❌ `poly_quadratic_bound_k_ge_1` for k ≥ 2 (line 852): **SORRY** - Exponential dominance for higher degrees
-- ❌ `shannon_counting_argument` (line 1009): **SORRY** - Main counting argument theorem
+- ✅ `evalCircuit_normalizeCircuit` (line 414): **COMPLETE** - Normalization preserves evaluation
+- ⚠️ `n_pow_D_lt_two_pow_n` (line 924): **SORRY** - Generic dominance lemma (base case hard for symbolic D)
+- ⚠️ `succ_pow_invariant` (line 1012): **SORRY** - Bernoulli-style invariant for induction step
+- ⚠️ `base_pow_lt_two_pow` (line 1165): **SORRY** - Base case for n_pow_lt_two_pow_n (hard for symbolic D)
+- ⚠️ `poly_quadratic_bound_k_ge_1` k≥3 case (line 1282): **SORRY** - Exponential dominance for higher degrees (requires linear threshold variant)
+- ⚠️ `shannon_counting_argument` (line 1636): **SORRY** - Main counting argument theorem (depends on above)
+
+**Note:** NOTES.md line numbers are outdated. See grep for actual locations.
 
 ---
 

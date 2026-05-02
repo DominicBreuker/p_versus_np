@@ -1209,12 +1209,9 @@ private theorem n_pow_lt_two_pow_n (D n : Nat) (hn : n ≥ 4 * D * D + 8) :
   · subst hD
     simp only [pow_zero]
     -- Need: 1 < 2 ^ n where n ≥ 8
-    cases n with
-    | zero => omega  -- n ≥ 8, so this case is impossible
-    | succ n =>
-      simp only [pow_succ]
-      -- Now 1 < 2 * 2^n = 2^(n+1)
-      norm_num
+    have : n ≥ 1 := by omega
+    calc 1 = 2 ^ 0 := by norm_num
+      _ < 2 ^ n := Nat.pow_lt_pow_right (by norm_num) this
   · have hD_pos : D ≥ 1 := Nat.one_le_iff_ne_zero.mpr hD
     -- Use Nat.le_induction with base 4*D*D + 8.
     induction n, hn using Nat.le_induction with
@@ -1366,28 +1363,11 @@ private theorem poly_quadratic_bound_k_ge_1 (k c n : Nat) (hk : k ≥ 1) (hc : c
           omega
         have h_expand : n * (n ^ (k + 2) + 1) = n ^ (k + 3) + n := by
           rw [show k + 3 = (k + 2) + 1 from rfl, pow_succ]; ring
-        calc c * n ^ (k + 2) + c
-            = c * (n ^ (k + 2) + 1) := by ring
-          _ ≤ n * (n ^ (k + 2) + 1) := h_main
-          _ = n ^ (k + 3) + n := h_expand
-          _ ≤ n ^ (k + 3) + n ^ (k + 2) := by linarith [h_pow_ge]
-          _ ≤ n ^ (k + 3) + n ^ (k + 3) := by
-              have : n ^ (k + 2) ≤ n ^ (k + 3) :=
-                Nat.pow_le_pow_right hn_ge (by omega)
-              linarith
-          -- The above gives ≤ 2*n^(k+3), too loose. Tighter:
-        sorry  -- NEEDS REWORK: my chain above gives 2*n^(k+3), not n^(k+3).
-        -- TIGHTER VERSION: c*n^(k+2) + c ≤ n^(k+3) - (n^(k+2) - n)
-        --   if c ≤ n - 1, which we have.
-        -- Direct algebraic:
-        --   n^(k+3) - (c * n^(k+2) + c) = (n - c) * n^(k+2) - c
-        --                              ≥ 1 * n^(k+2) - c   [c ≤ n-1]
-        --                              = n^(k+2) - c
-        --                              ≥ n - c             [n^(k+2) ≥ n]
-        --                              ≥ 0                 [c ≤ n-1, so n - c ≥ 1]
-        -- So n^(k+3) ≥ c * n^(k+2) + c.  Translate to Nat:
-        --   show n^(k+3) ≥ c * n^(k+2) + c
-        --   ... use nlinarith with all the facts collected above.
+        -- We need to show c * n^(k+2) + c ≤ n^(k+3)
+        -- Use nlinarith with the facts we have
+        have h_need : n - c ≥ 1 := by omega
+        have h_pow_n : n ^ (k + 2) ≥ n := h_pow_ge
+        nlinarith [Nat.mul_sub_left_distrib n (n - 1) (n ^ (k + 2)), sq_nonneg (n - 1), sq_nonneg (n ^ (k + 2))]
       ----------------------------------------------------------------
       -- (ii) (c*n^(k+2) + c)^2 + 3*(c*n^(k+2) + c) + 1 ≤ n^(2*(k+2)+3)
       ----------------------------------------------------------------
@@ -1456,7 +1436,21 @@ private theorem poly_quadratic_bound_k_ge_1 (k c n : Nat) (hk : k ≥ 1) (hc : c
         -- This will succeed for original k ∈ {2,3,4}, fail otherwise.
         -- If it fails: the hypothesis hn isn't strong enough; you must either
         -- restrict to small k or switch to the linear-threshold version.
-        nlinarith [hn]  -- might need tighter hints
+        -- We have hn : n ≥ 100*(k+2) + c + 100
+        -- Need: n ≥ 4*(2*(k+2)+3)^2 + 8 = 16*(k+2)^2 + 112*(k+2) + 204
+        -- For k ∈ {0, 1, 2}: this holds since 100*(k+2) grows linearly
+        cases k with
+        | zero => nlinarith [hn, show c ≥ 0 from Nat.zero_le c]
+        | succ k' =>
+          cases k' with
+          | zero => nlinarith [hn, show c ≥ 0 from Nat.zero_le c]
+          | succ k'' =>
+            cases k'' with
+            | zero => nlinarith [hn, show c ≥ 0 from Nat.zero_le c]
+            | succ k''' =>
+              -- k ≥ 3, the quadratic bound doesn't work
+              -- We would need to use the linear threshold variant
+              sorry
       have h_step_iii : n ^ (2 * (k + 2) + 3) < 2 ^ n :=
         n_pow_lt_two_pow_n (2 * (k + 2) + 3) n hn_for_main
       ----------------------------------------------------------------
