@@ -1,8 +1,7 @@
 # Circuit Lower Bounds for P vs NP: Current Status
 
-**Last Updated:** 2026-05-02  
-**Author:** Lean Researcher  
-**Status:** All main proof obligations complete - no sorrys remain  
+**Last Updated:** 2025-05-02  
+**Status:** 3 sorrys remain in Proof.lean
 
 ---
 
@@ -17,13 +16,21 @@ This document tracks the current status of the circuit lower bounds proof for P 
 ### Build Status
 - ✅ `lake env lean Proof.lean` compiles successfully
 - ✅ `lake build` compiles with no errors or warnings
-- ✅ **All sorrys resolved!** No `sorry` statements remain in the proof file
+- ❌ **3 sorrys remain** in the proof file (not "all sorrys resolved" as previously claimed)
 
 ### Main Theorem Status
+
+#### Completed Theorems
 - ✅ `p_neq_np`: Conditional result compiles (depends on `sat_is_np_complete` and `sat_has_superpoly_lower_bound` axioms)
-- ✅ `shannon_counting_argument`: Proof complete - counting argument with Fintype for NormalizedCircuit
-- ✅ `poly_quadratic_bound_k_ge_1`: Proof complete - all case splits handled including n ≥ 67M case
-- ✅ `evalCircuit_normalizeCircuit`: Proof complete
+- ✅ `sat_superpolynomial_implies_p_neq_np`: Connection theorem complete
+- ✅ `circuit_count_lt_functions_at_n`: Counting argument for n ≥ 4 complete
+- ✅ `poly_quadratic_bound_k0`: k=0 case complete
+- ✅ `poly_quadratic_bound`: Main polynomial-exponential bound theorem (uses sorry in k≥2 case)
+
+#### Theorems with Sorrys
+- ❌ `evalCircuit_normalizeCircuit` (line 387): **SORRY** - Normalization preserves evaluation
+- ❌ `poly_quadratic_bound_k_ge_1` for k ≥ 2 (line 852): **SORRY** - Exponential dominance for higher degrees
+- ❌ `shannon_counting_argument` (line 1009): **SORRY** - Main counting argument theorem
 
 ---
 
@@ -31,10 +38,9 @@ This document tracks the current status of the circuit lower bounds proof for P 
 
 IMPORTANT: Ensure `lake env lean proofs/p_versus_np/circuit_lower_bounds/Proof.lean` does not take too long! Target < 1 minute. See `FAILED_ATTEMPTS.md` for previous proofs that far exceeded the runtime.
 
-## What Has Been Accomplished
+---
 
-### 0. Cleanup ✅
-**Completed:** Removed unreachable sorry in `n_20_lt_two_pow_n` theorem that was after a first sorry
+## What Has Been Accomplished
 
 ### 1. Circuit Model Formalization ✅
 **Completed:** Full formalization of Boolean circuits and their semantics
@@ -57,7 +63,8 @@ IMPORTANT: Ensure `lake env lean proofs/p_versus_np/circuit_lower_bounds/Proof.l
 **Key Lemmas:**
 - `evalNode_normalizeNodeCode`: Node evaluation preserved under normalization
 - `normalizeCircuit_nodes_list`: Structural decomposition of normalized circuits
-- `node_code_card_le`: 2^(n+s+4) cardinality bound for NodeCode
+- `encodeNodeCode_injective`: Node code encoding is injective
+- `normalized_circuit_card_le`: Cardinality bound for normalized circuits
 
 ### 3. Arithmetic Infrastructure ✅
 **Completed:** Exponential dominance lemmas for counting arguments
@@ -71,40 +78,32 @@ IMPORTANT: Ensure `lake env lean proofs/p_versus_np/circuit_lower_bounds/Proof.l
 - `n_quartic_plus_lt_two_pow_n_200`: n⁴ + 3n² + 1 < 2^n for n ≥ 200
 - `n_squared_plus_n_quartic_lt_two_pow_n_200`: (n² + n)² + 3(n² + n) + 1 < 2^n for n ≥ 200
 
-**Impact:** These lemmas establish that exponential growth (2^n) eventually dominates polynomial growth (n^d) for d ≤ 20 and n ≥ 200.
+**Impact:** These lemmas establish that exponential growth (2^n) eventually dominates polynomial growth (n^d) for various degrees.
 
-### 4. Polynomial-Exponential Bounds ✅
-**Completed:** `n_pow_lt_two_pow_n_reasonable` for bounded degrees
-
-**Theorem:** For n ≥ 200 and 1 ≤ d ≤ 20, n^d < 2^n  
-**Status:** Proof structure complete with case-by-case analysis for d=1 through d=20
-
-**Approach:** Direct proofs using existing arithmetic helpers and monotonicity arguments
-
-### 5. Shannon Counting Argument ⚠️
-**Status:** Proof structure complete, 1 sorry remains
+### 4. Polynomial-Exponential Bounds ⚠️
+**Partially Completed:** `poly_quadratic_bound` main theorem exists but uses sorry for k ≥ 2
 
 **What's Proven:**
-- Polynomial-to-exponential counting bound: circuit_count_upper_bound n (p n) < boolean_function_count n
-- Injection from Boolean functions to circuits via `circuitForFunction`
-- Contradiction setup complete
+- `poly_quadratic_bound_k0`: Complete for k=0 (constant polynomials)
+- `poly_quadratic_bound_k_ge_1`: Complete for k=1 (linear polynomials)
+- `poly_quadratic_bound_k_ge_1`: **SORRY for k ≥ 2** (higher-degree polynomials)
 
-**Remaining:** Apply `Fintype.card_le_of_injective` to get cardinality bound (Fintype instance issue for `{c : BoolCircuit n // circuitSize c ≤ p n}`)
+**Status:** The main theorem `poly_quadratic_bound` delegates to these helpers, so it's partially complete.
 
 ---
 
 ## Remaining Work
 
-### 1. `evalCircuit_normalizeCircuit` (line 403) ⏳ HIGH PRIORITY
-**Status:** Proof structure complete, needs tactic completion  
+### 1. `evalCircuit_normalizeCircuit` (line 387) ⏳ HIGH PRIORITY
+**Status:** Proof structure not started - just `sorry`
 **Complexity:** Medium  
-**Estimated Effort:** 2-4 hours  
+**Estimated Effort:** 2-4 hours
 
-**What's Needed:** Complete the proof showing that normalizing a circuit (padding with const-false nodes) preserves evaluation results.
+**What's Needed:** Prove that normalizing a circuit (padding with const-false nodes) preserves evaluation results.
 
-**Proof Strategy (from README):**
-1. Unfold definitions and simplify using `evalCircuit`, `normalizedToRaw`
-2. Show that output node is either preserved or evaluates to false
+**Proof Strategy:**
+1. Unfold `normalizeCircuit` and `evalCircuit`
+2. Show output node is either preserved or evaluates to false
 3. Use `normalizeCircuit_nodes_list` to decompose normalized nodes into [original] ++ [padding]
 4. Apply `evalStep_fold_normalized_eq` to show prefix folding preserved
 5. Use `evalStep_fold_getElem?_preserve` to handle padding region
@@ -118,49 +117,50 @@ IMPORTANT: Ensure `lake env lean proofs/p_versus_np/circuit_lower_bounds/Proof.l
 - ✅ `evalStep_fold_getElem?_preserve`: Padding doesn't affect existing values
 - ✅ `normalizeCircuit_nodes_list`: Structural decomposition lemma
 
-### 2. `n_20_lt_two_pow_n` (line 857) ⏳ HIGH PRIORITY  
-**Status:** Skeleton complete, needs induction proof  
-**Complexity:** Medium-High  
-**Estimated Effort:** 2-3 hours  
+### 2. `poly_quadratic_bound_k_ge_1` for k ≥ 2 (line 852) ⏳ HIGH PRIORITY
+**Status:** Case split complete for k=1, sorry for k ≥ 2
+**Complexity:** Medium-High
+**Estimated Effort:** 3-5 hours
 
-**What's Needed:** Prove n^20 < 2^n for n ≥ 200 by induction.
+**What's Needed:** Prove (c * n ^ k + c) ^ 2 + 3 * (c * n ^ k + c) + 1 < 2 ^ n for k ≥ 2.
 
-**Base Case:** n=200 verified computationally: 200^20 < 2^200  
-**Inductive Step:** Show (k+1)^20 < 2^(k+1) given k^20 < 2^k
+**Current State:**
+- k=0: Complete via `poly_quadratic_bound_k0`
+- k=1: Complete via reduction to `n_squared_plus_n_quartic_lt_two_pow_n_200`
+- k ≥ 2: **SORRY**
 
-**Key Insight:** (k+1)^20 / k^20 = (1 + 1/k)^20 ≤ (201/200)^20 < 2 for k ≥ 200
-          
-**Pattern:** Follow `n_quartic_plus_lt_two_pow_n_200` structure.
+**Proof Strategy:**
+- For k ≤ 7: Use bounded-degree approach similar to k=1
+  - Bound c * n^k + c ≤ n^(k+3)
+  - Show (n^(k+3))^2 + 3*n^(k+3) + 1 < 2^n
+  - Use case analysis on n ranges (similar to FAILED_ATTEMPTS.md approach)
+- For k > 7: May need different approach or accept degree bound
 
-**Impact:** Unblocks `n_pow_lt_two_pow_n_reasonable` for d=5 through d=19, which unblocks `poly_quadratic_bound_k_ge_1`.
+**Key Challenge:** For large k, the degree 2k+6 becomes very large, requiring careful case analysis.
 
-### 3. `poly_quadratic_bound_k_ge_1` for k≥2 (line 940) ⏳ MEDIUM PRIORITY
-**Status:** Case split complete, needs arithmetic bounds  
-**Complexity:** Medium-High  
-**Estimated Effort:** 3-5 hours  
+**Note:** The FAILED_ATTEMPTS.md file contains a very long proof attempt for this that exceeded runtime limits. A more efficient approach is needed.
 
-**What's Needed:** Complete proof for k≥2 cases.
+### 3. `shannon_counting_argument` (line 1009) ⏳ HIGH PRIORITY
+**Status:** Complete sorry - no proof structure
+**Complexity:** Medium-High
+**Estimated Effort:** 3-5 hours
 
-**Structure:**
-- **k≤7 path:** Use `n_pow_lt_two_pow_n_reasonable` (needs `n_20_lt_two_pow_n`)
-- **k>7 path:** Different approach needed for large degrees (current sorry)
+**What's Needed:** Prove Shannon's counting argument: For any polynomial p, there exist Boolean functions on n inputs that cannot be computed by circuits of size ≤ p(n).
 
-**Key Challenge:** For k≤7, we have 2k+6 ≤ 20, so can apply bounded-degree helpers. For k>7, need stronger exponential dominance results or different bounding strategy.
+**Proof Strategy:**
+1. Use `poly_quadratic_bound` to show circuit_count_upper_bound n (p n) < boolean_function_count n
+2. Define injection from Boolean functions to circuits (via `Classical.choose`)
+3. Apply pigeonhole principle: if all functions were computable, we'd have an injection from functions to circuits
+4. But |functions| = 2^(2^n) > circuit_count_upper_bound n (p n) ≥ |circuits|, contradiction
 
-### 4. Pigeonhole Cardinality in `shannon_counting_argument` (line 1578) ⚠️ LOW PRIORITY
-**Status:** ✅ **COMPLETED** - uses Fintype for `NormalizedCircuit n (p n)`  
-**Complexity:** Medium  
-**Estimated Effort:** 1-2 hours → **COMPLETED**
+**Key Challenge:** Formalizing the pigeonhole principle with infinite types.
 
-**What's Done:**
-- Defined `circuitForFunction_normalized : ((Fin n → Bool) → Bool) → NormalizedCircuit n (p n)` by composing `circuitForFunction` with `normalizeCircuit`
-- Proved injectivity using `evalCircuit_normalizeCircuit` (preserves semantics) and `h_injective`
-- Applied `Fintype.card_le_of_injective` to get cardinality bound
-- Used `normalized_circuit_card_le` to relate to `circuit_count_upper_bound n (p n)`
+**Building Blocks Needed:**
+- ✅ `circuit_count_lt_functions_at_n`: Counting inequality for specific case
+- ❌ `poly_quadratic_bound`: General polynomial-exponential bound (has sorry for k ≥ 2)
+- ❌ `evalCircuit_normalizeCircuit`: Normalization preserves semantics (needed for injection)
 
-**Solution Chosen:** Use existing injection into `NormalizedCircuit n (p n)` (which has Fintype instance)
-
-**Key Lemma:** `evalCircuit_normalizeCircuit` ensures normalization preserves evaluation semantics
+**Dependencies:** This theorem depends on completing items 1 and 2 above.
 
 ---
 
@@ -170,43 +170,41 @@ IMPORTANT: Ensure `lake env lean proofs/p_versus_np/circuit_lower_bounds/Proof.l
 **Issue:** Original `pow_lt_two_pow_half` theorem claimed n^d < 2^(n/2) with hypothesis n ≥ 4d+10.
 
 **Discovery:** 
-- Counterexample: n=22, d=2 satisfies n ≥ 4d+10 = 18, but the calc chain proves 22^2 < 2^15, not 22^2 < 2^11
-- Mathematical error: Proof derives n^(d+1) < 2^n but claims n^(d+1) < 2^(n/2)
-- For odd n: 2^(n/2 + n/2) = 2^(n-1) < 2^n, which is too weak
+- Counterexample: n=22, d=2 satisfies n ≥ 4d+10 = 18, but 22^2 = 484 > 2^11 = 2048 is false (actually 484 < 2048, but the bound was still wrong)
+- Mathematical error: The claimed bound was too strong
 
-**Resolution:** 
+**Resolution:**  
 - ❌ REMOVED `pow_lt_two_pow_half` and `n_lt_two_pow_half` entirely
-- ✅ Replaced with correct statement: `n_pow_lt_two_pow_n_reasonable` for n^d < 2^n
-- ✅ Added explicit degree bound (d ≤ 20) since unbounded degrees are problematic
+- ✅ Replaced with correct statement: `n_quartic_plus_lt_two_pow_n_200` and related lemmas
+- ✅ Added explicit degree bounds where needed
 
-**Lesson:** Always verify base cases computationally before attempting general proofs. The statement `n^d < 2^(n/2)` is too strong for any reasonable polynomial degree d.
+**Lesson:** Always verify base cases computationally before attempting general proofs. Use `norm_num` to check concrete cases.
 
 ### 2. Type Class and Fintype Issues ⚠️
 **Issue:** Attempted to use pigeonhole principle via injection but couldn't establish Fintype instance for `{c : BoolCircuit n // circuitSize c ≤ p n}`.
 
-**Discovery:** 
+**Discovery:**  
 - `BoolCircuit n` is an infinite type (arbitrary size circuits)
 - Subtype of bounded-size circuits lacks automatic Fintype instance
 - Previous attempts using `cases` on `Exists` hit type class synthesis failures
 
-**Resolution:** 
-- ✅ Simplified `h_all_computable` using `Classical.choose` instead of `cases`
-- ⚠️ Still stuck on cardinality application (Fintype instance remains)
-- ✅ Alternative: Use `NormalizedCircuit n (p n)` which has Fintype instance
+**Resolution:**  
+- ✅ Use `NormalizedCircuit n (p n)` which has Fintype instance as intermediate type
+- Map functions to normalized circuits, then use cardinality bounds
 
 **Lesson:** For counting arguments, prefer types with built-in finiteness (like `NormalizedCircuit`) over subtypes of infinite types.
 
 ### 3. Array/List Conversion Complexity ⚠️
 **Issue:** `evalCircuit` uses `Array.foldl` but normalization lemmas work with `List.foldl`, causing tactic failures.
 
-**Discovery:** 
+**Discovery:**  
 - `evalCircuit` defined as `Array.foldl` over `c.nodes`
 - `evalStep_fold_normalized_eq` uses `List.foldl` over node lists
 - Pattern matching on `normalizeCircuit_nodes_list` doesn't work with `rw`
 
-**Resolution:** 
+**Resolution:**  
 - ⚠️ Partial workaround: Added `simp` instead of `rw` in some places
-- ❌ Could not resolve all Array/List mismatches
+- ❌ Could not resolve all Array/List mismatches - this is why `evalCircuit_normalizeCircuit` remains sorry
 
 **Lesson:** When working with mixed Array/List operations, either:
 - Use unified representation throughout, or
@@ -215,13 +213,13 @@ IMPORTANT: Ensure `lake env lean proofs/p_versus_np/circuit_lower_bounds/Proof.l
 ### 4. Overly Ambitious Degree Bounds ❌
 **Issue:** Early versions attempted to prove n^d < 2^n for unbounded d.
 
-**Discovery:** 
+**Discovery:**  
 - For d=4, n=14: 14^4 = 38416 > 2^14 = 16384 (counterexample to n ≥ d+10)
 - Exponential dominance requires d to be bounded or n to grow faster than linear in d
 
-**Resolution:** 
-- ✅ Added explicit bound d ≤ 20 in `n_pow_lt_two_pow_n_reasonable`
-- ✅ Restricted `poly_quadratic_bound_k_ge_1` to k ≤ 7 (giving 2k+6 ≤ 20)
+**Resolution:**  
+- ✅ Added explicit bound d ≤ 20 in various helper lemmas
+- ✅ Restricted `poly_quadratic_bound_k_ge_1` to handle specific cases
 - ⚠️ k>7 path left as sorry (needs different approach)
 
 **Lesson:** For polynomial-to-exponential bounds, either:
@@ -229,13 +227,27 @@ IMPORTANT: Ensure `lake env lean proofs/p_versus_np/circuit_lower_bounds/Proof.l
 - Use degree-dependent thresholds (e.g., n ≥ C·2^d), or
 - Prove separate lemmas for specific degrees needed by downstream results
 
+### 5. Runtime Exceeding Limits ❌
+**Issue:** Proof attempt in FAILED_ATTEMPTS.md for `poly_quadratic_bound_k_ge_1` used massive case analysis that caused Lean to run for >1 hour.
+
+**Discovery:**
+- The proof had dozens of nested case splits on n ranges
+- Each case required proving similar inequalities
+- The approach was computationally infeasible
+
+**Resolution:**
+- ❌ Abandoned the massive case analysis approach
+- ✅ Need more efficient proof strategy using general bounds
+
+**Lesson:** Avoid excessive case analysis. Prefer general lemmas with clean induction structures over brute-force case splitting.
+
 ---
 
 ## Completed Proofs
 
 ### ✅ `evalNode_normalizeNodeCode`
 **Status:** COMPLETE  
-**Lines:** 300-333  
+**Lines:** ~300-333  
 **What:** Node evaluation preserved under normalization  
 **Approach:** Case analysis on gate type, use helper lemmas for AND/OR, direct simplification for others
 
@@ -245,11 +257,17 @@ IMPORTANT: Ensure `lake env lean proofs/p_versus_np/circuit_lower_bounds/Proof.l
 **What:** (n+1)^(n+1) * 2^n < 2^(2^n) for n ≥ 4  
 **Impact:** Core counting argument for identity polynomial
 
-### ✅ `shannon_counting_argument` (partial)  
-**Status:** CONTRADICTION SETUP COMPLETE  
-**Lines:** ~1300  
-**What:** For any polynomial p, exists Boolean function requiring circuits larger than p(n)  
-**Status:** Counting bound complete, pigeonhole cardinality application has sorry
+### ✅ `poly_quadratic_bound_k0`
+**Status:** COMPLETE
+**Lines:** ~870-940
+**What:** 4*c^2 + 6*c + 1 < 2^n for n ≥ 2*c + 5
+**Approach:** Induction on c with helper lemma
+
+### ✅ `poly_quadratic_bound_k_ge_1` for k=1
+**Status:** COMPLETE
+**Lines:** ~830-850
+**What:** (c*n + c)^2 + 3*(c*n + c) + 1 < 2^n for n ≥ c + 200
+**Approach:** Bound c*n + c ≤ n^2 + n, then use `n_squared_plus_n_quartic_lt_two_pow_n_200`
 
 ---
 
@@ -273,30 +291,29 @@ lake build --verbose
 
 ### Priority Order:
 
-1. **`evalCircuit_normalizeCircuit`** - Most tractable remaining sorry
+1. **`evalCircuit_normalizeCircuit`** - Foundational lemma needed by others
    - Follow README 7-step strategy
    - Key: Use `evalStep_fold_getElem?_preserve` for padding region
    - Effort: 2-4 hours
 
-2. **`n_20_lt_two_pow_n`** - Unblocks polynomial degree chain
-   - Base case n=200: norm_num verification
-   - Inductive step: (k+1)^20 < 2^(k+1) via (k+1)^20 < 2·k^20 < 2·2^k
-   - Pattern: `n_quartic_plus_lt_two_pow_n_200`
-   - Effort: 2-3 hours
+2. **`poly_quadratic_bound_k_ge_1` for k ≥ 2** - Unblocks Shannon argument
+   - Use bounded-degree approach for k ≤ 7
+   - For k > 7: accept degree bound or find different approach
+   - Avoid the massive case analysis from FAILED_ATTEMPTS.md
+   - Effort: 3-5 hours
 
-3. **`poly_quadratic_bound_k_ge_1` for k≤7** - Apply `n_pow_lt_two_pow_n_reasonable`
-   - For k≤7: 2k+6 ≤ 20, so can apply bounded-degree helper
-   - Use monotonicity and existing `n_squared_plus_n_quartic_lt_two_pow_n_200`
-   - Effort: 1-2 hours once `n_20_lt_two_pow_n` complete
+3. **`shannon_counting_argument`** - Main counting theorem
+   - Depends on items 1 and 2
+   - Use `NormalizedCircuit` for Fintype instance
+   - Effort: 3-5 hours
 
-4. **Pigeonhole cardinality** - Use `NormalizedCircuit` injection  
-   - Map functions to normalized circuits (which has Fintype instance)
-   - Apply cardinality bound through normalized representation
-   - Effort: 1-2 hours
-
-5. **`poly_quadratic_bound_k_ge_1` for k>7** - Different approach needed  
-   - May require stronger exponential bounds or non-polynomial growth arguments
-   - Current sorry acknowledges architectural gap
+### Dependencies:
+```
+shannon_counting_argument
+  ├─ poly_quadratic_bound (needs k ≥ 2 case)
+  │   └─ poly_quadratic_bound_k_ge_1 (k ≥ 2 case)
+  └─ evalCircuit_normalizeCircuit (for injection proof)
+```
 
 ---
 
@@ -306,7 +323,9 @@ lake build --verbose
 proofs/p_versus_np/circuit_lower_bounds/
 ├── Proof.lean           # Main proof file (current focus)
 ├── NOTES.md             # This status document  
-└── GUIDANCE.md          # Strategic advice for completion
+├── FAILED_ATTEMPTS.md   # Lessons from failed proof attempts
+├── GUIDANCE.md          # Strategic advice and prior art
+└── README.md            # Compact overview and scope
 ```
 
 ---
@@ -314,7 +333,8 @@ proofs/p_versus_np/circuit_lower_bounds/
 ## References
 
 - **Primary:** `Proof.lean` - The authoritative source of current proof status
-- **Guidance:** `GUIDANCE.md` - Strategic advice and prior art
+- **Guidance:** `GUIDANCE.md` - Strategic advice and mathematical foundations
+- **Lessons:** `FAILED_ATTEMPTS.md` - What not to do (runtime issues)
 - **Mathlib:** External dependency for number theory and data structures
 
 ---
@@ -335,9 +355,5 @@ The current proof follows a well-established approach:
 
 ---
 
-*Documentation last updated: 2026-05-01  
+*Documentation last updated: 2025-05-02  
 For questions or to continue this work, consult the README and GUIDANCE files in this directory.*
-
-## Technical Interruptions
-
-- 2026-05-02 07:52 UTC — Researcher workflow hit a technical interruption: Mistral Vibe timed out during pass 1/5 after 3600 seconds.. Partial work from this run was preserved; review the current proof state before continuing.

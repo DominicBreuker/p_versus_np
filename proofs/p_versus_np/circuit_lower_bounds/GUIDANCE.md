@@ -4,7 +4,7 @@
 > - The key inequality `(p(n))^2 + 3·p(n) + 1 < 2^n` for `p(n) = c·n^k + c` holds for `n ≥ 100·k + c + 100`, ensuring exponential dominance over polynomials.
 > - The Pigeonhole Principle shows that the number of Boolean functions (`2^(2^n)`) exceeds the number of circuits of size `≤ p(n)` (`(p(n)+1)^(p(n)+1) · 2^(p(n)`), establishing that not all functions can be computed by polynomial-size circuits.
 > - Normalization of circuits (padding with `const false` nodes) preserves evaluation semantics, enabling formalization of circuit counting arguments.
-> - Completing the proof requires fixing lemmas on exponential dominance (`n_20_lt_two_pow_n`, `poly_quadratic_bound_k_ge_1`), formalizing injections from functions to circuits (`h_ge` in `shannon_counting_argument`), and proving normalization invariance (`evalCircuit_normalizeCircuit`).
+> - **Current Status (2025-05-02):** 3 sorrys remain: `evalCircuit_normalizeCircuit` (line 387), `poly_quadratic_bound_k_ge_1` for k ≥ 2 (line 852), and `shannon_counting_argument` (line 1009).
 
 ---
 
@@ -94,34 +94,11 @@ The following results are **well-known mathematical facts** that have been succe
 
 The following items represent **novel contributions** that advance the body of mathematical knowledge through formalization work:
 
-1. **`n_20_lt_two_pow_n`** (Line 857):
-   **Status:** ⏳ IN PROGRESS — Base case n=200 verified computationally: 200^20 < 2^200. Inductive step needs completion.
-   
-   **Mathematical Significance:** Proves n^20 < 2^n for n ≥ 200, unblocking the polynomial degree chain for d ≤ 20. This is a standard exponential dominance result but requires careful induction proof.
-   
-   **Proof Strategy:** Follow the structure of `n_quartic_plus_lt_two_pow_n_200`. Base case verified by `norm_num`. Inductive step: (k+1)^20 < 2^(k+1) via (k+1)^20 < 2·k^20 < 2·2^k.
-
-2. **`poly_quadratic_bound_k_ge_1` for k≥2** (Line 940):
-   **Status:** ⏳ IN PROGRESS — Case split complete, needs arithmetic bounds for k ≤ 7 and different approach for k > 7.
-   
-   **Mathematical Significance:** Establishes the key inequality (c·n^k + c)^2 + 3·(c·n^k + c) + 1 < 2^n for n ≥ 100·k + c + 100 and k ≥ 1. This is essential for the full Shannon argument.
-   
-   **Proof Strategy:**
-   - For k ≤ 7: Use `n_pow_lt_two_pow_n_reasonable` (needs `n_20_lt_two_pow_n`)
-   - For k > 7: Different approach needed (current sorry acknowledges gap)
-
-3. **Pigeonhole Cardinality in `shannon_counting_argument`** (`h_ge`, Line 1578):
-   **Status:** ⚠️ BLOCKED — Injection proven via `f_to_circuit`, but cardinality application has sorry due to missing Fintype instance for `{c : BoolCircuit n // circuitSize c ≤ p n}`.
-   
-   **Mathematical Significance:** Formalizes the pigeonhole principle to derive contradiction from the counting inequality and the surjection from circuits to functions. This is the final step in Shannon's counting argument.
-   
-   **Proof Strategy:** Define `f_to_circuit` injection, then apply `Fintype.card_le_of_injective`. The Fintype instance issue can be resolved by using `NormalizedCircuit` as an intermediate type.
-
-4. **`evalCircuit_normalizeCircuit`** (Line 403):
-   **Status:** ⏳ IN PROGRESS — Proof structure complete, needs tactic completion.
+1. **`evalCircuit_normalizeCircuit`** (Line 387):
+   **Status:** ⏳ NOT STARTED — Just `sorry`, no proof structure.
    
    **Mathematical Significance:** Proves that normalizing a circuit (padding with const-false nodes) preserves evaluation semantics. This is crucial for formalizing circuit counting arguments.
-   
+    
    **Proof Strategy (from README):**
    1. Unfold `normalizeCircuit` and `evalCircuit`
    2. Show output node is either preserved or evaluates to false
@@ -132,18 +109,39 @@ The following items represent **novel contributions** that advance the body of m
    
    **Key Challenge:** Array/List conversion between `Array.foldl` on `Array.ofFn` and `List.foldl` operations.
 
+2. **`poly_quadratic_bound_k_ge_1` for k≥2** (Line 852):
+   **Status:** ⏳ PARTIALLY COMPLETE — k=0 and k=1 cases done, k ≥ 2 is sorry.
+   
+   **Mathematical Significance:** Establishes the key inequality (c·n^k + c)^2 + 3·(c·n^k + c) + 1 < 2^n for n ≥ 100·k + c + 100 and k ≥ 1. This is essential for the full Shannon argument.
+    
+   **Proof Strategy:**
+   - For k ≤ 7: Use bounded-degree approach
+   - For k > 7: Accept degree bound or find different approach
+   - **Avoid** the massive case analysis from FAILED_ATTEMPTS.md (caused >1 hour runtime)
+
+3. **`shannon_counting_argument`** (Line 1009):
+   **Status:** ⏳ NOT STARTED — Just `sorry`, no proof structure.
+    
+   **Mathematical Significance:** Main counting argument theorem. Proves that for any polynomial p, there exist Boolean functions on n inputs that cannot be computed by circuits of size ≤ p(n).
+    
+   **Proof Strategy:**
+   1. Use `poly_quadratic_bound` to show circuit_count_upper_bound n (p n) < boolean_function_count n
+   2. Use proof by contradiction: assume all functions are computable
+   3. Define injection from functions to `NormalizedCircuit n (p n)` via `Classical.choose`
+   4. Apply `Fintype.card_le_of_injective` to get cardinality bound
+   5. Derive contradiction from counting inequality
+   
+   **Dependencies:** Requires completing items 1 and 2 above.
+
 ### Summary of Remaining Work
 
 | **Item** | **Location** | **Status** | **Complexity** | **Effort** | **Mathematical Significance** |
 |----------|--------------|------------|----------------|------------|------------------------------|
-| `n_20_lt_two_pow_n` | Line 857 | ⏳ In Progress | Medium | 2-3 hours | Proves n^20 < 2^n for n ≥ 200, unblocks polynomial degree chain |
-| `poly_quadratic_bound_k_ge_1` (k≥2) | Line 940 | ⏳ In Progress | Medium-High | 3-5 hours | Establishes key inequality for Shannon argument |
-| Pigeonhole cardinality (`h_ge`) | Line 1578 | ⚠️ Blocked | Medium | 1-2 hours | Formalizes pigeonhole principle, completes Shannon argument |
-| `evalCircuit_normalizeCircuit` | Line 403 | ⏳ In Progress | Medium | 2-4 hours | Proves normalization preserves evaluation, essential for counting |
+| `evalCircuit_normalizeCircuit` | Line 387 | ⏳ Not Started | Medium | 2-4 hours | Proves normalization preserves evaluation, essential for counting |
+| `poly_quadratic_bound_k_ge_1` (k≥2) | Line 852 | ⏳ Partially Complete | Medium-High | 3-5 hours | Establishes key inequality for Shannon argument |
+| `shannon_counting_argument` | Line 1009 | ⏳ Not Started | Medium-High | 3-5 hours | Main counting theorem, depends on 1 and 2 |
 
-**Total Remaining:** 4 sorrys, ~8-14 hours of work
-
----
+**Total Remaining:** 3 sorrys, ~8-14 hours of work---
 
 ## Strategies to Complete Remaining Work
 

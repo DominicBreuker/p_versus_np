@@ -2,7 +2,7 @@
 
 **Priority:** 90
 
-**Status:** Active — Task 6 complete; Task 7 in progress;
+**Status:** Active — Tasks 1-6 complete; Task 7 in progress (3 sorrys remain)
 
 **Relationship to the repository goal:** Main proof track. This approach directly targets `P ≠ NP` by formalizing the statement that sufficiently strong SAT circuit lower bounds would separate `P` from `NP`.
 
@@ -34,12 +34,33 @@ circuit complexity, then `P ≠ NP`.
 - [x] Task 5: Prove the conditional reduction from SAT circuit lower bounds to `P ≠ NP`
 - [x] Task 6: Prove `circuit_count_lt_functions_at_n` — complete for all `n ≥ 4`
 - [ ] Task 7: Complete `shannon_counting_argument` without overstating what it implies
-  - Progress: Removed flawed `pow_lt_two_pow_half` and `n_lt_two_pow_half` lemmas that had mathematical inconsistencies
+  - **Current Status (2025-05-02):** 3 sorrys remain in Proof.lean
   - Remaining sorrys:
-    1. `evalCircuit_normalizeCircuit`: Prove evaluation preserves under circuit padding
-    2. `poly_quadratic_bound_k_ge_1` (k ≥ 2): Prove exponential dominance `(n^(k+3))^2 + ... < 2^n`
-    3. Pigeonhole injections (2 sorrys): Show circuits inject into normalized circuits
-  - Note: `evalNode_normalizeNodeCode` now complete ✓
+    1. `evalCircuit_normalizeCircuit` (line 387): Prove evaluation preserves under circuit padding
+    2. `poly_quadratic_bound_k_ge_1` for k ≥ 2 (line 852): Prove exponential dominance for higher degrees
+    3. `shannon_counting_argument` (line 1009): Main counting argument theorem
+  - Note: `evalNode_normalizeNodeCode` is complete ✓
+  - Note: `poly_quadratic_bound_k0` (k=0) and `poly_quadratic_bound_k_ge_1` for k=1 are complete ✓
+
+---
+
+## Current Proof Status Summary
+
+| **Theorem** | **Line** | **Status** | **Priority** |
+|-------------|----------|------------|-------------|
+| `evalCircuit_normalizeCircuit` | 387 | ❌ SORRY | HIGH |
+| `poly_quadratic_bound_k_ge_1` (k≥2) | 852 | ❌ SORRY | HIGH |
+| `shannon_counting_argument` | 1009 | ❌ SORRY | HIGH |
+| `p_neq_np` | ~1050 | ✅ Complete | - |
+| `sat_superpolynomial_implies_p_neq_np` | ~1040 | ✅ Complete | - |
+
+**Dependencies:**
+```
+shannon_counting_argument (line 1009)
+  ├─ poly_quadratic_bound (uses poly_quadratic_bound_k_ge_1)
+  │   └─ poly_quadratic_bound_k_ge_1 (k≥2 case at line 852)
+  └─ evalCircuit_normalizeCircuit (line 387, needed for injection)
+```
 
 ---
 
