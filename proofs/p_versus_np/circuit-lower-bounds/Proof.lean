@@ -219,33 +219,33 @@ private theorem foldl_or_true_iff {α : Type} (l : List α) (f : α → Bool) :
       · simp [List.foldl, hfx, ih]
       · simp [List.foldl, hfx, foldl_or_true]
 
-private theorem foldl_and_map_val {s : Nat} (vals : Array Bool) (l : List (Fin s)) :
-    List.foldl (fun (acc : Bool) c => acc && vals.getD c true) true (l.map Fin.val) =
-      List.foldl (fun (acc : Bool) (child : Fin s) => acc && vals.getD child.val true) true l := by
-  induction l with
+private theorem foldl_and_map_val {s : Nat} (vals : Array Bool) (l : List (Fin s)) (init : Bool) :
+    List.foldl (fun (acc : Bool) c => acc && vals.getD c true) init (l.map Fin.val) =
+      List.foldl (fun (acc : Bool) (child : Fin s) => acc && vals.getD child.val true) init l := by
+  induction l generalizing init with
   | nil => simp
-  | cons child rest ih => simpa using ih
+  | cons child rest ih => simpa using ih (init := init && vals.getD child.val true)
 
-private theorem foldl_or_map_val {s : Nat} (vals : Array Bool) (l : List (Fin s)) :
-    List.foldl (fun (acc : Bool) c => acc || vals.getD c false) false (l.map Fin.val) =
-      List.foldl (fun (acc : Bool) (child : Fin s) => acc || vals.getD child.val false) false l := by
-  induction l with
+private theorem foldl_or_map_val {s : Nat} (vals : Array Bool) (l : List (Fin s)) (init : Bool) :
+    List.foldl (fun (acc : Bool) c => acc || vals.getD c false) init (l.map Fin.val) =
+      List.foldl (fun (acc : Bool) (child : Fin s) => acc || vals.getD child.val false) init l := by
+  induction l generalizing init with
   | nil => simp
-  | cons child rest ih => simpa using ih
+  | cons child rest ih => simpa using ih (init := init || vals.getD child.val false)
 
-private theorem foldl_and_map_eval {s : Nat} (vals : Array Bool) (l : List (Fin s)) :
-    List.foldl (fun (acc : Bool) (child : Fin s) => acc && vals.getD child.val true) true l =
-      List.foldl (fun (acc : Bool) b => acc && b) true (l.map (fun child => vals.getD child.val true)) := by
-  induction l with
+private theorem foldl_and_map_eval {s : Nat} (vals : Array Bool) (l : List (Fin s)) (init : Bool) :
+    List.foldl (fun (acc : Bool) (child : Fin s) => acc && vals.getD child.val true) init l =
+      List.foldl (fun (acc : Bool) b => acc && b) init (l.map (fun child => vals.getD child.val true)) := by
+  induction l generalizing init with
   | nil => simp
-  | cons child rest ih => simpa using ih
+  | cons child rest ih => simpa using ih (init := init && vals.getD child.val true)
 
-private theorem foldl_or_map_eval {s : Nat} (vals : Array Bool) (l : List (Fin s)) :
-    List.foldl (fun (acc : Bool) (child : Fin s) => acc || vals.getD child.val false) false l =
-      List.foldl (fun (acc : Bool) b => acc || b) false (l.map (fun child => vals.getD child.val false)) := by
-  induction l with
+private theorem foldl_or_map_eval {s : Nat} (vals : Array Bool) (l : List (Fin s)) (init : Bool) :
+    List.foldl (fun (acc : Bool) (child : Fin s) => acc || vals.getD child.val false) init l =
+      List.foldl (fun (acc : Bool) b => acc || b) init (l.map (fun child => vals.getD child.val false)) := by
+  induction l generalizing init with
   | nil => simp
-  | cons child rest ih => simpa using ih
+  | cons child rest ih => simpa using ih (init := init || vals.getD child.val false)
 
 private theorem and_fold_preserved (vals : Array Bool) (s : Nat) (hs : vals.size ≤ s)
     (children : List Nat) :
@@ -300,44 +300,31 @@ private theorem or_fold_preserved (vals : Array Bool) (s : Nat) (hs : vals.size 
 private theorem evalNode_normalizeNodeCode {n s : Nat} (inp : Fin n → Bool) (vals : Array Bool)
     (hs : vals.size ≤ s) (node : CircuitNode) :
     evalNode inp vals (nodeCodeToRaw (normalizeNodeCode n s node)) = evalNode inp vals node := by
-  cases hgate : node.gate with
+  rcases node with ⟨gate, children⟩
+  cases gate with
   | And =>
-      let l := (boundedChildren s node.children).toList
-      calc
-        evalNode inp vals (nodeCodeToRaw (normalizeNodeCode n s node))
-            = List.foldl (fun acc c => acc && vals.getD c true) true
-                (List.map Fin.val l) := by simp [normalizeNodeCode, nodeCodeToRaw, hgate, evalNode, l]
-        _ = List.foldl (fun acc b : Fin s => acc && vals.getD b.val true) true l := foldl_and_map_val vals l
-        _ = List.foldl (fun acc b => acc && b) true (l.map (fun child => vals.getD child.val true)) := foldl_and_map_eval vals l
-        _ = evalNode inp vals node := by
-              simpa [hgate, evalNode, l] using (and_fold_preserved vals s hs node.children).symm
-  | Or =>
-      let l := (boundedChildren s node.children).toList
-      calc
-        evalNode inp vals (nodeCodeToRaw (normalizeNodeCode n s node))
-            = List.foldl (fun acc c => acc || vals.getD c false) false
-                (List.map Fin.val l) := by simp [normalizeNodeCode, nodeCodeToRaw, hgate, evalNode, l]
-        _ = List.foldl (fun acc b : Fin s => acc || vals.getD b.val false) false l := foldl_or_map_val vals l
-        _ = List.foldl (fun acc b => acc || b) false (l.map (fun child => vals.getD child.val false)) := foldl_or_map_eval vals l
-        _ = evalNode inp vals node := by
-              simpa [hgate, evalNode, l] using (or_fold_preserved vals s hs node.children).symm
+      simp only [normalizeNodeCode, nodeCodeToRaw, evalNode]
+      rw [foldl_and_map_val, foldl_and_map_eval, ← and_fold_preserved vals s hs children]
   | Not =>
-      cases hchildren : node.children with
-      | nil => simp [normalizeNodeCode, nodeCodeToRaw, hgate, hchildren, evalNode]
-      | cons child rest =>
-          cases rest with
+      cases hchildren : children with
+      | nil => simp [normalizeNodeCode, nodeCodeToRaw, evalNode]
+      | cons child tail =>
+          cases htail : tail with
           | nil =>
               by_cases hchild : child < s
-              · simp [normalizeNodeCode, nodeCodeToRaw, hgate, hchildren, hchild, evalNode]
+              · simp [normalizeNodeCode, nodeCodeToRaw, hchildren, hchild, evalNode]
               · have hge : vals.size ≤ child := le_trans hs (Nat.le_of_not_gt hchild)
-                simp [normalizeNodeCode, nodeCodeToRaw, hgate, hchildren, hchild, evalNode, Array.getD, hge]
-          | cons child' rest' =>
-              simp [normalizeNodeCode, nodeCodeToRaw, hgate, hchildren, evalNode]
+                simp [normalizeNodeCode, nodeCodeToRaw, hchildren, hchild, evalNode, Array.getD, hge]
+          | cons child' rest =>
+              simp [normalizeNodeCode, nodeCodeToRaw, hchildren, evalNode]
+  | Or =>
+      simp only [normalizeNodeCode, nodeCodeToRaw, evalNode]
+      rw [foldl_or_map_val, foldl_or_map_eval, ← or_fold_preserved vals s hs children]
   | Var i =>
       by_cases hi : i < n
-      · simp [normalizeNodeCode, nodeCodeToRaw, hgate, hi, evalNode]
-      · simp [normalizeNodeCode, nodeCodeToRaw, hgate, hi, evalNode]
-  | Const b => simp [normalizeNodeCode, nodeCodeToRaw, hgate, evalNode]
+      · simp [normalizeNodeCode, nodeCodeToRaw, hchildren, hi, evalNode]
+      · simp [normalizeNodeCode, nodeCodeToRaw, hchildren, hi, evalNode]
+  | Const b => simp [normalizeNodeCode, nodeCodeToRaw, hchildren, evalNode]
 
 private def evalStep {n : Nat} (inp : Fin n → Bool) (acc : Array Bool) (node : CircuitNode) : Array Bool :=
   acc.push (evalNode inp acc node)
