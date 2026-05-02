@@ -29,7 +29,7 @@ This document tracks the current status of the circuit lower bounds proof for P 
 
 ## Runtime
 
-IMPORTANT: Ensure `lake env lean proofs/p_versus_np/circuit-lower-bounds/Proof.lean` does not take too long! Target < 1 minute. See `FAILED_ATTEMPTS.md` for previous proofs that far exceeded the runtime.
+IMPORTANT: Ensure `lake env lean proofs/p_versus_np/circuit_lower_bounds/Proof.lean` does not take too long! Target < 1 minute. See `FAILED_ATTEMPTS.md` for previous proofs that far exceeded the runtime.
 
 ## What Has Been Accomplished
 
@@ -257,7 +257,7 @@ IMPORTANT: Ensure `lake env lean proofs/p_versus_np/circuit-lower-bounds/Proof.l
 
 ```bash
 # Check individual file
-lake env lean proofs/p_versus_np/circuit-lower-bounds/Proof.lean
+lake env lean proofs/p_versus_np/circuit_lower_bounds/Proof.lean
 
 # Full project build  
 lake build
@@ -303,7 +303,7 @@ lake build --verbose
 ## File Structure
 
 ```
-proofs/p_versus_np/circuit-lower-bounds/
+proofs/p_versus_np/circuit_lower_bounds/
 ├── Proof.lean           # Main proof file (current focus)
 ├── NOTES.md             # This status document  
 └── GUIDANCE.md          # Strategic advice for completion

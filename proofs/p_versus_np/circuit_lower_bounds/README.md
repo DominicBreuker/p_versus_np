@@ -21,7 +21,7 @@ circuit complexity, then `P ≠ NP`.
 - Do not present Shannon-style counting progress as if it settled the SAT lower-bound problem itself.
 - Keep the route barrier-aware.
 - Counting lemmas and asymptotic bounds are worthwhile here only insofar as they clarify what this route can and cannot prove about explicit NP languages.
-- Ensure `lake env lean proofs/p_versus_np/circuit-lower-bounds/Proof.lean` does not take too long! Target < 1 minute. See `FAILED_ATTEMPTS.md` for previous proofs that far exceeded the runtime.
+- Ensure `lake env lean proofs/p_versus_np/circuit_lower_bounds/Proof.lean` does not take too long! Target < 1 minute. See `FAILED_ATTEMPTS.md` for previous proofs that far exceeded the runtime.
 
 ---
 

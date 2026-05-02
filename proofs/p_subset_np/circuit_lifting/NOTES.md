@@ -47,7 +47,7 @@
 
 ## Recommended Next Steps
 
-1. Reuse this finished `p_subset_np` result from the main `p_versus_np/circuit-lower-bounds` track when verifier lifting is needed.
+1. Reuse this finished `p_subset_np` result from the main `p_versus_np/circuit_lower_bounds` track when verifier lifting is needed.
 2. If the sanitization lemmas become shared infrastructure, move them into `lib/` in a separate cleanup task.
 
 ---
@@ -65,7 +65,7 @@
 - ✅ All theorems compile without errors
 
 **Findings:**
-- The circuit-lifting proof is complete and correct
+- The circuit_lifting proof is complete and correct
 - `p_subset_np` theorem is fully proven with no placeholders
 - All supporting lemmas (sanitization, lifting, polynomial bounds) are proven
 - Build passes cleanly with no warnings
@@ -74,8 +74,8 @@
 
 ## Files Modified
 
-- `proofs/p_subset_np/circuit-lifting/Proof.lean`
-- `proofs/p_subset_np/circuit-lifting/NOTES.md`
+- `proofs/p_subset_np/circuit_lifting/Proof.lean`
+- `proofs/p_subset_np/circuit_lifting/NOTES.md`
 
 ---
 

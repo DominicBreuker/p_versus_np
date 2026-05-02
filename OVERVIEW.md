@@ -14,21 +14,21 @@ Any additional problem in `proofs/` is allowed only if it is a documented materi
 
 | Problem | Approach | Priority | Status | Relationships |
 |---------|----------|----------|--------|---------------|
-| [p_versus_np](proofs/p_versus_np/) | [circuit-lower-bounds](proofs/p_versus_np/circuit-lower-bounds/) | 90 | Active — Task 6 complete; Task 7 in progress; **3 `sorry`s remain** (`evalCircuit_normalizeCircuit` line 389; `poly_quadratic_bound_k_ge_1` line 797; pigeonhole step line 1140) | Direct attack on `P ≠ NP`; the support track exists only to finish reusable circuit-model infrastructure |
-| [p_subset_np](proofs/p_subset_np/) | [circuit-lifting](proofs/p_subset_np/circuit-lifting/) | 0 | ✅ Complete — `p_subset_np` proven; 0 `sorry`s; frozen | Supports `p_versus_np/circuit-lower-bounds`; supplies the easy inclusion `P ⊆ NP` in the shared model |
+| [p_versus_np](proofs/p_versus_np/) | [circuit_lower_bounds](proofs/p_versus_np/circuit_lower_bounds/) | 90 | Active — Task 6 complete; Task 7 in progress; **3 `sorry`s remain** (`evalCircuit_normalizeCircuit` line 389; `poly_quadratic_bound_k_ge_1` line 797; pigeonhole step line 1140) | Direct attack on `P ≠ NP`; the support track exists only to finish reusable circuit-model infrastructure |
+| [p_subset_np](proofs/p_subset_np/) | [circuit_lifting](proofs/p_subset_np/circuit_lifting/) | 0 | ✅ Complete — `p_subset_np` proven; 0 `sorry`s; frozen | Supports `p_versus_np/circuit_lower_bounds`; supplies the easy inclusion `P ⊆ NP` in the shared model |
 
 ## Progress Summary
 
 - **Active proof tracks:** 1 (direct P vs NP route)
-- **Completed support tracks:** 1 (`p_subset_np/circuit-lifting`)
+- **Completed support tracks:** 1 (`p_subset_np/circuit_lifting`)
 - **Direct P vs NP tracks:** 1
 - **Lean baseline:** `lake env lean Proof.lean` succeeds
-- **Proof files:** 2; `circuit-lower-bounds` has 3 unresolved `sorry`s; `circuit-lifting` has 0
+- **Proof files:** 2; `circuit_lower_bounds` has 3 unresolved `sorry`s; `circuit_lifting` has 0
 - **Conditional separation theorem:** 1 (`p_neq_np`, dependent on two axioms)
 
 ## Assessment (2026-04-30)
 
-### p_versus_np / circuit-lower-bounds (Priority 90)
+### p_versus_np / circuit_lower_bounds (Priority 90)
 
 - This remains the main repository attempt to settle `P ≠ NP`.
 - **Task 6 is complete:** `circuit_count_lt_functions_at_n` compiles for all `n ≥ 4` without `sorry`.
@@ -39,14 +39,14 @@ Any additional problem in `proofs/` is allowed only if it is a documented materi
 - The `p_neq_np` theorem compiles as a conditional result dependent on two axioms: `sat_is_np_complete` and `sat_has_superpoly_lower_bound`.
 - **Important caveat:** Shannon counting yields existential lower bounds for *some* Boolean functions; it does not by itself establish a SAT-specific lower bound. The gap between `shannon_counting_argument` and an explicit SAT circuit lower bound is the core open barrier.
 
-### p_subset_np / circuit-lifting (Priority 0) — COMPLETE
+### p_subset_np / circuit_lifting (Priority 0) — COMPLETE
 
 - **All `sorry`s resolved.** `p_subset_np` compiles with no axioms beyond the shared circuit model.
 - This track is now frozen. No researcher time should be spent here unless the main route explicitly needs a shared lemma.
 
 ## Next Steps for Researchers
 
-Focus exclusively on `proofs/p_versus_np/circuit-lower-bounds`:
+Focus exclusively on `proofs/p_versus_np/circuit_lower_bounds`:
 1. **Priority 1:** `evalCircuit_normalizeCircuit` (line 389) — proof outline is in README; all sub-lemmas exist.
 2. **Priority 2:** `poly_quadratic_bound_k_ge_1` (line 797) — prove `pow_lt_two_pow_half` helper by induction, then chain the bound; see README.
 3. **Priority 3:** Pigeonhole step (line 1140) — apply `Fintype.card_le_of_injective`.

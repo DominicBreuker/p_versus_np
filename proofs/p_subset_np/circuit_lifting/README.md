@@ -4,7 +4,7 @@
 
 **Status:** ✅ COMPLETE — `p_subset_np` proven; 0 `sorry`s in `Proof.lean`
 
-**Relationship to the repository goal:** This track supports `proofs/p_versus_np/circuit-lower-bounds` by proving the easy inclusion `P ⊆ NP` inside the same circuit model.
+**Relationship to the repository goal:** This track supports `proofs/p_versus_np/circuit_lower_bounds` by proving the easy inclusion `P ⊆ NP` inside the same circuit model.
 
 ---
 
@@ -66,6 +66,6 @@ The key insight was circuit sanitization:
 
 ## Next Steps
 
-This track is frozen. No further work is needed unless the main `p_versus_np/circuit-lower-bounds` route requires a specific reusable lemma from it.
+This track is frozen. No further work is needed unless the main `p_versus_np/circuit_lower_bounds` route requires a specific reusable lemma from it.
 
 If the sanitization lemmas become shared infrastructure, consider moving them into `lib/` in a separate cleanup task.

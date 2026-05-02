@@ -14,3 +14,11 @@ require mathlib from git
 lean_lib PVsNpLib where
   srcDir := "lib"
   roots := #[`PVsNpLib]
+
+@[default_target]
+lean_lib Proofs where
+  srcDir := "proofs"
+  roots := #[
+    `p_subset_np.circuit_lifting.Proof,
+    `p_versus_np.circuit_lower_bounds.Proof
+  ]

@@ -2,8 +2,8 @@
 
 | Problem | Approach | Priority | Status | Relationships |
 |---------|----------|----------|--------|---------------|
-| [p_versus_np](p_versus_np/) | [circuit-lower-bounds](p_versus_np/circuit-lower-bounds/) | 90 | Active — Task 6 complete; Task 7 in progress (**3 `sorry`s remain**: `evalCircuit_normalizeCircuit` line 389; `poly_quadratic_bound_k_ge_1` line 797; pigeonhole step line 1140); `evalNode_normalizeNodeCode` closed 2026-04-30; `p_neq_np` compiles conditionally | Direct attack on `P ≠ NP`; the support track exists only to finish reusable circuit-model infrastructure |
-| [p_subset_np](p_subset_np/) | [circuit-lifting](p_subset_np/circuit-lifting/) | 0 | ✅ Complete — `p_subset_np` proven; 0 `sorry`s; frozen | Supports `p_versus_np/circuit-lower-bounds` by proving the easy inclusion `P ⊆ NP` and avoiding duplicate bookkeeping in the main route |
+| [p_versus_np](p_versus_np/) | [circuit_lower_bounds](p_versus_np/circuit_lower_bounds/) | 90 | Active — Task 6 complete; Task 7 in progress (**3 `sorry`s remain**: `evalCircuit_normalizeCircuit` line 389; `poly_quadratic_bound_k_ge_1` line 797; pigeonhole step line 1140); `evalNode_normalizeNodeCode` closed 2026-04-30; `p_neq_np` compiles conditionally | Direct attack on `P ≠ NP`; the support track exists only to finish reusable circuit-model infrastructure |
+| [p_subset_np](p_subset_np/) | [circuit-lifting](p_subset_np/circuit-lifting/) | 0 | ✅ Complete — `p_subset_np` proven; 0 `sorry`s; frozen | Supports `p_versus_np/circuit_lower_bounds` by proving the easy inclusion `P ⊆ NP` and avoiding duplicate bookkeeping in the main route |
 
 ## Guidance for Researchers
 
