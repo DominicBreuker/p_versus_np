@@ -394,25 +394,12 @@ private theorem evalCircuit_normalizeCircuit {n s : Nat} (c : BoolCircuit n) (hs
   have hnodeListCodes : List.ofFn (normalizeCircuit c hsize).2 =
       List.ofFn (fun i : Fin c.nodes.size => normalizeNodeCode n s (c.nodes[i])) ++
         List.replicate (s - c.nodes.size) (NodeCode.const false) := normalizeCircuit_nodes_list c hsize
-  have hnodeList : List.ofFn (fun i : Fin s => nodeCodeToRaw ((normalizeCircuit c hsize).2 i)) =
-      (c.nodes.toList.map (fun node => nodeCodeToRaw (normalizeNodeCode n s node))) ++
-        List.replicate (s - c.nodes.size) falseNode := by
-    rw [List.ofFn_comp', hnodeListCodes, List.map_append, List.map_replicate]
-    congr 1
-    rw [← List.ofFn_comp']
-    congr
-    ext i
-    sorry
   have hnormVals :
       Array.foldl (fun acc node => acc.push (evalNode inp acc node)) #[]
           (normalizedToRaw (normalizeCircuit c hsize)).nodes =
         List.foldl (evalStep inp) #[] ((c.nodes.toList.map (fun node => nodeCodeToRaw (normalizeNodeCode n s node))) ++
           List.replicate (s - c.nodes.size) falseNode) := by
-    have : (normalizedToRaw (normalizeCircuit c hsize)).nodes.toList = 
-           List.ofFn (fun i : Fin s => nodeCodeToRaw ((normalizeCircuit c hsize).2 i)) := by
-      simp [normalizedToRaw, Array.toList_ofFn]
-    rw [← Array.foldl_toList, this, hnodeList]
-    rfl
+    sorry
   have hrawVals :
       Array.foldl (fun acc node => acc.push (evalNode inp acc node)) #[] c.nodes = rawVals := by
     rw [← Array.foldl_toList]
