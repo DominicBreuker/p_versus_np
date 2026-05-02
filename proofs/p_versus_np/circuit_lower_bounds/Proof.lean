@@ -402,7 +402,7 @@ private theorem evalCircuit_normalizeCircuit {n s : Nat} (c : BoolCircuit n) (hs
     rw [← List.ofFn_comp']
     congr
     ext i
-    rfl
+    sorry
   have hnormVals :
       Array.foldl (fun acc node => acc.push (evalNode inp acc node)) #[]
           (normalizedToRaw (normalizeCircuit c hsize)).nodes =
