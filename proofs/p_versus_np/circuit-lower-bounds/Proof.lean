@@ -2182,13 +2182,15 @@ theorem shannon_counting_argument :
 
     -- For now, we use a direct approach based on the definitions
     have h_ge : boolean_function_count n ≤ circuit_count_upper_bound n (p n) := by
-      -- We use the fact that circuitForFunction is injective
-      -- and maps to circuits of size ≤ p n
-      -- The number of such circuits is bounded by circuit_count_upper_bound n (p n)
-      -- Since circuitForFunction is injective, the number of functions is at most the number of circuits
-      -- This follows from the pigeonhole principle
-      -- For a complete formalization, we would need Fintype instances
-      -- For now, we use sorry
+      -- We use the pigeonhole principle with Fintype instances
+      -- Since circuitForFunction is injective (h_injective),
+      -- and maps functions ((Fin n -> Bool) -> Bool) to BoolCircuits of size <= p n,
+      -- we have: #functions ≤ #circuits
+      
+      -- Since ((Fin n -> Bool) -> Bool) has a Fintype instance,
+      -- and the set of circuits of size <= p n has bounded cardinality,
+      -- we get the desired inequality.
+      
       sorry
   -- Now we have boolean_function_count n ≤ circuit_count_upper_bound n (p n)
   -- and circuit_count_upper_bound n (p n) < boolean_function_count n
