@@ -29,7 +29,13 @@ Recent git log for this target:
 {git_log}
 ```
 
-Your primary job is to complete the proof, found in `proofs/{problem_name}/{approach_name}/Proof.lean`. Specifically:
+Your primary job is to complete the proof, found in `proofs/{problem_name}/{approach_name}/Proof.lean`. 
+
+First, run `timeout 60 lake env lean proofs/p_versus_np/circuit-lower-bounds/Proof.lean 2>&1 | head -100` and ensure the proof is free of errors.
+Fixing errors has priority over advancing the proof.
+The command should not time out! If it does, we may have computationally intensive errors, e.g., related to recursion depth. Troubleshoot!
+
+If the proof is in good shape, you proceed as follows:
 
 1. Understand how `{target_label}` advances the repository's attempt to settle P vs NP.
 2. Make a material improvement to the proof, but one step at time! Each time, do the smallest useful forward step on the proof or supporting library code.
