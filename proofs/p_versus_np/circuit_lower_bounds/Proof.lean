@@ -399,6 +399,9 @@ private theorem evalCircuit_normalizeCircuit {n s : Nat} (c : BoolCircuit n) (hs
           (normalizedToRaw (normalizeCircuit c hsize)).nodes =
         List.foldl (evalStep inp) #[] ((c.nodes.toList.map (fun node => nodeCodeToRaw (normalizeNodeCode n s node))) ++
           List.replicate (s - c.nodes.size) falseNode) := by
+    -- This follows from the fact that normalizedToRaw (normalizeCircuit c hsize) creates
+    -- an array whose toList is exactly (c.nodes.toList.map ... ++ replicate ...)
+    -- and Array.foldl over that array equals List.foldl over the list
     sorry
   have hrawVals :
       Array.foldl (fun acc node => acc.push (evalNode inp acc node)) #[] c.nodes = rawVals := by
