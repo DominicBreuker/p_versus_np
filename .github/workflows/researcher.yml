@@ -1,8 +1,6 @@
 name: Researcher
 
 on:
-  schedule:
-    - cron: '15 * * * *'
   workflow_dispatch:
     inputs:
       lean_researcher_run_count:
