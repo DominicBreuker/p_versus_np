@@ -13,12 +13,6 @@ Do not drift into unrelated complexity-theory work.
 Start by reading these files from the repository so you understand the project and the current state before changing anything:
 
 - `AGENTS.md`
-- `README.md`
-- `BOOTSTRAP.md`
-- `proofs/README.md`
-- `proofs/{problem_name}/README.md`
-- `proofs/{problem_name}/{approach_name}/README.md`
-- `proofs/{problem_name}/{approach_name}/NOTES.md`
 - `proofs/{problem_name}/{approach_name}/Proof.lean`
 - `lib/PVsNpLib.lean`
 - `lib/PVsNpLib/Utils.lean`
@@ -34,10 +28,13 @@ Your primary job is to complete the proof, found in `proofs/{problem_name}/{appr
 First, run `timeout 60 lake env lean proofs/{problem_name}/{approach_name}/Proof.lean 2>&1 | head -100` and ensure the proof is free of errors.
 Fixing errors has priority over advancing the proof.
 The command should not time out! If it does, we may have computationally intensive errors, e.g., related to recursion depth. Troubleshoot!
-IMPORTANT: Ensure `lake env lean proofs/{problem_name}/{approach_name}/Proof.lean` does not take too long! Target < 1 minute. See `FAILED_ATTEMPTS.md` if exists for previous proofs that far exceeded the runtime.
 
-If the proof is in good shape, you proceed as follows:
+If the proof is in good shape, your job is to make a material improvement to the proof. 
+When you are done, it must be a lot closer to being finished than before.
+Of course, you cannot handle all problems in your run.
+Focus on one important improvement (e.g., getting rid of a sorry), that is enough.
 
+Moreover:
 1. Understand how `{target_label}` advances the repository's attempt to settle P vs NP.
 2. Make a material improvement to the proof, but one step at time! Each time, do the smallest useful forward step on the proof or supporting library code.
 3. Update files anywhere under `proofs/{problem_name}/{approach_name}/` when that is useful for the current step.
