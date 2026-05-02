@@ -99,6 +99,7 @@ jobs:
           build: true
           test: false
           lint: false
+        continue-on-error: true # proofs could break the build
 
       - name: Prime Lean MCP server
         run: uvx --from "lean-lsp-mcp==0.26.1" lean-lsp-mcp --help >/dev/null
