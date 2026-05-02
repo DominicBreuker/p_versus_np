@@ -960,6 +960,64 @@ private theorem succ_pow_le_two_mul_pow (D n : Nat) (hn : n ≥ D * D + 1) :
   --   3. nlinarith [hn, sq_nonneg n, sq_nonneg D, Nat.mul_le_mul_right ..]
   --   4. Manual binomial expansion via Finset.sum and Nat.choose.
   -- Realistically, 1-3 will not close it. You will need the manual proof.
+  
+  -- Try exact? first
+  -- exact?
+  
+  -- Try apply? to see what's available
+  -- apply?
+  
+  -- This is a standard inequality: (n+1)^D ≤ 2 * n^D when n ≥ D² + 1
+  -- We use the binomial theorem and bounds on binomial coefficients.
+  
+  -- First, the binomial expansion of (n+1)^D
+  have h_add_pow : (n + 1) ^ D = ∑ i ∈ Finset.range (D + 1), n ^ i * Nat.choose D i := by
+    rw [Commute.add_pow (Commute.all n 1) D]
+    simp only [one_pow, mul_one]
+    rfl
+  
+  -- Now we rewrite using this expansion
+  rw [h_add_pow]
+  
+  -- We need to show: ∑ i ∈ range (D+1), n^i * D.choose i ≤ 2 * n^D
+  -- Split the sum: i=0 gives n^0 * D.choose 0 = 1 * 1 = 1
+  --                i=D gives n^D * D.choose D = n^D * 1 = n^D
+  --                other i give terms that we'll bound
+  
+  -- For i = 0: n^0 * D.choose 0 = 1
+  -- For i = D: n^D * D.choose D = n^D
+  -- For 1 ≤ i ≤ D-1: n^i * D.choose i
+  
+  -- Key observation: For i ≥ 1 and n ≥ D² + 1, we have D.choose i ≤ D^i
+  -- And n^i ≤ n^D / D^i (since n ≥ D² implies n^i ≤ n^D / n^{D-i} ≤ n^D / D^{2(D-i)} ≤ n^D / D^i for i ≤ D/2)
+  -- Actually, more simply: n^i * D.choose i ≤ n^i * D^i = (n*D)^i
+  -- But this doesn't directly help...
+  
+  -- Let's try a different approach using the fact that n ≥ D² + 1 ≥ 2D ≥ 2i for i ≤ D
+  --
+  -- We need: ∑ i ∈ range (D+1), n^i * D.choose i ≤ 2 * n^D
+  --
+  -- The sum equals ∑_{i=0}^D C(D,i) * n^{D-i} (reversing i to D-i)
+  -- So we need: ∑_{i=0}^D C(D,i) * n^{D-i}  ≤ 2 * n^D where i ranges 0..D
+  --
+  -- Split: C(D,0) * n^D + C(D,D) * n^0 + ∑_{i=1}^{D-1} C(D,i) * n^{D-i}
+  --       = 1 * n^D + 1 * 1 + ∑_{i=1}^{D-1} C(D, D-i) * n^i  (using symmetry)
+  --       = n^D + 1 + ∑_{j=1}^{D-1} C(D,j) * n^{D-j}  (reindexing j = D-i)
+  --
+  -- Actually, let's use the form from the comments:
+  -- (n+1)^D = ∑_{i=0}^D C(D,i) * n^{D-i}
+  -- We need to reverse the order to match
+  -- TODO: This requires a proper proof using binomial coefficient bounds.
+  -- The inequality states: (n+1)^D ≤ 2 * n^D when n ≥ D² + 1
+  -- 
+  -- Proof strategy (as outlined in comments):
+  -- 1. Use binomial theorem: (n+1)^D = ∑_{i=0}^D C(D,i) * n^{D-i}
+  -- 2. Show ∑_{i=1}^D C(D,i) * n^{D-i} ≤ n^D by bounding each term
+  -- 3. Term bound: C(D,i) * n^{D-i} ≤ n^D / D^i (using C(D,i) ≤ D^i and n ≥ D²)
+  -- 4. Sum bound: ∑_{i=1}^D 1/D^i ≤ 1/(D-1) ≤ 1 for D ≥ 2
+  --
+  -- This needs lemmas about: Nat.choose_le_pow, geometric series bounds
+  -- which are available in Mathlib but require careful setup.
   sorry
 
 -- MAIN GENERAL LEMMA. Threshold T(D) = D^2 + 100 (chosen because:
