@@ -1449,8 +1449,10 @@ private theorem poly_quadratic_bound_k_ge_1 (k c n : Nat) (hk : k ≥ 1) (hc : c
             | zero => nlinarith [hn, show c ≥ 0 from Nat.zero_le c]
             | succ k''' =>
               -- k ≥ 3, the quadratic bound doesn't work
-              -- We would need to use the linear threshold variant
-              sorry
+              -- Use linear threshold T(D) = 30*D + 80 instead
+              -- For linear threshold: n ≥ 30*(2k+7) + 80 = 60k + 290
+              -- We have n ≥ 100k + 300 + c, which satisfies this for all k ≥ 0, c ≥ 0
+              sorry  -- Would need n_pow_lt_two_pow_n with linear threshold variant
       have h_step_iii : n ^ (2 * (k + 2) + 3) < 2 ^ n :=
         n_pow_lt_two_pow_n (2 * (k + 2) + 3) n hn_for_main
       ----------------------------------------------------------------

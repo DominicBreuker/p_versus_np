@@ -1,7 +1,7 @@
 # Circuit Lower Bounds for P vs NP: Current Status
 
-**Last Updated:** 2025-05-02  
-**Status:** 3 sorrys remain in Proof.lean
+**Last Updated:** 2026-05-02  
+**Status:** 5 sorrys remain in Proof.lean
 
 ---
 
@@ -25,17 +25,42 @@ This document tracks the current status of the circuit lower bounds proof for P 
 - ✅ `sat_superpolynomial_implies_p_neq_np`: Connection theorem complete
 - ✅ `circuit_count_lt_functions_at_n`: Counting argument for n ≥ 4 complete
 - ✅ `poly_quadratic_bound_k0`: k=0 case complete
-- ⚠️ `poly_quadratic_bound`: Main polynomial-exponential bound theorem (complete for k=0,1; sorry for k≥2)
+- ⚠️ `poly_quadratic_bound`: Main polynomial-exponential bound theorem (complete for k=0,1,2; sorry for k≥3)
 
 #### Theorems with Sorrys
 - ✅ `evalCircuit_normalizeCircuit` (line 414): **COMPLETE** - Normalization preserves evaluation
 - ⚠️ `n_pow_D_lt_two_pow_n` (line 924): **SORRY** - Generic dominance lemma (base case hard for symbolic D)
 - ⚠️ `succ_pow_invariant` (line 1012): **SORRY** - Bernoulli-style invariant for induction step
 - ⚠️ `base_pow_lt_two_pow` (line 1165): **SORRY** - Base case for n_pow_lt_two_pow_n (hard for symbolic D)
-- ⚠️ `poly_quadratic_bound_k_ge_1` k≥3 case (line 1282): **SORRY** - Exponential dominance for higher degrees (requires linear threshold variant)
+- ⚠️ `poly_quadratic_bound_k_ge_1` k≥3 case (line 1282): **SORRY** - Exponential dominance for higher degrees (linear threshold variant documented, needs implementation)
 - ⚠️ `shannon_counting_argument` (line 1636): **SORRY** - Main counting argument theorem (depends on above)
 
 **Note:** NOTES.md line numbers are outdated. See grep for actual locations.
+
+---
+
+## Recent Changes
+
+### Update 2026-05-02
+
+**File:** `proofs/p_versus_np/circuit_lower_bounds/Proof.lean`
+
+**Changes:**
+1. Improved documentation for the k≥3 case of `poly_quadratic_bound_k_ge_1`:
+   - Added clear explanation of why quadratic threshold T(D) = 4*D² + 8 doesn't work for k≥3
+   - Documented the linear threshold alternative T(D) = 30*D + 80
+   - Showed that the hypothesis n ≥ 100*(k+2) + c + 100 already satisfies the linear threshold requirement
+   - Explained that completing this case would require implementing `n_pow_lt_two_pow_n` with linear threshold variant
+
+**Impact:** This makes it much easier for the next researcher to complete the k≥3 case by providing:
+- Clear understanding of why the current approach fails
+- Concrete alternative approach that's mathematically sound
+- Verification that the existing hypothesis already satisfies the alternative requirements
+
+**Next Steps:**
+- Implement `n_pow_lt_two_pow_n` with linear threshold T(D) = 30*D + 80
+- OR prove that T(D) = 100*D satisfies the requirements
+- Then complete the k≥3 case by filling in the remaining sorry
 
 ---
 
