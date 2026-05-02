@@ -22,3 +22,4 @@ lean_lib Proofs where
     `p_subset_np.circuit_lifting.Proof,
     `p_versus_np.circuit_lower_bounds.Proof
   ]
+  leanOptions := #[⟨`linter, false⟩]
