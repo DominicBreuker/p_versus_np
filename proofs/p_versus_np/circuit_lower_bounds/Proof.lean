@@ -392,13 +392,8 @@ private theorem evalStep_fold_normalized_eq {n s : Nat} (inp : Fin n → Bool)
 private theorem array_foldl_ofFn_eq_list_foldl {α β : Type} {n : Nat} (f : β → α → β) (init : β)
     (g : Fin n → α) :
     Array.foldl f init (Array.ofFn g) = List.foldl f init (List.ofFn g) := by
-  sorry
-  -- PRIMARY: should close immediately if names are right
-  -- rw [Array.foldl_toList, Array.toList_ofFn]
-  -- If that fails, try:
-  -- simp [Array.foldl_toList, Array.toList_ofFn]
-  -- or:
-  -- rw [Array.foldl_toList]; congr 1; exact Array.toList_ofFn g
+  rw [Array.foldl_toList]
+  simp
 
 private theorem normalizeCircuit_nodes_list {n s : Nat} (c : BoolCircuit n) (hsize : circuitSize c ≤ s) :
     List.ofFn (normalizeCircuit c hsize).2 =
@@ -438,83 +433,43 @@ private theorem evalCircuit_normalizeCircuit {n s : Nat} (c : BoolCircuit n) (hs
     -- After unfolding, .nodes = Array.ofFn (fun i => nodeCodeToRaw ((normalizeCircuit c hsize).2 i))
     -- Goal: Array.foldl (evalStep inp) #[] (Array.ofFn ...) = List.foldl (evalStep inp) #[] (... ++ ...)
     rw [array_foldl_ofFn_eq_list_foldl]
-    sorry
     -- Now both sides are List.foldl (evalStep inp) #[] applied to some list.
     -- Reduce to a list equality.
-    -- congr 1
+    congr 1
     -- CURRENT GOAL (list equality):
     --   List.ofFn (fun i : Fin s => nodeCodeToRaw ((normalizeCircuit c hsize).2 i))
     --   = List.map (fun node => nodeCodeToRaw (normalizeNodeCode n s node)) c.nodes.toList
     --     ++ List.replicate (s - c.nodes.size) falseNode
-    --
+
     -- STEP A: rewrite the lhs so nodeCodeToRaw is lifted outside List.ofFn.
-    --   Target form: List.map nodeCodeToRaw (List.ofFn (normalizeCircuit c hsize).2)
-    --   Lemma: List.map_ofFn says  List.map f (List.ofFn g) = List.ofFn (fun i => f (g i))
-    --   We want it right-to-left: List.ofFn (fun i => f (g i)) = List.map f (List.ofFn g)
-    -- rw [show (fun i => nodeCodeToRaw ((normalizeCircuit c hsize).2 i)) =
-    --          nodeCodeToRaw ∘ (normalizeCircuit c hsize).2 from rfl,
-    --     ← List.map_ofFn]
-    -- If List.map_ofFn is not found, try: List.ofFn_map, or
-    -- replace this step with:
-    --   conv_lhs => rw [show List.ofFn (nodeCodeToRaw ∘ (normalizeCircuit c hsize).2)
-    --                      = List.map nodeCodeToRaw (List.ofFn (normalizeCircuit c hsize).2) from
-    --                     (List.map_ofFn ..).symm]
-    --
-    -- STEP B: expand List.ofFn (normalizeCircuit c hsize).2 via the already-proved
-    --   hnodeListCodes : List.ofFn (normalizeCircuit c hsize).2
-    --                  = List.ofFn (fun i : Fin c.nodes.size => normalizeNodeCode n s c.nodes[i])
-    --                    ++ List.replicate (s - c.nodes.size) (NodeCode.const false)
-    -- rw [hnodeListCodes]
+    rw [show (fun i => nodeCodeToRaw ((normalizeCircuit c hsize).2 i)) =
+              nodeCodeToRaw ∘ (normalizeCircuit c hsize).2 from rfl]
+    rw [← List.map_ofFn]
+
+    -- STEP B: expand List.ofFn (normalizeCircuit c hsize).2 via hnodeListCodes
+    rw [hnodeListCodes]
+
     -- STEP C: push the map over ++ and List.replicate
-    -- rw [List.map_append, List.map_replicate]
-    -- Now goal has two subgoals joined by congr (or both appear in one goal):
-    --
-    --   SUBGOAL 1 (left):
-    --     List.map nodeCodeToRaw (List.ofFn (fun i : Fin c.nodes.size => normalizeNodeCode n s c.nodes[i]))
-    --     = List.map (fun node => nodeCodeToRaw (normalizeNodeCode n s node)) c.nodes.toList
-    --
-    --   SUBGOAL 2 (right):
-    --     List.replicate (s - c.nodes.size) (nodeCodeToRaw (NodeCode.const false))
-    --     = List.replicate (s - c.nodes.size) falseNode
-    --
+    rw [List.map_append, List.map_replicate]
+
     -- STEP D: subgoal 2 is definitional.
-    --   nodeCodeToRaw (NodeCode.const false) = ⟨Gate.Const false, []⟩ = falseNode by rfl/simp.
-    -- simp only [nodeCodeToRaw, falseNode]
-    -- If simp only doesn't close subgoal 2, try:
-    --   congr 1; simp [nodeCodeToRaw, falseNode]
-    --
+    simp only [nodeCodeToRaw, falseNode]
+
     -- STEP E: subgoal 1. Need to show:
-    --   List.map nodeCodeToRaw (List.ofFn (fun i => normalizeNodeCode n s c.nodes[i]))
+    --   List.map nodeCodeToRaw (List.ofFn (fun i : Fin c.nodes.size => normalizeNodeCode n s c.nodes[i]))
     --   = List.map (fun node => nodeCodeToRaw (normalizeNodeCode n s node)) c.nodes.toList
-    --
-    --   Key insight: c.nodes.toList = List.ofFn (fun i : Fin c.nodes.size => c.nodes[i])
-    --   This follows from:
-    --     Array.ofFn_getElem : Array.ofFn (fun i : Fin a.size => a[i]) = a
-    --   applied as:  c.nodes = Array.ofFn (fun i => c.nodes[i])
-    --   then toList:  c.nodes.toList = (Array.ofFn (fun i => c.nodes[i])).toList
-    --                               = List.ofFn (fun i => c.nodes[i])   [by Array.toList_ofFn]
-    --
-    --   If Array.ofFn_getElem is not found, try: Array.ofFn_fin_get, Array.ext_iff, or
-    --   prove c.nodes.toList = List.ofFn (fun i => c.nodes[i]) with:
-    --     apply List.ext_getElem; simp [Array.toList_get]
-    --
-    --   Once that's established, both sides are List.map _ (List.ofFn _) with the same function,
-    --   so they are equal by congr.
-    -- rw [show c.nodes.toList = List.ofFn (fun i : Fin c.nodes.size => c.nodes[i]) from by
-    --       rw [← Array.toList_ofFn (fun i => c.nodes[i])]
-    --       congr 1
-    --       exact (Array.ofFn_getElem c.nodes).symm]
-    -- If the above show-block doesn't work, replace it with:
-    --   have htoList : c.nodes.toList = List.ofFn (fun i : Fin c.nodes.size => c.nodes[i]) := by
-    --     simp [← Array.toList_ofFn, Array.ofFn_getElem]
-    --   rw [htoList]
-    -- Both sides are now List.map nodeCodeToRaw (List.ofFn (fun i => normalizeNodeCode n s c.nodes[i]))
-    -- = List.map (fun node => nodeCodeToRaw (normalizeNodeCode n s node)) (List.ofFn (fun i => c.nodes[i]))
-    -- Use List.map_ofFn (or List.map_congr) to unify:
-    -- simp [List.map_ofFn, Function.comp]
-    -- If simp doesn't close it:
-    --   rw [List.map_ofFn, List.map_ofFn]; rfl
-    --   or: congr 1; ext i; rfl
+
+    -- Key insight: c.nodes.toList = List.ofFn (fun i : Fin c.nodes.size => c.nodes[i])
+    have htoList : c.nodes.toList = List.ofFn (fun i : Fin c.nodes.size => c.nodes[i]) := by
+      simp [← Array.toList_ofFn, Array.ofFn_getElem]
+    rw [htoList]
+    -- Both sides are List.map ... (List.ofFn ...) with compatible functions
+    rw [List.map_ofFn, List.map_ofFn]
+    -- Now both are List.ofFn (nodeCodeToRaw ∘ ...), so they're equal
+    -- The left: nodeCodeToRaw ∘ (fun i => normalizeNodeCode n s c.nodes[i])
+    -- The right: nodeCodeToRaw ∘ normalizeNodeCode n s ∘ (fun i => c.nodes[i])
+    -- These are the same
+    rfl
   have hrawVals :
       Array.foldl (fun acc node => acc.push (evalNode inp acc node)) #[] c.nodes = rawVals := by
     rw [← Array.foldl_toList]
