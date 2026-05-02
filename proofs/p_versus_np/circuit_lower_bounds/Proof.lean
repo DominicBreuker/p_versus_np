@@ -792,7 +792,64 @@ private theorem n_squared_plus_n_quartic_lt_two_pow_n_200 (n : Nat) (hn : n ≥ 
 private theorem poly_quadratic_bound_k_ge_1 (k c n : Nat) (hk : k ≥ 1) (hc : c ≥ 1)
     (hn : n ≥ 100 * k + c + 100) :
     (c * n ^ k + c) ^ 2 + 3 * (c * n ^ k + c) + 1 < 2 ^ n := by
-  sorry
+  -- For n ≥ 100*k + c + 100, we have n ≥ 200
+  have hn200 : n ≥ 200 := by omega
+  -- Case split on k
+  cases k with
+  | zero =>
+    -- k = 0, but we have k ≥ 1, so this case is impossible
+    omega
+  | succ k =>
+    cases k with
+    | zero =>
+      -- k = 1
+      -- We have n ≥ 100*1 + c + 100 = c + 200, so n ≥ 200
+      -- For k=1, we need (c*n + c)^2 + 3*(c*n + c) + 1 < 2^n
+      -- From hn: n ≥ 200 + c, so c ≤ n - 200
+      simp at hn ⊢
+      have hc_bound : c ≤ n - 200 := by omega
+      -- We show c*n + c ≤ n^2 + n, which implies (c*n + c)^2 + 3*(c*n + c) + 1 ≤ (n^2 + n)^2 + 3*(n^2 + n) + 1
+      -- For n ≥ 200, we can show (n^2 + n)^2 + 3*(n^2 + n) + 1 < 2^n
+      have h_poly_bound : c * n + c ≤ n ^ 2 + n := by
+        have h1 : c ≤ n - 200 := hc_bound
+        have h2 : c * (n + 1) ≤ (n - 200) * (n + 1) := Nat.mul_le_mul_right (n + 1) h1
+        have h3 : (n - 200) * (n + 1) ≤ n * (n + 1) := by
+          apply Nat.mul_le_mul_right
+          have : n ≥ 200 := by omega
+          exact Nat.sub_le n 200
+        have h4 : n * (n + 1) = n ^ 2 + n := by ring
+        calc c * n + c = c * (n + 1) := by ring
+          _ ≤ (n - 200) * (n + 1) := h2
+          _ ≤ n * (n + 1) := h3
+          _ = n ^ 2 + n := h4
+      -- Now (c*n + c)^2 + 3*(c*n + c) + 1 ≤ (n^2 + n)^2 + 3*(n^2 + n) + 1
+      -- We need to show (n^2 + n)^2 + 3*(n^2 + n) + 1 < 2^n for n ≥ 200
+      have h_target : (n ^ 2 + n) ^ 2 + 3 * (n ^ 2 + n) + 1 < 2 ^ n := 
+        n_squared_plus_n_quartic_lt_two_pow_n_200 n hn200
+      -- And (c*n + c)^2 + 3*(c*n + c) + 1 ≤ (n^2 + n)^2 + 3*(n^2 + n) + 1
+      -- Since c*n + c ≤ n^2 + n (from h_poly_bound)
+      have h_mono : ∀ x y : Nat, x ≤ y → x ^ 2 + 3 * x + 1 ≤ y ^ 2 + 3 * y + 1 := by
+        intro x y hxy
+        calc x ^ 2 + 3 * x + 1
+            ≤ y ^ 2 + 3 * x + 1 := by
+                apply Nat.add_le_add_right
+                have : x ^ 2 ≤ y ^ 2 := by
+                  apply Nat.pow_le_pow_left
+                  omega
+                omega
+          _ ≤ y ^ 2 + 3 * y + 1 := by
+                apply Nat.add_le_add_right
+                have : 3 * x ≤ 3 * y := by
+                  apply Nat.mul_le_mul_left
+                  omega
+                omega
+      calc (c * n + c) ^ 2 + 3 * (c * n + c) + 1
+          ≤ (n ^ 2 + n) ^ 2 + 3 * (n ^ 2 + n) + 1 := h_mono (c * n + c) (n ^ 2 + n) h_poly_bound
+        _ < 2 ^ n := h_target
+    | succ k =>
+      -- k ≥ 2, so the original k in the theorem is k+2 ≥ 2
+      -- For now, leave this as sorry
+      sorry
 
 /-- Helper for k=0: For c ≥ 0 and n ≥ 2*c + 5, 4*c^2 + 6*c + 1 < 2^n. -/
 private theorem poly_quadratic_bound_k0 (c : Nat) (n : Nat) (hn : n ≥ 2 * c + 5) :
