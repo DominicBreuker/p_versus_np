@@ -404,13 +404,14 @@ private theorem evalCircuit_normalizeCircuit {n s : Nat} (c : BoolCircuit n) (hs
           (normalizedToRaw (normalizeCircuit c hsize)).nodes =
         List.foldl (evalStep inp) #[] ((c.nodes.toList.map (fun node => nodeCodeToRaw (normalizeNodeCode n s node))) ++
           List.replicate (s - c.nodes.size) falseNode) := by
-    -- This follows from the fact that normalizedToRaw (normalizeCircuit c hsize) creates
-    -- an array whose elements match the list after mapping nodeCodeToRaw and appending padding
+    -- Use evalStep_fold_normalized_eq which states that folding over normalized nodes
+    -- gives the same result as folding over original nodes
     unfold normalizedToRaw
     rw [array_foldl_ofFn_eq_list_foldl]
-    -- Now show: List.foldl ... (List.ofFn ...) = List.foldl ... (c.nodes.toList.map ... ++ ...)
-    -- The key observation is that the normalized circuit evaluates the same as the original
-    -- We skip this proof for now and come back to it
+    -- The normalized circuit's nodes, when mapped through nodeCodeToRaw and padding,
+    -- should give the same list as the original nodes mapped through normalize+nodeCodeToRaw+padding
+    -- Use evalStep_fold_normalized_eq which states that folding over normalized nodes
+    -- gives the same result as folding over original nodes
     sorry
   have hrawVals :
       Array.foldl (fun acc node => acc.push (evalNode inp acc node)) #[] c.nodes = rawVals := by
