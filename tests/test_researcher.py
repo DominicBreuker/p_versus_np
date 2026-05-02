@@ -71,14 +71,14 @@ Problem | Approach | Priority | Status | Relationships
     def test_pick_target_skips_completed_targets_even_with_nonzero_priority(self):
         completed = {
             "problem": "p_subset_np",
-            "approach": "circuit-lifting",
+            "approach": "circuit_lifting",
             "priority": "60",
             "priority_value": 60.0,
             "status": "✅ Complete — `p_subset_np` proven; 0 `sorry`s; frozen",
         }
         active = {
             "problem": "p_versus_np",
-            "approach": "circuit-lower-bounds",
+            "approach": "circuit_lower_bounds",
             "priority": "10",
             "priority_value": 10.0,
             "status": "Active — Task 7 in progress; Task 6 complete",
@@ -98,14 +98,14 @@ Problem | Approach | Priority | Status | Relationships
             [
                 {
                     "problem": "p_subset_np",
-                    "approach": "circuit-lifting",
+                    "approach": "circuit_lifting",
                     "priority": "60",
                     "priority_value": 60.0,
                     "status": "✅ Complete — `p_subset_np` proven; 0 `sorry`s; frozen",
                 },
                 {
                     "problem": "p_versus_np",
-                    "approach": "circuit-lower-bounds",
+                    "approach": "circuit_lower_bounds",
                     "priority": "90",
                     "priority_value": 90.0,
                     "status": "Active — Task 7 in progress",
@@ -113,7 +113,7 @@ Problem | Approach | Priority | Status | Relationships
             ]
         )
         self.assertEqual(len(warnings), 1)
-        self.assertIn("p_subset_np/circuit-lifting", warnings[0])
+        self.assertIn("p_subset_np/circuit_lifting", warnings[0])
 
     def test_parse_args_accepts_run_count_and_overall_timeout(self):
         args = researcher.parse_args(["--run-count", "5", "--overall-timeout-minutes", "12.5"])
@@ -213,11 +213,11 @@ class VibeExecutionTests(unittest.TestCase):
                 self.assertIn("Resuming mock Vibe session", output.getvalue())
 
     def test_append_failure_note_creates_technical_interruptions_section(self):
-        notes_path = REPO_ROOT / "proofs" / "p_versus_np" / "circuit-lower-bounds" / "NOTES.md"
+        notes_path = REPO_ROOT / "proofs" / "p_versus_np" / "circuit_lower_bounds" / "NOTES.md"
         original = notes_path.read_text(encoding="utf-8")
         try:
             notes_path.write_text("# Progress Notes\n", encoding="utf-8")
-            researcher.append_failure_note("p_versus_np", "circuit-lower-bounds", "mock timeout")
+            researcher.append_failure_note("p_versus_np", "circuit_lower_bounds", "mock timeout")
             updated = notes_path.read_text(encoding="utf-8")
             self.assertIn("## Technical Interruptions", updated)
             self.assertIn("mock timeout", updated)
@@ -227,7 +227,7 @@ class VibeExecutionTests(unittest.TestCase):
     def test_main_stops_starting_new_runs_after_overall_timeout(self):
         target = {
             "problem": "p_versus_np",
-            "approach": "circuit-lower-bounds",
+            "approach": "circuit_lower_bounds",
             "priority": "90",
             "priority_value": 90.0,
             "status": "Active",
@@ -323,7 +323,7 @@ class GitPushTests(unittest.TestCase):
              mock.patch.object(researcher, "MISTRAL_AGENT", "lean"):
             result = researcher.commit_and_push_run(
                 commit_message="Researcher update: run 1/2",
-                target_label="p_versus_np/circuit-lower-bounds",
+                target_label="p_versus_np/circuit_lower_bounds",
                 run_index=1,
             )
 
@@ -347,7 +347,7 @@ class GitPushTests(unittest.TestCase):
              mock.patch.object(researcher, "MISTRAL_AGENT", "lean"):
             result = researcher.commit_and_push_run(
                 commit_message="Researcher update: run 2/2",
-                target_label="p_versus_np/circuit-lower-bounds",
+                target_label="p_versus_np/circuit_lower_bounds",
                 run_index=2,
             )
 

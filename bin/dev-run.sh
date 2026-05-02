@@ -13,5 +13,6 @@ echo "Use 'exit' to leave the container"
 docker run -it --rm \
   -v "$REPO_ROOT/proofs:/workspace/proofs" \
   -v "$REPO_ROOT/lib:/workspace/lib" \
+  -v "$REPO_ROOT/lakefile.lean:/workspace/lakefile.lean" \
   -w /workspace \
   "${IMAGE_NAME}:${IMAGE_TAG}"
