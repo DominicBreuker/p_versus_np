@@ -35,307 +35,255 @@ The command should not time out! If it does, we may have computationally intensi
 If the proof is in good shape, your job is to make a material improvement to the proof, working into the following direction (parts may be done already):
 
 ```
-You are working on a Lean 4 proof file (Proof.lean) that formalizes part of
-a circuit lower bounds argument for P vs NP. The file imports Mathlib and
-PVsNpLib. Your task is to make progress on closing the main remaining sorry
-in `poly_quadratic_bound_k_ge_1`. There are several related sorrys upstream
-that you must work through in order. The plan below is designed so each step
-is independently verifiable; commit/test after each step.
+You are continuing work on a Lean 4 proof file (Proof.lean) for circuit
+lower bounds. The file imports Mathlib and PVsNpLib. There are two
+remaining issues to resolve:
+
+  (1) Eliminate the `axiom base_pow_lt_two_pow` and replace it with a
+      genuine theorem. The proof IS feasible — earlier analysis incorrectly
+      concluded it required parametric absorption induction. The cleaner
+      strategy below avoids that barrier entirely.
+
+  (2) Close the remaining `sorry` inside `poly_quadratic_bound` (the
+      caller of `poly_quadratic_bound_k_ge_1`). The sorry exists because
+      `poly_quadratic_bound_k_ge_1` was given an extra hypothesis
+      `hk_max : k ≤ 4` that needs to be propagated.
+
+The sorry inside `shannon_counting_argument` is OUT OF SCOPE for this
+session. Do not touch it.
 
 ═══════════════════════════════════════════════════════════════════════════
-GOAL
+PART 1: ELIMINATE THE AXIOM
 ═══════════════════════════════════════════════════════════════════════════
 
-The terminal target is `poly_quadratic_bound_k_ge_1`, which currently has a
-sorry inside its k≥2 case (specifically in the deepest branch where k≥3,
-i.e. the original-k value is at least 5). The chain of dependencies you
-must work through:
+The axiom currently in the file looks like:
 
-  succ_pow_le_pow_add         ← NEW lemma, replaces succ_pow_invariant
-       ↓
-  succ_pow_le_two_mul_pow     ← needs to be re-derived from new lemma
-       ↓
-  base_pow_lt_two_pow         ← AXIOMATIZE (do not try to prove)
-       ↓
-  n_pow_lt_two_pow_n          ← already structurally complete
-       ↓
-  poly_quadratic_bound_k_ge_1 ← restrict scope to k ≤ 4
+    private axiom base_pow_lt_two_pow (D : Nat) :
+        (4 * D * D + 8) ^ D < 2 ^ (4 * D * D + 8)
 
-You are NOT trying to close shannon_counting_argument in this session. Leave
-its sorry alone.
+THE STRATEGY (do not deviate from this):
 
-═══════════════════════════════════════════════════════════════════════════
-BACKGROUND ON THE MATH (read carefully — this drives all the changes)
-═══════════════════════════════════════════════════════════════════════════
+For T(D) = 4*D² + 8, observe:
+   (i)  T(D) ≤ 2^(2D+3)     for all D ≥ 0
+   (ii) (2D+3)·D < T(D)     for all D ≥ 0
+Therefore:
+   T(D)^D ≤ (2^(2D+3))^D = 2^((2D+3)·D) < 2^T(D)
 
-The current `succ_pow_invariant` claims:
-   ∀ n ≥ 2D+1, (n+1)^D + (n - 2*D) * n^(D-1) ≤ 2 * n^D
+This proof does NOT use succ_pow_le_two_mul_pow or any induction over the
+exponent of the LHS. It only uses base/exponent monotonicity and an
+auxiliary bound that is a single induction on D. Crucially, there is no
+"(D+1)-th power factor to absorb" — that obstacle only appears when you
+try to induct on D using the succ_pow chain.
 
-The Nat subtraction (n - 2*D) is what's blocking the inductive step. But
-there is a SUBTRACTION-FREE form that proves the same content:
+VERIFICATION OF (i) for small D:
+   D=0: 4·0+8=8 ≤ 2^3=8 ✓ (equality, but ≤ is fine)
+   D=1: 12 ≤ 32 ✓
+   D=2: 24 ≤ 128 ✓
+   D=10: 408 ≤ 8388608 ✓
 
-   ∀ n ≥ 2D+1, (n+1)^D ≤ n^D + 2*D*n^(D-1)
+VERIFICATION OF (ii):
+   (2D+3)·D = 2D² + 3D vs 4D² + 8
+   Difference: 2D² - 3D + 8. Discriminant: 9 - 64 < 0, so always positive.
+   D=0: 0 < 8. D=1: 5 < 12. D=10: 230 < 408. ✓
 
-DERIVATION (these two statements are equivalent for n ≥ 2D):
-   Original:   (n+1)^D + (n - 2D)*n^(D-1) ≤ 2*n^D
-   Add 2D*n^(D-1) to both sides:
-               (n+1)^D + (n - 2D + 2D)*n^(D-1) ≤ 2*n^D + 2D*n^(D-1)
-               (n+1)^D + n*n^(D-1) ≤ 2*n^D + 2D*n^(D-1)
-               (n+1)^D + n^D ≤ 2*n^D + 2D*n^(D-1)         [n*n^(D-1) = n^D for D≥1]
-               (n+1)^D ≤ n^D + 2D*n^(D-1)
+───────────────────────────────────────────────────────────────────────────
+STEP 1.1: Add the auxiliary bound (i) as a new private theorem
+───────────────────────────────────────────────────────────────────────────
 
-The new form has NO Nat subtraction. The proof of the new form uses only
-multiplication, ring-rewriting, and `omega` — no subtraction reasoning.
+INSERT immediately above the `axiom base_pow_lt_two_pow` declaration:
 
-PROOF OUTLINE for the new form:
-  Base D=1: (n+1)^1 ≤ n^1 + 2*1*n^0  ⟺  n+1 ≤ n+2.  Trivially `omega`.
-  Step D → D+1 (assuming IH for D, n ≥ 2(D+1)+1 = 2D+3):
-    Apply IH at n: (n+1)^D ≤ n^D + 2D*n^(D-1).
-    Multiply both sides by (n+1):
-      (n+1)^(D+1) ≤ (n+1)*n^D + 2D*(n+1)*n^(D-1)
-                  = n^(D+1) + n^D + 2D*n^D + 2D*n^(D-1)
-                                   [using (n+1)*n^D = n^(D+1)+n^D
-                                    and (n+1)*n^(D-1) = n*n^(D-1)+n^(D-1)
-                                            = n^D + n^(D-1)]
-                  = n^(D+1) + (1+2D)*n^D + 2D*n^(D-1)
-    GOAL: (n+1)^(D+1) ≤ n^(D+1) + 2(D+1)*n^D = n^(D+1) + (2D+2)*n^D.
-    Need: (1+2D)*n^D + 2D*n^(D-1) ≤ (2D+2)*n^D
-       ⟺ 2D*n^(D-1) ≤ n^D = n*n^(D-1)
-       ⟺ 2D ≤ n  ✓ (since n ≥ 2D+3)
-
-═══════════════════════════════════════════════════════════════════════════
-STEP 1: REPLACE succ_pow_invariant WITH succ_pow_le_pow_add
-═══════════════════════════════════════════════════════════════════════════
-
-Locate `succ_pow_invariant` in the file. It comes shortly after the older
-arithmetic lemmas (n_quartic_plus_lt_two_pow_n_200,
-n_squared_plus_n_quartic_lt_two_pow_n_200), and is currently DEFINED but
-has `sorry` in its succ-case. Just before or just after this old definition
-is also a vestigial `n_pow_D_lt_two_pow_n` with `D*D + 100` threshold and
-nothing but a `sorry` body — that lemma is unused; DELETE it entirely.
-
-Replace `succ_pow_invariant` with the following NEW lemma. Use the same
-section, same `private` modifier:
-
-  private theorem succ_pow_le_pow_add (D : Nat) (hD : D ≥ 1) :
-      ∀ n, n ≥ 2 * D + 1 → (n + 1) ^ D ≤ n ^ D + 2 * D * n ^ (D - 1) := by
-    induction D, hD using Nat.le_induction with
-    | base =>
-        intro n hn
-        simp only [pow_one, pow_zero, mul_one]
-        -- After simp, the term `2 * 1 * 1` should auto-reduce. If not,
-        -- the goal is `n + 1 ≤ n + 2*1*1`; insert `show n + 1 ≤ n + 2`
-        -- via `change` before omega, or use `linarith`.
-        omega
-    | succ D hD ih =>
-        intro n hn
-        have hn_ih : n ≥ 2 * D + 1 := by omega
-        have ih_n : (n + 1) ^ D ≤ n ^ D + 2 * D * n ^ (D - 1) := ih n hn_ih
-        -- Identity: n * n^(D-1) = n^D for D ≥ 1.
-        have h_pow_D : n * n ^ (D - 1) = n ^ D := by
-          have hD_eq : D = (D - 1) + 1 := by omega
-          conv_rhs => rw [hD_eq]
-          rw [pow_succ]; ring
-        -- Identity: (n+1) * n^D = n^(D+1) + n^D, via pow_succ.
-        have h_pow_succ_D : (n + 1) * n ^ D = n ^ (D + 1) + n ^ D := by
-          rw [pow_succ]; ring
-        -- Multiply IH by (n+1) and unfold both sides.
-        have hmul : (n + 1) * ((n + 1) ^ D) ≤ (n + 1) * (n ^ D + 2 * D * n ^ (D - 1)) :=
-          Nat.mul_le_mul_left (n + 1) ih_n
-        have hLHS_eq : (n + 1) * ((n + 1) ^ D) = (n + 1) ^ (D + 1) := by
-          rw [pow_succ]; ring
-        have hRHS_eq : (n + 1) * (n ^ D + 2 * D * n ^ (D - 1))
-                     = n ^ (D + 1) + (1 + 2 * D) * n ^ D + 2 * D * n ^ (D - 1) := by
-          calc (n + 1) * (n ^ D + 2 * D * n ^ (D - 1))
-              = (n + 1) * n ^ D + 2 * D * ((n + 1) * n ^ (D - 1)) := by ring
-            _ = n ^ (D + 1) + n ^ D + 2 * D * (n * n ^ (D - 1) + n ^ (D - 1)) := by
-                  rw [h_pow_succ_D]
-                  ring_nf
-                  -- If ring_nf leaves the (n+1)*n^(D-1) form, expand explicitly:
-                  -- have : (n + 1) * n^(D-1) = n * n^(D-1) + n^(D-1) := by ring
-                  -- rw [this]
-            _ = n ^ (D + 1) + n ^ D + 2 * D * (n ^ D + n ^ (D - 1)) := by rw [h_pow_D]
-            _ = n ^ (D + 1) + (1 + 2 * D) * n ^ D + 2 * D * n ^ (D - 1) := by ring
-        rw [hLHS_eq, hRHS_eq] at hmul
-        -- Goal: (n+1)^(D+1) ≤ n^(D+1) + 2*(D+1)*n^D
-        -- We have: (n+1)^(D+1) ≤ n^(D+1) + (1+2D)*n^D + 2D*n^(D-1)
-        -- Suffices: 2D*n^(D-1) ≤ n^D = n*n^(D-1), i.e., 2D ≤ n.
-        have h_2D_le_n : 2 * D ≤ n := by omega
-        have h_extra : 2 * D * n ^ (D - 1) ≤ n ^ D := by
-          rw [← h_pow_D]
-          exact Nat.mul_le_mul_right _ h_2D_le_n
+    private theorem four_d_sq_plus_eight_le_two_pow_2d3 (D : Nat) :
+        4 * D * D + 8 ≤ 2 ^ (2 * D + 3) := by
+      induction D with
+      | zero => norm_num
+      | succ D ih =>
+        have h_pow_eq : 2 ^ (2 * (D + 1) + 3) = 4 * 2 ^ (2 * D + 3) := by
+          rw [show 2 * (D + 1) + 3 = 2 * D + 3 + 2 from by ring]
+          rw [pow_add]; ring
+        rw [h_pow_eq]
+        have h_sub : 4 * (D + 1) * (D + 1) + 8 ≤ 4 * (4 * D * D + 8) := by
+          nlinarith
+        have h_chain : 4 * (4 * D * D + 8) ≤ 4 * 2 ^ (2 * D + 3) :=
+          Nat.mul_le_mul_left _ ih
         linarith
 
-ANTICIPATED FAILURE POINTS in Step 1:
-  - `Nat.le_induction` may not accept `with | base | succ D hD ih`.
-    Try `with` syntax variants or fall back to:
-      apply Nat.le_induction
-      case base => ...
-      case succ D hD ih => ...
-  - `pow_succ` may produce `a^n * a` in some places where you want `a * a^n`.
-    Always follow `rw [pow_succ]` with `ring` to normalize.
-  - The `ring_nf` mid-calc step is the riskiest — if it fails, expand
-    `(n+1) * n^(D-1) = n * n^(D-1) + n^(D-1)` explicitly via `have ... by ring`
-    and rewrite by hand.
-  - `Nat.mul_le_mul_right` signature varies by Mathlib version. If it fails:
-    try `Nat.mul_le_mul_right (n^(D-1)) h_2D_le_n` (k arg first), or
-    the explicit form `mul_le_mul_of_nonneg_right h_2D_le_n (Nat.zero_le _)`.
+POSSIBLE FAILURES:
+  - `Nat.mul_le_mul_left` signature varies: it may be
+    `Nat.mul_le_mul_left (k : ℕ) {m n : ℕ} (h : m ≤ n) : k * m ≤ k * n`
+    in which case the call needs an explicit k:
+        Nat.mul_le_mul_left 4 ih
+    Or it may be the generic mul_le_mul_left' from ordered semirings.
+    If the underscore version fails, replace with `Nat.mul_le_mul_left 4 ih`.
+  - `pow_add` may need to be `Nat.pow_add` or `pow_add_pow`. If `pow_add`
+    fails, try `Nat.pow_add` or just `simp [pow_add]`.
+  - The `rw [show ...]` might create an order issue: if Lean complains
+    about not finding the pattern, replace with:
+        have h_eq : 2 * (D + 1) + 3 = 2 * D + 3 + 2 := by ring
+        rw [h_eq, pow_add]; ring
+  - `nlinarith` for h_sub: this expands `4*(D+1)*(D+1) + 8 ≤ 16*D*D + 32`
+    which is `4D² + 8D + 12 ≤ 16D² + 32`, i.e., `12D² - 8D + 20 ≥ 0`.
+    nlinarith should handle this; if it fails, add hint:
+        nlinarith [sq_nonneg D, sq_nonneg (D - 1)]
 
-═══════════════════════════════════════════════════════════════════════════
-STEP 2: UPDATE succ_pow_le_two_mul_pow
-═══════════════════════════════════════════════════════════════════════════
+───────────────────────────────────────────────────────────────────────────
+STEP 1.2: Replace the axiom with a real proof
+───────────────────────────────────────────────────────────────────────────
 
-The lemma `succ_pow_le_two_mul_pow` currently uses the OLD `succ_pow_invariant`.
-Re-derive it from the new lemma. The relationship:
+REPLACE the entire axiom declaration (and its preceding comment) with:
 
-  From succ_pow_le_pow_add: (n+1)^D ≤ n^D + 2*D*n^(D-1).
-  We want:                  (n+1)^D ≤ 2*n^D.
-  Suffices:                 n^D + 2*D*n^(D-1) ≤ 2*n^D
-                       ⟺   2*D*n^(D-1) ≤ n^D = n*n^(D-1)
-                       ⟺   2*D ≤ n  ✓ (since n ≥ 2D+1)
+    private theorem base_pow_lt_two_pow (D : Nat) :
+        (4 * D * D + 8) ^ D < 2 ^ (4 * D * D + 8) := by
+      by_cases hD : D = 0
+      · subst hD
+        simp only [pow_zero]
+        -- Goal: 1 < 2 ^ (4*0*0 + 8) = 2 ^ 8
+        norm_num
+      · -- D ≥ 1
+        have hD_pos : D ≥ 1 := Nat.one_le_iff_ne_zero.mpr hD
+        -- (i) T(D) ≤ 2^(2D+3)
+        have hA : 4 * D * D + 8 ≤ 2 ^ (2 * D + 3) :=
+          four_d_sq_plus_eight_le_two_pow_2d3 D
+        -- (ii) (2D+3)·D < T(D), i.e., 2D² + 3D < 4D² + 8
+        have hB : (2 * D + 3) * D < 4 * D * D + 8 := by nlinarith
+        -- T(D)^D ≤ (2^(2D+3))^D
+        have h1 : (4 * D * D + 8) ^ D ≤ (2 ^ (2 * D + 3)) ^ D :=
+          Nat.pow_le_pow_left hA D
+        -- (2^(2D+3))^D = 2^((2D+3)·D)
+        have h2 : (2 ^ (2 * D + 3)) ^ D = 2 ^ ((2 * D + 3) * D) := by
+          rw [← pow_mul]
+        -- 2^((2D+3)·D) < 2^T(D) since (2D+3)·D < T(D)
+        have h3 : 2 ^ ((2 * D + 3) * D) < 2 ^ (4 * D * D + 8) := by
+          apply Nat.pow_lt_pow_right (by norm_num : 1 < 2)
+          exact hB
+        -- Chain: T(D)^D ≤ ... < 2^T(D)
+        linarith
 
-Replace the body of `succ_pow_le_two_mul_pow` with:
-
-    have h := succ_pow_le_pow_add D hD n hn
-    -- h : (n+1)^D ≤ n^D + 2*D*n^(D-1)
-    have h_pow_D : n * n ^ (D - 1) = n ^ D := by
-      have hD_eq : D = (D - 1) + 1 := by omega
-      conv_rhs => rw [hD_eq]
-      rw [pow_succ]; ring
-    have h_extra : 2 * D * n ^ (D - 1) ≤ n ^ D := by
-      rw [← h_pow_D]
-      exact Nat.mul_le_mul_right _ (by omega : 2 * D ≤ n)
-    linarith
-
-═══════════════════════════════════════════════════════════════════════════
-STEP 3: AXIOMATIZE base_pow_lt_two_pow
-═══════════════════════════════════════════════════════════════════════════
-
-The lemma `base_pow_lt_two_pow` claims (4*D*D + 8)^D < 2^(4*D*D + 8) for
-all D. The base D=0 is closed; the succ case has `sorry`.
-
-DO NOT TRY TO PROVE THE SUCC CASE. After working through several stronger-IH
-variants (T(D)^(D+1), T(D)^(D+2), various exponential thresholds), every
-inductive-on-D proof hits a structural barrier: the (D+1)-th power adds a
-factor that no polynomial threshold T(D) can absorb in one step.
-
-The mathematical claim is true and easily numerically verified for any
-specific D. Replace the lemma with an axiom:
-
-  -- Numerically verified for all D up to large values; the inductive proof
-  -- on D is structurally hard because the (D+1)-th power introduces a factor
-  -- that no polynomial threshold can absorb. Axiomatized intentionally.
-  private axiom base_pow_lt_two_pow (D : Nat) :
-      (4 * D * D + 8) ^ D < 2 ^ (4 * D * D + 8)
-
-This MUST be a `private axiom`, not a `theorem` — it is a self-contained
-numerical claim and should be flagged as such for any future reviewer.
-
-After this change, `n_pow_lt_two_pow_n` should already type-check (it
-references base_pow_lt_two_pow, which now exists as an axiom).
+POSSIBLE FAILURES:
+  - `Nat.pow_le_pow_left` may be named `Nat.pow_le_pow_left` (varies base,
+    fixed exponent) — that's what we want. If the name is wrong, try:
+        Nat.pow_le_pow_of_le_left, or
+        pow_le_pow_left (Nat.zero_le _) hA D
+    The latter form is more general. If both fail, search Mathlib with
+    `#check @Nat.pow_le_pow_left` and adapt.
+  - `Nat.pow_lt_pow_right` might be:
+        Nat.pow_lt_pow_right : 1 < b → n < m → b^n < b^m
+    OR (older): Nat.pow_lt_pow_right (h : 1 < b) {n m : ℕ} (h' : n < m) ...
+    OR: pow_lt_pow_right_of_lt_one (irrelevant — that's for b<1).
+    If neither works, the equivalent form is:
+        Nat.pow_lt_pow_right_of_lt or pow_lt_pow_right
+    Or use the strict-mono fact directly:
+        exact Nat.pow_lt_pow_right (by norm_num) hB
+  - `← pow_mul` may need to be `← Nat.pow_mul` depending on which is in
+    scope. Try `simp only [← pow_mul]` if the rewrite fails.
+  - The `simp only [pow_zero]` step: depending on whether the goal has
+    `4*0*0 + 8` or `8` after `subst hD`, you may need an extra
+    `norm_num` or `simp` to fold the arithmetic. If `norm_num` after
+    `simp only [pow_zero]` doesn't close, try just `decide` or
+    `simp; norm_num`.
 
 VERIFY at this point:
-  - Run `lake env lean Proof.lean` (or whichever build target).
-  - The build should succeed up through `n_pow_lt_two_pow_n`.
-  - Only the sorrys inside `poly_quadratic_bound_k_ge_1` and
-    `shannon_counting_argument` should remain.
+  - `lake env lean Proof.lean` builds successfully through the
+    `n_pow_lt_two_pow_n` lemma.
+  - The word `axiom` no longer appears between the start of the file and
+    the `Cook–Levin` section. (It will still appear there for
+    `sat_is_np_complete` and `sat_has_superpoly_lower_bound`, which are
+    intentional.)
 
 ═══════════════════════════════════════════════════════════════════════════
-STEP 4: SCOPE-RESTRICT poly_quadratic_bound_k_ge_1 TO k ≤ 4
+PART 2: PROPAGATE hk_max : k ≤ 4 INTO poly_quadratic_bound
 ═══════════════════════════════════════════════════════════════════════════
 
-Currently `poly_quadratic_bound_k_ge_1` handles k=1 cleanly, then case-
-splits the k≥2 branch on k = 2, 3, 4 via successive `cases`, with a final
-`sorry` for k ≥ 5 (the deepest branch). The sorry is there because the
-threshold `n ≥ 100*k + c + 100` becomes insufficient for the quadratic
-T(D) = 4*D^2 + 8 with D = 2k+7 once k ≥ 5.
+The lemma `poly_quadratic_bound_k_ge_1` currently has signature:
 
-To close this sorry without changing the threshold, add a hypothesis k ≤ 4.
-The signature becomes:
+    poly_quadratic_bound_k_ge_1 (k c n : Nat) (hk : k ≥ 1) (hc : c ≥ 1)
+        (hk_max : k ≤ 4) (hn : n ≥ 100 * k + c + 100) : ...
 
-  private theorem poly_quadratic_bound_k_ge_1 (k c n : Nat)
-      (hk : k ≥ 1) (hc : c ≥ 1) (hk_max : k ≤ 4)
-      (hn : n ≥ 100 * k + c + 100) :
-      (c * n ^ k + c) ^ 2 + 3 * (c * n ^ k + c) + 1 < 2 ^ n := by
+The caller `poly_quadratic_bound` has signature:
 
-In the body, the sorry for the deepest branch (k ≥ 5) becomes unreachable.
-Replace it with `omega` (using hk_max to derive contradiction).
+    poly_quadratic_bound (k c : Nat) (n : Nat) (hn : n ≥ 100 * k + c + 100) : ...
 
-WARNING: `poly_quadratic_bound` calls `poly_quadratic_bound_k_ge_1`. You
-must propagate the `hk_max` hypothesis to `poly_quadratic_bound`'s signature
-as well. Locate `poly_quadratic_bound` (just after poly_quadratic_bound_k0)
-and add `(hk_max : k ≤ 4)` to its hypotheses, passing it through to the
-inner call. This will leave `shannon_counting_argument` still using the
-restricted version — it's fine because shannon's sorry is unchanged and
-the restriction can be lifted later.
+and currently has a `sorry` in the branch where k ≥ 1 and c ≥ 1, because
+it tries to call `poly_quadratic_bound_k_ge_1` without `hk_max`.
 
-ALTERNATIVE (preferred if feasible): instead of hard-coding k ≤ 4, take an
-extra parameter for the threshold. Define a helper:
+THE FIX: add `(hk_max : k ≤ 4)` to the signature of `poly_quadratic_bound`.
 
-  -- For each k, the threshold below which poly_quadratic_bound_k_ge_1 holds.
-  -- For k = 1, this is c+200; for k ≥ 2, this is max(100k+c+100, 16k²+112k+204).
-  def poly_threshold (k c : Nat) : Nat :=
-    max (100 * k + c + 100) (16 * k * k + 112 * k + 204)
+───────────────────────────────────────────────────────────────────────────
+STEP 2.1: Update poly_quadratic_bound's signature
+───────────────────────────────────────────────────────────────────────────
 
-Then `poly_quadratic_bound_k_ge_1` takes `n ≥ poly_threshold k c` instead
-of `n ≥ 100 * k + c + 100`. This unblocks all k. But it requires updating
-the threshold reasoning in the k=1 case as well (the bound c ≤ n - 200
-becomes c ≤ n - threshold_overhead; verify it still goes through).
+CHANGE:
+    private theorem poly_quadratic_bound (k c : Nat) (n : Nat)
+        (hn : n ≥ 100 * k + c + 100) : ...
 
-Recommend trying the ALTERNATIVE first. Fall back to the k ≤ 4 restriction
-if the threshold update creates downstream complications.
+TO:
+    private theorem poly_quadratic_bound (k c : Nat) (n : Nat)
+        (hk_max : k ≤ 4) (hn : n ≥ 100 * k + c + 100) : ...
 
-ANTICIPATED FAILURE POINTS in Step 4:
-  - The `cases k` ladder has comments referring to original-k vs local-k
-    indexing; double-check the threshold check at each level.
-  - In the deepest branch, the current code has `nlinarith [hn, ...]` for
-    `hn_for_main`; if the alternative threshold succeeds, this nlinarith
-    call should still work because the new threshold dominates the old.
-  - `poly_quadratic_bound`'s case-split on (k=0)/(k≥1) and (c=0)/(c≥1) may
-    need similar adjustments if you take the threshold-update route.
+Then locate the `sorry` inside this theorem (in the branch where both
+`hk : k ≥ 1` and `hc1 : c ≥ 1` are in scope) and replace it with:
+
+    exact poly_quadratic_bound_k_ge_1 k c n hk1 hc1 hk_max hn
+
+───────────────────────────────────────────────────────────────────────────
+STEP 2.2: Check that no callers of poly_quadratic_bound break
+───────────────────────────────────────────────────────────────────────────
+
+Search the file for uses of `poly_quadratic_bound` (the call sites). Right
+now the only consumer should be `shannon_counting_argument`, which is
+itself still a `sorry`, so it doesn't pass any arguments. Adding
+`hk_max` to the signature is safe.
+
+If you find any other call site, you must thread `hk_max` through it.
+If a caller cannot supply `hk_max`, that caller becomes scope-restricted.
+For shannon_counting_argument: leave its sorry alone, but note in the
+proof comment that the eventual proof will need to restrict to k ≤ 4
+(which is acceptable for a circuit-complexity statement, since natural
+polynomial bounds in this domain are low-degree).
 
 ═══════════════════════════════════════════════════════════════════════════
-STEP 5: VERIFY AND DOCUMENT
+PART 3: BUILD AND VERIFY
 ═══════════════════════════════════════════════════════════════════════════
 
-Final checks:
-  - `lake env lean Proof.lean` builds in under 1 minute.
-  - The only remaining `sorry` is in `shannon_counting_argument`.
-  - The only `axiom` introduced is `base_pow_lt_two_pow`; document it
-    near its declaration with a comment saying "numerically verified;
-    proof requires non-polynomial threshold or strong-IH absorption that
-    appears structurally infeasible for symbolic D — axiomatized."
+Run:
+    lake env lean proofs/p_versus_np/circuit_lower_bounds/Proof.lean
 
-Update NOTES.md (located in the same directory) to reflect:
-  - succ_pow_invariant has been replaced by succ_pow_le_pow_add.
-  - base_pow_lt_two_pow is now an axiom (with reasoning).
-  - poly_quadratic_bound_k_ge_1 may carry a k ≤ 4 restriction (if you
-    took that path) OR uses a max-threshold (if you took the alternative).
+Expected outcomes:
+  - Build succeeds in under 1 minute (the runtime budget per NOTES.md).
+  - The ONLY remaining `sorry` in the file is in `shannon_counting_argument`.
+  - The ONLY `axiom` declarations are `sat_is_np_complete` and
+    `sat_has_superpoly_lower_bound` (both in the Cook-Levin section,
+    intentional).
+
+If the build fails, report:
+  - Which step failed (Step 1.1, 1.2, 2.1, or 2.2).
+  - The specific Lean error.
+  - Which fallback from the "POSSIBLE FAILURES" notes (if any) you tried.
+
+DO NOT introduce new `sorry` or `axiom` declarations to paper over failures.
+If a step genuinely cannot be completed, report it cleanly so it can be
+debugged.
 
 ═══════════════════════════════════════════════════════════════════════════
-DEBUGGING ADVICE — read if any step gets stuck
+DEBUGGING NOTES
 ═══════════════════════════════════════════════════════════════════════════
 
-If `omega` fails where it "should" work: the term likely contains `pow`
-expressions omega can't see through. Pre-compute the relevant values via
-`have` statements that introduce them as fresh Nat variables, then omega.
+If `nlinarith` fails on h_sub or hB: the inequalities are polynomial in D
+with non-negative discriminants. Add hints:
+    nlinarith [sq_nonneg D, sq_nonneg (D - 1), Nat.zero_le D, Nat.zero_le (D*D)]
 
-If `linarith` fails: same root cause as omega. Add the relevant pow
-identities (h_pow_D, h_pow_succ_D, etc.) as explicit hypotheses to the
-context before calling linarith.
+If `linarith` fails to combine h1, h2, h3 at the end of base_pow_lt_two_pow:
+the issue is usually that h2 is an equality but linarith can't substitute.
+Replace the final step with:
+    rw [h2] at h1
+    exact lt_of_le_of_lt h1 h3
 
-If `ring` fails on a Nat expression: the expression likely has Nat
-subtraction or contains pow expressions ring doesn't handle parametrically.
-Restructure to avoid subtraction; for parametric powers, introduce a
-local equality `have h : n * n^(D-1) = n^D := ...` and rewrite with it
-before calling ring.
+If a hypothesis name like `pow_mul` clashes or doesn't exist, find the
+right name with `#check @pow_mul` in a scratch buffer first. Common
+alternatives: `Nat.pow_mul`, `pow_mul_comm`, `← pow_mul`.
 
-If `Nat.le_induction` doesn't accept the syntax: check Mathlib version.
-Older versions: `apply Nat.le_induction; · base; · intro D hD ih; succ`.
-Newer versions: `induction D, hD using Nat.le_induction with | base => ...`.
-
-DO NOT introduce new sorrys. If a step cannot be completed as specified,
-report the obstacle and what you tried — do not paper over it.
+The `pow_succ` and `pow_add` rewrites are common sources of trouble. They
+may produce `a^n * a` when you expect `a * a^n`. Always follow with
+`ring` (or `mul_comm`) to normalize.
 ```
 
 Moreover:
