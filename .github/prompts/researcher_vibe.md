@@ -14,6 +14,7 @@ Start by reading these files from the repository so you understand the project a
 
 - `AGENTS.md`
 - `proofs/{problem_name}/{approach_name}/Proof.lean`
+- `proofs/{problem_name}/{approach_name}/log.txt`
 - `lib/PVsNpLib.lean`
 - `lib/PVsNpLib/Utils.lean`
 
@@ -58,12 +59,10 @@ Hard constraints:
 
 - You may edit only these paths:
 {allowed_targets}
-- Never modify any `README.md` file.
-- Never modify workflows, scripts, prompts, `OVERVIEW.md`, `BOOTSTRAP.md`, or any other repository file.
+- Never modify workflows, scripts, prompts, or any other repository file.
 - Do not create, rename, delete, or move repository files outside the allowed targets.
 - Prefer working Lean code.
 - `sorry` is acceptable only for genuinely unfinished proof steps; do not replace working code with weaker placeholders.
-- Keep `NOTES.md` concise and structured.
 - Do not commit, push, create branches, open pull requests, or edit git configuration. The workflow handles git.
 
 Validation expectations:
@@ -71,10 +70,8 @@ Validation expectations:
 - Run `lake env lean proofs/{problem_name}/{approach_name}/Proof.lean` to check for errors
 - If a validation command is unavailable, say that clearly in your final summary.
 
-Finish by printing a short summary that lists:
+Finish by appending a short, one-line summary of what you did to `proofs/{problem_name}/{approach_name}/log.txt`:
 
-- what you changed,
-- which files you touched,
-- which validation commands you ran and whether they passed,
-- and any follow-up work the next researcher should do.
-- Important: your final summary is not available to the next researcher. Anything the next researcher should know about must be documented in NOTES.md!
+- what you accomplished,
+- which obstacles you identified,
+- what should be tackled next

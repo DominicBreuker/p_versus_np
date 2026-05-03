@@ -365,30 +365,6 @@ private theorem evalStep_fold_normalized_eq {n s : Nat} (inp : Fin n → Bool)
       apply ih
       simpa [Array.size_push, Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using hbound
 
--- SORRY 1a — bridge between Array.foldl over Array.ofFn and List.foldl over List.ofFn.
--- Used immediately by hnormVals inside evalCircuit_normalizeCircuit.
---
--- STRATEGY: two Mathlib lemmas chain together:
---   (1) Array.foldl_toList : Array.foldl f init a = List.foldl f init a.toList
---   (2) Array.toList_ofFn  : (Array.ofFn g).toList = List.ofFn g
---
--- Chain: Array.foldl f init (Array.ofFn g)
---     = List.foldl f init (Array.ofFn g).toList    [by (1)]
---     = List.foldl f init (List.ofFn g)             [by (2)]
---
--- NOTE: (1) is confirmed to exist — it is used at line ~418 as `← Array.foldl_toList`.
--- NOTE: (2) is the only uncertain name. If `Array.toList_ofFn` is not found, try:
---       Array.data_ofFn, Array.ofFn_toList, or search with:
---       #check @Array.toList_ofFn  /  example (g : Fin n → α) : (Array.ofFn g).toList = _ := by exact?
---
--- FALLBACK if neither rewrite works — prove it by induction on n directly:
---   induction n with
---   | zero => simp [Array.ofFn, List.ofFn]
---   | succ n ih =>
---       simp only [Array.ofFn_succ', List.ofFn_succ]   -- or ofFn_succ depending on Mathlib version
---       -- at this point the Array and List unfold in matching steps;
---       -- use ih on the tail
---       sorry -- fill in once you see the unfolded goal
 private theorem array_foldl_ofFn_eq_list_foldl {α β : Type} {n : Nat} (f : β → α → β) (init : β)
     (g : Fin n → α) :
     Array.foldl f init (Array.ofFn g) = List.foldl f init (List.ofFn g) := by
@@ -750,12 +726,6 @@ private theorem four_n_squared_plus_six_n_plus_one_lt_two_pow_n (n : Nat) (hn : 
       _ = 2 * 2^k := by ring
       _ = 2 ^ (k + 1) := by rw [Nat.pow_succ]; ring
 
-
-
-
-
-
-
 /-- Helper lemma: for n ≥ 200, n^4 + 3*n^2 + 1 < 2^n. -/
 private theorem n_quartic_plus_lt_two_pow_n_200 (n : Nat) (hn : n ≥ 200) : n ^ 4 + 3 * n ^ 2 + 1 < 2 ^ n := by
   -- Base case: n = 200
@@ -912,103 +882,11 @@ private theorem n_squared_plus_n_quartic_lt_two_pow_n_200 (n : Nat) (hn : n ≥ 
 
 
 
-
--- OPTION B: Bernstein-style dominance lemma via Bernoulli invariant.
--- This replaces the OPTION A binomial approach (removed for soundness).
--- Implementation follows "LEMMA (2)" below using succ_pow_invariant.
-
--- MAIN GENERAL LEMMA. Threshold T(D) = D^2 + 100 (chosen because:
---   - T(7) = 149 ≤ 301 (which is what k=2, c=1 gives in your call site)
---   - T(D) is ≤ 50*D - 49 for D ≥ 8 with growing slack
--- which lets us slot directly into poly_quadratic_bound_k_ge_1 for k≥2.)
 private theorem n_pow_D_lt_two_pow_n (D : Nat) (n : Nat) (hn : n ≥ D * D + 100) :
     n ^ D < 2 ^ n := by
-  -- Induction on n with base n = D * D + 100.
-  -- Reduction step uses succ_pow_le_two_mul_pow above.
-  --
-  -- BASE CASE: n = D * D + 100. Need (D*D+100)^D < 2^(D*D+100).
-  -- This is true but cannot be discharged by norm_num for symbolic D.
-  -- Need a separate induction on D for the base. Outline:
-  --   For D = 0: 1 < 2^100. ✓ by norm_num.
-  --   For D = 1: 101 < 2^101. ✓.
-  --   For D ≥ 2: assume (D*D+100)^D < 2^(D*D+100), show ((D+1)*(D+1)+100)^(D+1) < 2^((D+1)^2+100).
-  --   This sub-induction is itself fiddly.
-  --
-  -- ALTERNATIVE BASE: use an even larger threshold T(D) = 4^(D+1) + 100
-  -- where the base case has more slack. (4^(D+1)+100)^D vs 2^(4^(D+1)+100).
-  -- Take log: D * log2(4^(D+1)+100) ≤ D * (2*(D+1) + 1) = 2D^2 + 3D vs 4^(D+1)+100.
-  -- For D ≥ 1: 4^(D+1) ≥ 4*4 = 16 > 2D^2+3D-100? For D=1: 4^2=16, RHS = 5. ✓
-  -- This threshold is exponential in D, blowing the budget.
   sorry
 
 
--- ============================================================================
--- OPTION B — generic dominance lemma n^D < 2^n for n ≥ T(D)
--- ============================================================================
---
--- ARCHITECTURE
--- ------------
--- We build three lemmas in sequence:
---   (1) succ_pow_invariant    : Bernoulli-style invariant
---                               (n+1)^D + (n - 2D) * n^(D-1) ≤ 2 * n^D
---                               for D ≥ 1 and n ≥ 2D + 1.
---                               This is the inductive heart of the proof.
---   (2) succ_pow_le_two_mul_pow : (n+1)^D ≤ 2 * n^D for n ≥ 2D + 1.
---                                Trivial corollary of (1) by dropping the slack.
---   (3) n_pow_lt_two_pow_n     : n^D < 2^n for n ≥ T(D), where T(D) is chosen
---                                to fit poly_quadratic_bound's threshold AND to
---                                make the base case provable.
---
--- WHY THE BERNOULLI INVARIANT (1)?
--- --------------------------------
--- Naive induction on D for "(n+1)^D ≤ 2 * n^D" FAILS:
---   IH: (n+1)^D ≤ 2*n^D
---   Goal at D+1: (n+1)^(D+1) ≤ 2*n^(D+1).
---   Multiply IH by (n+1): (n+1)^(D+1) ≤ 2*(n+1)*n^D = 2*n^(D+1) + 2*n^D.
---   Want ≤ 2*n^(D+1). Off by 2*n^D — the induction LOSES.
---
--- The +form invariant (n+1)^D + (n-2D)*n^(D-1) ≤ 2*n^D adds a slack term
--- on the LHS that exactly cancels the loss. Verified numerically with healthy
--- slack at all D ≥ 1, n ≥ 2D+1.
---
--- THE T(D) TRADE-OFF
--- ------------------
--- For poly_quadratic_bound_k_ge_1 (k ≥ 2, c ≥ 1, n ≥ 100k+c+100, D = 2k+3),
--- we need T(D) ≤ 100k+101, i.e., T(D) ≤ 50*D - 49 (with D = 2k+3 = 2k+3).
--- Numerical n_min for n^D < 2^n grows roughly as D log D, well below 50D-49.
--- A safe choice is T(D) = 4*D*D + 8 (quadratic, fits up to D ≈ 12, i.e., k ≤ 4)
--- OR T(D) = 30*D + 80 (linear, fits up to D ≈ 10^11).
---
--- We use T(D) = 4*D*D + 8. This is provable by a clean inductive base case.
--- If you need to support larger D, switch to T(D) = 30*D + 80 and use Block 2'
--- (linear-threshold variant) below.
-
--- ----------------------------------------------------------------------------
--- LEMMA (1): the Bernoulli-style invariant.
--- ----------------------------------------------------------------------------
--- This is the longest proof in this block (~30 lines). The arithmetic is:
---   IH: (n+1)^D + (n - 2D) * n^(D-1) ≤ 2 * n^D, for n ≥ 2D + 1.
---   Multiplying by (n+1) and simplifying yields the D+1 case.
---
--- KEY STEP IN THE INDUCTION (verified by hand and numerically):
---   Want: (n+1)^(D+1) + (n - 2D - 2) * n^D ≤ 2 * n^(D+1)
---   Multiplying IH by (n+1):
---     (n+1)^(D+1) + (n+1)*(n-2D)*n^(D-1) ≤ 2*(n+1)*n^D
---                                         = 2*n^(D+1) + 2*n^D
---   We want  (n+1)^(D+1) + (n-2D-2)*n^D ≤ 2*n^(D+1).
---   Subtracting target from "IH * (n+1)":
---     [2*n^(D+1) + 2*n^D] - [(n+1)*(n-2D)*n^(D-1)] - [2*n^(D+1) - (n-2D-2)*n^D]
---     = 2*n^D + (n-2D-2)*n^D - (n+1)*(n-2D)*n^(D-1)
---     = (n - 2D)*n^D - (n+1)*(n-2D)*n^(D-1)
---     = (n-2D)*n^(D-1) * (n - (n+1))
---     = -(n-2D)*n^(D-1)
---   This is ≤ 0 (since n ≥ 2D), so the target is satisfied.
---
--- NAT SUBTRACTION WARNINGS:
---  - In Nat, `n - 2D` is 0 if n < 2D. We have n ≥ 2D + 1, so it's the real diff.
---  - In Nat, `n - 2D - 2` is parsed as `(n - 2D) - 2` and is real for n ≥ 2D+2.
---    The succ-step has n ≥ 2(D+1)+1 = 2D+3, so this is ≥ 1.
---  - The proof keeps everything in "+ form" to avoid Nat truncation entirely.
 private theorem succ_pow_invariant (D : Nat) (hD : D ≥ 1) :
     ∀ n, n ≥ 2 * D + 1 → (n + 1) ^ D + (n - 2 * D) * n ^ (D - 1) ≤ 2 * n ^ D := by
   induction D, hD using Nat.le_induction with
@@ -1090,40 +968,6 @@ private theorem succ_pow_invariant (D : Nat) (hD : D ≥ 1) :
     -- content is sound but the Lean formalization is non-trivial.
     sorry
 
--- ============== MANUAL CHAIN FALLBACK FOR STEP B ==============
-    -- This avoids nlinarith by doing the algebra step by step in calc form.
-    -- It's longer but more robust.
-    --
-    -- Strategy: rewrite goal as a Nat-friendly equivalent, then chain.
-    -- Goal:  (n+1)^(D+1) + (n - 2*(D+1)) * n^D ≤ 2 * n^(D+1)
-    -- We add (n - 2*D) * n^D to both sides to simplify:
-    --   LHS + (n - 2*D)*n^D = (n+1)^(D+1) + ((n-2*(D+1)) + (n-2*D))*n^D
-    --                       = (n+1)^(D+1) + (2*n - 4*D - 2)*n^D
-    --   RHS + (n - 2*D)*n^D = 2*n^(D+1) + (n - 2*D)*n^D
-    --                       = (2n + (n-2*D))*n^D = (3n - 2*D)*n^D
-    --
-    -- Hmm, this manual chain is also messy. EASIER: forget the +form and do
-    -- everything in subtraction form, with explicit Nat.sub_le_iff guards.
-    --
-    -- Actually the CLEANEST manual route is:
-    -- (a) Show (n+1)^(D+1) ≤ 2*(n+1)*n^D - (n+1)*(n-2*D)*n^(D-1),
-    --     which is step_a rearranged via Nat.le_sub_iff_add_le.
-    -- (b) Bound 2*(n+1)*n^D - (n+1)*(n-2*D)*n^(D-1)
-    --       ≤ 2*n^(D+1) - (n - 2*(D+1)) * n^D
-    --     i.e., 2*(n+1)*n^D + (n - 2*(D+1))*n^D ≤ 2*n^(D+1) + (n+1)*(n-2*D)*n^(D-1)
-    --     i.e., (2n + 2 + n - 2D - 2)*n^D ≤ 2n*n^D + (n+1)*(n-2*D)*n^(D-1)
-    --     i.e., (3n - 2D)*n^D ≤ 2n*n^D + (n+1)*(n-2*D)*n^(D-1)
-    --     i.e., (n - 2D)*n^D ≤ (n+1)*(n-2*D)*n^(D-1)
-    --     i.e., (n-2D) * n * n^(D-1) ≤ (n+1)*(n-2D) * n^(D-1)   [using n^D = n*n^(D-1)]
-    --     i.e., (n - 2D) * n ≤ (n+1) * (n - 2D)               [cancel n^(D-1) — needs n ≥ 1]
-    --     ✓ since n ≤ n+1, multiply by (n - 2D) ≥ 0.
-    -- (c) Combine (a) and (b) to get the goal.
-
--- ----------------------------------------------------------------------------
--- LEMMA (2): the corollary — a clean (n+1)^D ≤ 2*n^D bound.
--- ----------------------------------------------------------------------------
--- This is just dropping the slack term from the invariant.
--- Should close in 2-4 lines.
 private theorem succ_pow_le_two_mul_pow (D n : Nat) (hD : D ≥ 1) (hn : n ≥ 2 * D + 1) :
     (n + 1) ^ D ≤ 2 * n ^ D := by
   have h := succ_pow_invariant D hD n hn
@@ -1136,29 +980,6 @@ private theorem succ_pow_le_two_mul_pow (D n : Nat) (hD : D ≥ 1) (hn : n ≥ 2
   -- OR:
   --   exact le_trans (Nat.le_add_right _ _) h
 
--- ----------------------------------------------------------------------------
--- LEMMA (3): the main bound n^D < 2^n.
--- ----------------------------------------------------------------------------
--- Proof structure:
---   - Outer induction on n with base T(D) = 4*D^2 + 8.
---     Step n → n+1: (n+1)^D ≤ 2*n^D < 2*2^n = 2^(n+1), using lemma (2).
---   - Base case (4*D^2 + 8)^D < 2^(4*D^2 + 8): inner induction on D.
---
--- THRESHOLD CHOICE: T(D) = 4*D^2 + 8.
---   - T(D) ≥ 2*D + 1 for all D ≥ 1 (so lemma (2) applies in the step).
---     Check: 4D² + 8 ≥ 2D + 1 ⟺ 4D² - 2D + 7 ≥ 0 ✓ (discriminant negative).
---   - T(D) ≤ 100*k + 101 with D = 2k+3:
---     4*(2k+3)² + 8 = 16k² + 48k + 36 + 8 = 16k² + 48k + 44.
---     Need ≤ 100k + 101, i.e., 16k² - 52k - 57 ≤ 0.
---     Roots of 16k² - 52k - 57 = 0: k = (52 ± √(2704+3648))/32 = (52 ± 79.7)/32 ≈ 4.12.
---     So T fits within budget for k ≤ 4 (i.e., D ≤ 11).
---
---   FOR k ≥ 5 (D ≥ 13): T(D) doesn't fit. Use Block 2' below for k=5..7,
---   OR change the threshold of poly_quadratic_bound_k_ge_1 to be tighter
---   (e.g., n ≥ 16*k^2 + 100), OR cap k at 4 (suffices for many uses).
-
--- BASE-CASE LEMMA: (4*D^2 + 8)^D < 2^(4*D^2 + 8).
--- Proved by induction on D using lemma (2).
 private theorem base_pow_lt_two_pow (D : Nat) :
     (4 * D * D + 8) ^ D < 2 ^ (4 * D * D + 8) := by
   induction D with
@@ -1227,54 +1048,6 @@ private theorem n_pow_lt_two_pow_n (D n : Nat) (hn : n ≥ 4 * D * D + 8) :
       calc (n + 1) ^ D ≤ 2 * n ^ D := h_step
         _ < 2 * 2 ^ n := by linarith [ih]
         _ = 2 ^ (n + 1) := by rw [pow_succ]; ring
-
--- ============================================================================
--- BLOCK 2-FALLBACK — recovery options for base_pow_lt_two_pow
--- ============================================================================
---
--- OPTION B-1: cap D at 4. Replace base_pow_lt_two_pow with case-by-case proof.
---   For D ∈ {0, 1, 2, 3, 4}, (4*D^2+8)^D vs 2^(4*D^2+8) is concrete:
---     D=0: 1 < 256                                ✓
---     D=1: 12 < 4096                              ✓ (12 < 2^12)
---     D=2: 24^2 = 576 < 2^24 = 16777216           ✓
---     D=3: 44^3 = 85184 < 2^44 ≈ 1.76e13          ✓
---     D=4: 72^4 = 26873856 < 2^72 ≈ 4.7e21        ✓
---   Each case: `decide` or `norm_num` should close.
---   Then poly_quadratic_bound_k_ge_1 for k ≥ 2 handles only k ∈ {2, 3, 4}
---   (D = 7, 9, 11). For k=2: D=7, but our cap is 4. Does NOT cover D=7.
---   So D-cap of 4 only covers k=0 (D=3) and k=1 (D=5)... not useful here.
---
--- OPTION B-2: replace T(D) with linear T(D) = 30*D + 80 and use a SEPARATE
---   inductive base proof. The linear threshold makes the strengthened IH
---   work because 30 > log2(30*D+80) for D up to ~10^9 (verified numerically).
---
---   The strengthened IH is:
---     (30*D + 80)^(D+1) < 2^(30*D + 80)
---   Note: power is D+1, not D. Then:
---     (30*(D+1) + 80)^(D+2) = (30*D + 110)^(D+2)
---                           = (30*D + 110)^2 * (30*D + 110)^D
---   Apply lemma (2) chain 30 times: (30*D + 110)^D ≤ 2^30 * (30*D + 80)^D
---   And: (30*D + 110)^2 ≤ ?  We need (30*D + 110)^2 ≤ 2^(30*D + 80) / (something).
---   This doesn't close cleanly either — same issue with absorbing the n+1 factor.
---
--- OPTION B-3 (RECOMMENDED): admit the base case as a separately-stated axiom,
--- with an extensive comment documenting that it's been numerically verified
--- but the full inductive proof is out of scope for this session.
---
---   private axiom base_pow_lt_two_pow (D : Nat) :
---       (4 * D * D + 8) ^ D < 2 ^ (4 * D * D + 8)
---
--- This is intellectually honest: the gap is well-defined, numerical, and
--- separated from the main proof technique. It can be discharged later
--- without revisiting any of the architecture above.
-
--- ============================================================================
--- BLOCK 2' — Linear-threshold variant (alternative T(D) = 30*D + 80)
--- ============================================================================
--- Use this INSTEAD of the quadratic version above if you need to support
--- larger k. Same architecture, different threshold. The base case is just
--- as hard, but the threshold fits all k up to ≈ 10^9.
--- (Code structure is identical — just substitute 30*D+80 for 4*D*D+8 throughout.)
 
 private theorem poly_quadratic_bound_k_ge_1 (k c n : Nat) (hk : k ≥ 1) (hc : c ≥ 1)
     (hn : n ≥ 100 * k + c + 100) :
@@ -1457,27 +1230,6 @@ private theorem poly_quadratic_bound_k_ge_1 (k c n : Nat) (hk : k ≥ 1) (hc : c
       ----------------------------------------------------------------
       linarith [h_step_ii, h_to_single_pow, h_step_iii]
 
--- ============================================================================
--- SORRY 2 INFRASTRUCTURE — generic dominance lemma n^D < 2^n
--- ============================================================================
---
--- We need n^D < 2^n for n ≥ T(D) where T(D) is small enough that
--- T(2k+3) ≤ 100*k + 101 for all k ≥ 2. Numerically T(D) ≈ 50*D-49 suffices,
--- so any T(D) growing slower than 50*D works. We use T(D) = D^2 + 100.
---
--- The proof has TWO independent obstacles. Read carefully before starting.
---
--- OBSTACLE 1: the "step" lemma (n+1)^D ≤ 2 * n^D for n ≥ 2D.
---   This is mathematically true (since (1 + 1/n)^D ≤ e^(D/n) ≤ e^(1/2) < 2)
---   but does NOT prove by simple induction on D, because the IH at D gives
---   (n+1)^D ≤ 2*n^D, then (n+1)^(D+1) = (n+1)*(n+1)^D ≤ 2*(n+1)*n^D,
---   and we'd want this ≤ 2*n^(D+1) = 2*n*n^D, which would require n+1 ≤ n. ✗
---
--- OBSTACLE 2: the "base" case at n = T(D).
---   For T(D) = D^2 + 100, base is (D^2 + 100)^D < 2^(D^2 + 100), which is
---   true but cannot be discharged by `norm_num` for general D — it needs
---   a separate induction on D.
--- We proceed with OPTION B to solve this
 private theorem poly_quadratic_bound_k0 (c : Nat) (n : Nat) (hn : n ≥ 2 * c + 5) :
     4 * c ^ 2 + 6 * c + 1 < 2 ^ n := by
   -- We'll show 4*c^2 + 6*c + 1 < 2^(2*c + 5) ≤ 2^n
@@ -1530,15 +1282,6 @@ private theorem poly_quadratic_bound_k0 (c : Nat) (n : Nat) (hn : n ≥ 2 * c + 
             · omega
   exact h_helper c
 
-/-- For any polynomial p(n) = c * n^k + c, eventually (p n)^2 + 3 * (p n) + 1 < 2^n.
-
-    This is the key arithmetic lemma for the Shannon counting argument.
-    The proof uses the fact that exponential growth (2^n) eventually dominates
-    polynomial growth (n^(2k)).
-
-    For the current proof structure, we use a threshold of n ≥ 100*k + c + 100,
-    which is sufficiently large to ensure the inequality holds for all k, c.
-    A tighter bound could be proven but would require more complex arithmetic. -/
 private theorem poly_quadratic_bound (k c : Nat) (n : Nat) (hn : n ≥ 100 * k + c + 100) :
     (c * n ^ k + c) ^ 2 + 3 * (c * n ^ k + c) + 1 < 2 ^ n := by
   -- Case 1: k = 0
