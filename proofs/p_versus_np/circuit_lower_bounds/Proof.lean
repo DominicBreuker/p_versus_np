@@ -6,6 +6,24 @@ set_option maxHeartbeats 4000000
 /-
 # P vs NP via Circuit Complexity Lower Bounds
 
+## Scope and Caveats
+
+  - shannon_counting_argument is proved only for polynomials with a
+    degree-≤-4 witness. This is a current technical restriction inherited
+    from poly_quadratic_bound, NOT a fundamental mathematical limitation.
+
+  - The two axioms (sat_is_np_complete, sat_has_superpoly_lower_bound)
+    have very different statuses:
+      * sat_is_np_complete is fully provable known mathematics
+        (Cook-Levin theorem, 1971). Axiomatized for engineering reasons.
+      * sat_has_superpoly_lower_bound is THE P vs NP problem itself,
+        restated. Axiomatizing it does not make progress on P vs NP;
+        it merely organizes the reduction.
+
+  - Therefore p_neq_np is a CONDITIONAL THEOREM, not an unconditional
+    proof of P ≠ NP. The phrase "conditional on circuit lower bounds
+    for SAT" already appears in the docstring; reinforce it.
+
 ## Proof Structure (Hierarchical Overview)
 
 ```
@@ -1381,7 +1399,7 @@ theorem sat_superpolynomial_implies_p_neq_np
   exact Nat.lt_irrefl (circuitSize circuit) (Nat.lt_of_le_of_lt h_size h_gt)
 
 /-- P ≠ NP: there exists a language in NP not in P -/
-theorem p_neq_np : ∃ L : Language, inNP L ∧ ¬ inP L := by
+theorem p_neq_np_conditional_on_sat_lower_bound : ∃ L : Language, inNP L ∧ ¬ inP L := by
   obtain ⟨sat, h_sat_np, _⟩ := sat_is_np_complete
   exact sat_superpolynomial_implies_p_neq_np sat h_sat_np sat_has_superpoly_lower_bound
 
