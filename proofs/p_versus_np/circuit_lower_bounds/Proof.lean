@@ -1359,9 +1359,12 @@ theorem shannon_counting_argument :
   intro p hp hk_bound
   obtain ⟨k, c, hk_le_4, h_p_le⟩ := hk_bound
   -- STAGE 2: Set up the threshold
-  refine ⟨100 * k + 4 * c + 200, ?_⟩
+  -- Use a threshold that works for both k ≥ 1 and k = 0
+  refine ⟨100 * k + 4 * c + 10000, ?_⟩
   intro n hn
-  -- We now have n ≥ 100 * k + 2 * c + 200
+  -- We now have n ≥ 100 * k + 4 * c + 200
+  -- For k = 0, we need a larger bound: n ≥ 193 ≥ 30c + 7 for c ≥ 8
+  -- Actually let's just increase the constant to make it work
   -- STAGE 3: The counting inequality
   -- Step 3.1: Use the existing card upper bound
   have h_card : Fintype.card (NormalizedCircuit n (p n)) ≤
@@ -1386,85 +1389,62 @@ theorem shannon_counting_argument :
           congr 1; ring
   -- Step 3.3: The polynomial-exponential bound
   -- We need: s² + s*n + 5*s + 1 < 2^n where s = p n ≤ c * n ^ k + c
-  -- We use poly_quadratic_bound with 4c instead of c (as suggested in the prompt)
+  -- We use poly_quadratic_bound with 4c instead of c
   have hn_for_poly : n ≥ 100 * k + 4 * c + 100 := by omega
   have h_poly_bound :
       (4 * c * n ^ k + 4 * c) ^ 2 + 3 * (4 * c * n ^ k + 4 * c) + 1 < 2 ^ n :=
     poly_quadratic_bound k (4 * c) n hk_le_4 hn_for_poly
   -- Now show: s^2 + s*n + 5*s + 1 ≤ (4c·n^k + 4c)² + 3·(4c·n^k + 4c) + 1
   have h_bound : s ^ 2 + s * n + 5 * s + 1 ≤ (4 * c * n ^ k + 4 * c) ^ 2 + 3 * (4 * c * n ^ k + 4 * c) + 1 := by
-    -- We have s = p n ≤ c * n^k + c
-    -- We need to show: s^2 + s*n + 5*s + 1 ≤ (4c·n^k + 4c)^2 + 3·(4c·n^k + 4c) + 1
-    -- Let's use s ≤ c·n^k + c to bound each term
-    have h_s_le : s ≤ c * n ^ k + c := h_p_le n
-    -- First, show s * n ≤ (c * n^k + c) * n
-    have h_sn : s * n ≤ (c * n ^ k + c) * n := Nat.mul_le_mul_right n h_s_le
-    -- Now we need to bound s * n more carefully
-    -- For n ≥ 1 and k ≥ 0, we have n ≤ c * n^k + c when c ≥ 1
-    -- But we need to handle c = 0 separately
-    by_cases hc : c = 0
-    · -- If c = 0, then s ≤ 0, so s = 0
-      subst hc
-      simp only [mul_zero, zero_add, pow_zero, mul_one, zero_pow, zero_mul, add_zero,
-        Nat.zero_le, true_and] at h_s_le ⊢
-      simp [Nat.eq_zero_of_le_zero h_s_le]
-    · -- c ≥ 1
-      have hc_pos : c ≥ 1 := Nat.one_le_iff_ne_zero.mpr hc
-      -- For n ≥ 200 (which we have from hn), we can show n ≤ c * n^k + c
-      have hn_large : n ≥ 200 := by omega
-      have hn_le : n ≤ c * n ^ k + c := by
-        -- For k = 0, this becomes n ≤ c + c = 2c, which may not hold
-        -- For k ≥ 1, we have n^k ≥ n, so c * n^k ≥ c * n ≥ n (when c ≥ 1, n ≥ 1)
-        cases k with
-        | zero =>
-          -- k = 0: p n ≤ c + c = 2c (constant)
-          -- We have s ≤ 2c and we need: 4c^2 + 2c*n + 10c + 1 < 2^n
-          -- We have n ≥ 4c + 200, so c ≤ (n - 200)/4
-          have hn196 : n ≥ 196 := by omega
-          -- Show c ≤ n/4
-          have hc_bound : 4 * c ≤ n := by omega
-          -- Show 4c^2 + 2c*n + 10c + 1 < 2^n
-          -- First show 4c^2 + 2c*n + 10c + 1 ≤ 4*n^2 + 6*n + 1
-          have h_bound : 4 * c ^ 2 + 2 * c * n + 10 * c + 1 ≤ 4 * n ^ 2 + 6 * n + 1 := by
-            nlinarith [hc_bound, show n ≥ 1 from by omega]
-          -- Then use four_n_squared_plus_six_n_plus_one_lt_two_pow_n
-          have h_4n2_lt : 4 * n ^ 2 + 6 * n + 1 < 2 ^ n := four_n_squared_plus_six_n_plus_one_lt_two_pow_n n hn196
-          -- Combine
-          sorry  -- Can't prove n ≤ 2c; need to restructure for k=0 case
-        | succ k' =>
-          -- k = k' + 1 ≥ 1
-          have hk_pos : k' + 1 ≥ 1 := by omega
-          -- We want to show: n ≤ c * n^(k' + 1) + c
-          -- This is equivalent to: n - c ≤ c * n^(k' + 1)
-          -- For c ≥ 1 and n ≥ 200, this holds
-          -- Case 1: k' + 1 = 1 (k' = 0): Need n ≤ c * n + c, i.e., 0 ≤ c(n - 1) + (c - n)
-          -- But actually, we need a different approach. Let's use nlinarith.
-          -- We know n ≥ 200 and c ≥ 1.
-          -- For n ≥ 2 and c ≥ 1, we have c * n^(k' + 1) ≥ c * n ≥ n (when n^(k'+1) ≥ n, i.e., k' + 1 ≥ 1, true)
-          -- So c * n^(k' + 1) + c ≥ n + c ≥ n
-          nlinarith [hc_pos, show n ^ (k' + 1) ≥ n from Nat.le_self_pow (by omega) n]
-      -- Now we have s ≤ c * n^k + c and n ≤ c * n^k + c
-      -- So s + n ≤ 2 * (c * n^k + c)
-
-      -- And s ≤ c * n^k + c
-      -- Therefore:
-      -- s^2 + s*n + 5*s + 1
-      --   ≤ s * (s + n + 5) + 1
-      --   ≤ (c * n^k + c) * (2 * (c * n^k + c) + 5) + 1
-      calc s ^ 2 + s * n + 5 * s + 1
-          ≤ s * (s + n + 5) + 1 := by ring_nf; omega
-        _ ≤ (c * n ^ k + c) * (s + n + 5) + 1 := by
-            have : s * (s + n + 5) ≤ (c * n ^ k + c) * (s + n + 5) := Nat.mul_le_mul_right (s + n + 5) h_s_le
-            exact Nat.add_le_add_right this 1
-        _ ≤ (c * n ^ k + c) * ((c * n ^ k + c) + n + 5) + 1 := by
-            -- h_s_plus_n_plus_5 : s + n + 5 ≤ (c * n ^ k + c) + n + 5
-            -- This is equivalent to: s ≤ c * n ^ k + c, which is h_s_le
-            have : s + n + 5 ≤ (c * n ^ k + c) + n + 5 := by omega
-            exact Nat.add_le_add_right (Nat.mul_le_mul_left (c * n ^ k + c) this) 1
-        _ ≤ (4 * c * n ^ k + 4 * c) ^ 2 + 3 * (4 * c * n ^ k + 4 * c) + 1 := by
-            -- We directly show: (c*n^k + c)*((c*n^k + c) + n + 5) + 1 ≤ (4c*n^k + 4c)^2 + 3*(4c*n^k + 4c) + 1
-            nlinarith [sq_nonneg (c * n ^ k), sq_nonneg (c * n ^ k - n ^ k), sq_nonneg (c - 1), sq_nonneg (n ^ k - 1),
-              h_s_le, hn_le, hc_pos]
+    let x := c * n ^ k + c
+    have h_s_le : s ≤ x := h_p_le n
+    by_cases hk0 : k = 0
+    · -- Case k = 0: s ≤ 2c, n ≥ 4c + 10000
+      subst hk0
+      simp [x] at *
+      -- Need: s^2 + sn + 5s + 1 ≤ (8c)^2 + 3*(8c) + 1
+      -- We have s ≤ 2c, n ≥ 4c + 10000
+      -- RHS - LHS ≥ 64c^2 + 24c + 1 - (4c^2 + 2cn + 10c + 1) = 60c^2 + 14c - 2cn
+      -- Need: 60c^2 + 14c - 2cn ≥ 0, i.e., 30c + 7 ≥ n
+      -- But we assumed 4c + 10000 ≤ n, and 30c + 7 may be much smaller!
+      -- So this approach doesn't work. Let's try using nlinarith which should work
+      -- since n is large and s is bounded.
+      -- Actually, for large n, (8c)^2 is O(c^2) while 2^n grows exponentially.
+      -- We need to use the fact that (8c)^2 + 3*(8c) + 1 is just a constant in n
+      -- and s is bounded by 2c, so we only need one large term in n.
+      -- But we have s*n which grows linearly in n. Hmm.
+      -- The key: for large n, 2^n grows much faster than any polynomial in n.
+      -- So as long as we can bound s*n by something smaller than 2^n, we're good.
+      -- For s ≤ 2c and n ≥ 10000, we have s*n ≤ 2c*n ≤ n*n = n^2.
+      -- But wait, we're not trying to show s^2 + sn + 5s + 1 < 2^n here.
+      -- We're showing s^2 + sn + 5s + 1 ≤ (8c)^2 + ... to use the chain of inequalities.
+      -- But (8c)^2 + ... grows as c^2. With s ≤ 2c and n ≥ 4c + 10000,
+      -- we have s^2 + sn + 5s + 1 ≤ 4c^2 + 2cn + 10c + 1.
+      -- We need 4c^2 + 2cn + 10c + 1 ≤ 64c^2 + 24c + 1, i.e., 2cn ≤ 60c^2 + 14c.
+      -- So we need n ≤ 30c + 7. For c ≤ 333, this contradicts n ≥ 4c + 10000.
+      -- So we can't use this approach either!
+      -- Let me just call nlinarith and see what happens.
+      sorry
+    · -- Case k ≥ 1: x = c * n^k + c ≥ c * n + c ≥ n + 1
+      have hk_pos : k ≥ 1 := by omega
+      have h_pow_ge : n ^ k ≥ n := by
+        apply Nat.le_self_pow
+        omega
+      have hc_pos : c ≥ 1 := by
+        by_contra hc_zero
+        simp [Nat.not_le] at hc_zero
+        have := h_p_le 1
+        simp [hc_zero] at this
+        omega
+      have hx_ge_n : x ≥ n + 1 := by
+        calc x = c * n ^ k + c := by rfl
+             _ ≥ c * n + c := by nlinarith [h_pow_ge]
+             _ ≥ 1 * n + 1 := by nlinarith [hc_pos]
+             _ = n + 1 := by ring
+      -- Show n ≤ 15 * x + 7
+      have hn_le : n ≤ 15 * x + 7 := by nlinarith [hx_ge_n]
+      -- Prove the main inequality using hn_le
+      nlinarith [sq_nonneg (s - x), sq_nonneg (n - 1), sq_nonneg (x - 1), h_s_le, hn_le]
   -- Combine to get the counting inequality
   have h_card_lt : Fintype.card (NormalizedCircuit n (p n)) < 2 ^ (2 ^ n) := by
     calc Fintype.card (NormalizedCircuit n (p n))
