@@ -35,255 +35,412 @@ The command should not time out! If it does, we may have computationally intensi
 If the proof is in good shape, your job is to make a material improvement to the proof, working into the following direction (parts may be done already):
 
 ```
-You are continuing work on a Lean 4 proof file (Proof.lean) for circuit
-lower bounds. The file imports Mathlib and PVsNpLib. There are two
-remaining issues to resolve:
+You are continuing work on Proof.lean (a Lean 4 file using Mathlib and
+PVsNpLib). The goal is to close the `sorry` in `shannon_counting_argument`.
 
-  (1) Eliminate the `axiom base_pow_lt_two_pow` and replace it with a
-      genuine theorem. The proof IS feasible — earlier analysis incorrectly
-      concluded it required parametric absorption induction. The cleaner
-      strategy below avoids that barrier entirely.
+The theorem statement to prove:
 
-  (2) Close the remaining `sorry` inside `poly_quadratic_bound` (the
-      caller of `poly_quadratic_bound_k_ge_1`). The sorry exists because
-      `poly_quadratic_bound_k_ge_1` was given an extra hypothesis
-      `hk_max : k ≤ 4` that needs to be propagated.
+    theorem shannon_counting_argument :
+        ∀ (p : Nat → Nat) (hp : IsPolynomial p),
+        ∃ n₀ : Nat, ∀ n ≥ n₀, ∃ (f : (Fin n → Bool) → Bool),
+          ∀ (c : BoolCircuit n), circuitSize c ≤ p n →
+            ∃ inp : Fin n → Bool, evalCircuit c inp ≠ f inp
 
-The sorry inside `shannon_counting_argument` is OUT OF SCOPE for this
-session. Do not touch it.
+PRECONDITIONS (verify these before starting):
+  - The file builds with no `sorry` other than the one in
+    `shannon_counting_argument` itself.
+  - `base_pow_lt_two_pow` is a real `theorem` (not an axiom).
+  - `poly_quadratic_bound` has signature including `hk_max : k ≤ 4`.
+  - `evalCircuit_normalizeCircuit` is fully proven.
+  - `normalized_circuit_card_le` is fully proven.
+If any precondition fails, STOP and report — do not proceed.
 
 ═══════════════════════════════════════════════════════════════════════════
-PART 1: ELIMINATE THE AXIOM
+ARCHITECTURE OF THE PROOF
 ═══════════════════════════════════════════════════════════════════════════
 
-The axiom currently in the file looks like:
+The proof follows the classical Shannon counting argument, adapted to
+the existing infrastructure:
 
-    private axiom base_pow_lt_two_pow (D : Nat) :
-        (4 * D * D + 8) ^ D < 2 ^ (4 * D * D + 8)
+  STAGE 1: Extract a polynomial bound (k, c) from `hp : IsPolynomial p`.
+           Acknowledge the k ≤ 4 restriction inherited from
+           `poly_quadratic_bound`.
 
-THE STRATEGY (do not deviate from this):
+  STAGE 2: Define a threshold n₀ large enough for both:
+             (a) the polynomial-vs-exponential bound to fire, and
+             (b) other size constraints (e.g., n ≥ 4 for some helpers).
 
-For T(D) = 4*D² + 8, observe:
-   (i)  T(D) ≤ 2^(2D+3)     for all D ≥ 0
-   (ii) (2D+3)·D < T(D)     for all D ≥ 0
-Therefore:
-   T(D)^D ≤ (2^(2D+3))^D = 2^((2D+3)·D) < 2^T(D)
+  STAGE 3: For n ≥ n₀, prove the counting inequality:
+             Fintype.card (NormalizedCircuit n (p n)) < 2 ^ (2 ^ n)
 
-This proof does NOT use succ_pow_le_two_mul_pow or any induction over the
-exponent of the LHS. It only uses base/exponent monotonicity and an
-auxiliary bound that is a single induction on D. Crucially, there is no
-"(D+1)-th power factor to absorb" — that obstacle only appears when you
-try to induct on D using the succ_pow chain.
+  STAGE 4: Define a function ψ : NormalizedCircuit n (p n) → Bool^(2^n)
+           via "denote then encode". Apply pigeonhole (a Mathlib lemma)
+           to extract a function f : (Fin n → Bool) → Bool not in the
+           image of ψ.
 
-VERIFICATION OF (i) for small D:
-   D=0: 4·0+8=8 ≤ 2^3=8 ✓ (equality, but ≤ is fine)
-   D=1: 12 ≤ 32 ✓
-   D=2: 24 ≤ 128 ✓
-   D=10: 408 ≤ 8388608 ✓
+  STAGE 5: Show that any BoolCircuit c with circuitSize c ≤ p n has
+           evalCircuit c = (denote (normalizeCircuit c)). Therefore f
+           is not equal to evalCircuit c for any such c. This gives the
+           witness `∃ inp, evalCircuit c inp ≠ f inp`.
 
-VERIFICATION OF (ii):
-   (2D+3)·D = 2D² + 3D vs 4D² + 8
-   Difference: 2D² - 3D + 8. Discriminant: 9 - 64 < 0, so always positive.
-   D=0: 0 < 8. D=1: 5 < 12. D=10: 230 < 408. ✓
+═══════════════════════════════════════════════════════════════════════════
+STAGE 1: EXTRACT THE POLYNOMIAL BOUND
+═══════════════════════════════════════════════════════════════════════════
 
-───────────────────────────────────────────────────────────────────────────
-STEP 1.1: Add the auxiliary bound (i) as a new private theorem
-───────────────────────────────────────────────────────────────────────────
+Inside the proof body:
 
-INSERT immediately above the `axiom base_pow_lt_two_pow` declaration:
+    intro p hp
+    obtain ⟨k, c, h_p_le⟩ := hp
+    -- h_p_le : ∀ n, p n ≤ c * n ^ k + c
 
-    private theorem four_d_sq_plus_eight_le_two_pow_2d3 (D : Nat) :
-        4 * D * D + 8 ≤ 2 ^ (2 * D + 3) := by
-      induction D with
-      | zero => norm_num
-      | succ D ih =>
-        have h_pow_eq : 2 ^ (2 * (D + 1) + 3) = 4 * 2 ^ (2 * D + 3) := by
-          rw [show 2 * (D + 1) + 3 = 2 * D + 3 + 2 from by ring]
-          rw [pow_add]; ring
+The k ≤ 4 problem: poly_quadratic_bound requires hk_max : k ≤ 4. There is
+NO way around this without strengthening poly_quadratic_bound (out of
+scope for this session). Two paths forward:
+
+    Restrict the Shannon theorem statement to add
+    a hypothesis. Change the signature to:
+      theorem shannon_counting_argument :
+          ∀ (p : Nat → Nat) (hp : IsPolynomial p),
+          (∃ k c : Nat, k ≤ 4 ∧ ∀ n, p n ≤ c * n ^ k + c) →
+          ∃ n₀ : Nat, ...
+    Or pass `hk_max` separately. This is intellectually honest about the
+    current scope.
+
+introduce the new hypothesis as `hk_max : k ≤ 4` extracted alongside the IsPolynomial witness.
+
+For the rest of this prompt, assume `k ≤ 4` is in scope as `hk_max`.
+
+═══════════════════════════════════════════════════════════════════════════
+STAGE 2: SET UP THE THRESHOLD
+═══════════════════════════════════════════════════════════════════════════
+
+We need n₀ such that for n ≥ n₀:
+  (a) poly_quadratic_bound applies with c' = 4c (the doubling trick — see
+      Stage 3): n ≥ 100*k + 4*c + 100.
+  (b) Other downstream inequalities go through. Add slack: take
+      n₀ = 100*k + 4*c + 200.
+
+Use:
+    refine ⟨100 * k + 4 * c + 200, ?_⟩
+    intro n hn
+
+Then `hn : n ≥ 100 * k + 4 * c + 200` is in scope.
+
+═══════════════════════════════════════════════════════════════════════════
+STAGE 3: THE COUNTING INEQUALITY
+═══════════════════════════════════════════════════════════════════════════
+
+We want to show:
+    Fintype.card (NormalizedCircuit n (p n)) < 2 ^ (2 ^ n)
+
+Step 3.1 — Use the existing card upper bound:
+    have h_card : Fintype.card (NormalizedCircuit n (p n)) ≤
+                  normalized_circuit_count_upper_bound n (p n) :=
+      normalized_circuit_card_le n (p n)
+
+Step 3.2 — Bound the upper bound by 2^(something):
+    The definition is:
+      normalized_circuit_count_upper_bound n s = (s+1) * (2^(n+s+4))^s
+
+    Goal: bound this by 2^(s² + s·n + 5·s + 1).
+    Chain:
+      (s+1) * (2^(n+s+4))^s
+        = (s+1) * 2^((n+s+4)*s)        [by pow_mul, applied carefully]
+        ≤ 2^(s+1) * 2^((n+s+4)*s)      [using s+1 ≤ 2^(s+1) for s ≥ 0]
+        = 2^((n+s+4)*s + s + 1)
+        = 2^(s*n + s² + 4*s + s + 1)
+        = 2^(s² + s*n + 5*s + 1)
+
+    Lean encoding:
+      let s := p n
+      have h_s_pos : (s + 1) ≤ 2 ^ (s + 1) := by
+        -- s + 1 ≤ 2^(s+1) trivially for any s.
+        -- Use Nat.lt_two_pow_self : n < 2^n; specialize at s+1.
+        exact Nat.lt_two_pow_self.le
+      -- ALTERNATIVE if Nat.lt_two_pow_self has a different name:
+      --   exact (Nat.lt_two_pow (s + 1)).le
+      --   exact Nat.le_two_pow_self (s + 1)
+      have h_pow_eq : (2 ^ (n + s + 4)) ^ s = 2 ^ ((n + s + 4) * s) := by
+        rw [← pow_mul]
+      have h_count_le_2pow :
+          normalized_circuit_count_upper_bound n s ≤
+          2 ^ (s * s + s * n + 5 * s + 1) := by
+        unfold normalized_circuit_count_upper_bound
         rw [h_pow_eq]
-        have h_sub : 4 * (D + 1) * (D + 1) + 8 ≤ 4 * (4 * D * D + 8) := by
-          nlinarith
-        have h_chain : 4 * (4 * D * D + 8) ≤ 4 * 2 ^ (2 * D + 3) :=
-          Nat.mul_le_mul_left _ ih
-        linarith
+        calc (s + 1) * 2 ^ ((n + s + 4) * s)
+            ≤ 2 ^ (s + 1) * 2 ^ ((n + s + 4) * s) := by
+              exact Nat.mul_le_mul_right _ h_s_pos
+          _ = 2 ^ ((s + 1) + (n + s + 4) * s) := by rw [← pow_add]
+          _ = 2 ^ (s * s + s * n + 5 * s + 1) := by
+              congr 1; ring
 
-POSSIBLE FAILURES:
-  - `Nat.mul_le_mul_left` signature varies: it may be
-    `Nat.mul_le_mul_left (k : ℕ) {{m n : ℕ}} (h : m ≤ n) : k * m ≤ k * n`
-    in which case the call needs an explicit k:
-        Nat.mul_le_mul_left 4 ih
-    Or it may be the generic mul_le_mul_left' from ordered semirings.
-    If the underscore version fails, replace with `Nat.mul_le_mul_left 4 ih`.
-  - `pow_add` may need to be `Nat.pow_add` or `pow_add_pow`. If `pow_add`
-    fails, try `Nat.pow_add` or just `simp [pow_add]`.
-  - The `rw [show ...]` might create an order issue: if Lean complains
-    about not finding the pattern, replace with:
-        have h_eq : 2 * (D + 1) + 3 = 2 * D + 3 + 2 := by ring
-        rw [h_eq, pow_add]; ring
-  - `nlinarith` for h_sub: this expands `4*(D+1)*(D+1) + 8 ≤ 16*D*D + 32`
-    which is `4D² + 8D + 12 ≤ 16D² + 32`, i.e., `12D² - 8D + 20 ≥ 0`.
-    nlinarith should handle this; if it fails, add hint:
-        nlinarith [sq_nonneg D, sq_nonneg (D - 1)]
+POSSIBLE FAILURES in Step 3.2:
+  - `Nat.lt_two_pow_self` may have a different name. Try:
+      Nat.lt_two_pow, n.lt_two_pow_self, Nat.lt_pow_self
+    Verify with `#check @Nat.lt_two_pow_self`. If absent, prove inline:
+      have h_s_pos : (s + 1) ≤ 2 ^ (s + 1) := by
+        induction s with
+        | zero => norm_num
+        | succ s ih =>
+            calc s + 1 + 1 ≤ 2^(s+1) + 1 := by omega
+              _ ≤ 2^(s+1) + 2^(s+1) := by linarith [Nat.one_le_two_pow]
+              _ = 2 * 2^(s+1) := by ring
+              _ = 2^(s+2) := by rw [pow_succ]; ring
+  - `pow_mul` may need `Nat.pow_mul`. Try both.
+  - `pow_add` may need `Nat.pow_add`. Try both.
+  - The `congr 1; ring` step normalizes the exponent. If `ring` complains,
+    expand manually:
+      _ = 2 ^ ((n + s + 4) * s + (s + 1)) := by ring_nf
+      _ = 2 ^ (n*s + s*s + 4*s + s + 1) := by ring_nf
+      etc.
 
-───────────────────────────────────────────────────────────────────────────
-STEP 1.2: Replace the axiom with a real proof
-───────────────────────────────────────────────────────────────────────────
+Step 3.3 — The polynomial-exponential bound (the hard part):
+    Need: s² + s*n + 5*s + 1 < 2^n, where s = p(n) ≤ c*n^k + c.
 
-REPLACE the entire axiom declaration (and its preceding comment) with:
+    Apply `poly_quadratic_bound` with the doubled coefficient (4c) to
+    absorb the extra factors:
 
-    private theorem base_pow_lt_two_pow (D : Nat) :
-        (4 * D * D + 8) ^ D < 2 ^ (4 * D * D + 8) := by
-      by_cases hD : D = 0
-      · subst hD
-        simp only [pow_zero]
-        -- Goal: 1 < 2 ^ (4*0*0 + 8) = 2 ^ 8
-        norm_num
-      · -- D ≥ 1
-        have hD_pos : D ≥ 1 := Nat.one_le_iff_ne_zero.mpr hD
-        -- (i) T(D) ≤ 2^(2D+3)
-        have hA : 4 * D * D + 8 ≤ 2 ^ (2 * D + 3) :=
-          four_d_sq_plus_eight_le_two_pow_2d3 D
-        -- (ii) (2D+3)·D < T(D), i.e., 2D² + 3D < 4D² + 8
-        have hB : (2 * D + 3) * D < 4 * D * D + 8 := by nlinarith
-        -- T(D)^D ≤ (2^(2D+3))^D
-        have h1 : (4 * D * D + 8) ^ D ≤ (2 ^ (2 * D + 3)) ^ D :=
-          Nat.pow_le_pow_left hA D
-        -- (2^(2D+3))^D = 2^((2D+3)·D)
-        have h2 : (2 ^ (2 * D + 3)) ^ D = 2 ^ ((2 * D + 3) * D) := by
-          rw [← pow_mul]
-        -- 2^((2D+3)·D) < 2^T(D) since (2D+3)·D < T(D)
-        have h3 : 2 ^ ((2 * D + 3) * D) < 2 ^ (4 * D * D + 8) := by
-          apply Nat.pow_lt_pow_right (by norm_num : 1 < 2)
-          exact hB
-        -- Chain: T(D)^D ≤ ... < 2^T(D)
-        linarith
+      have hn_for_poly : n ≥ 100 * k + (4 * c) + 100 := by omega
+      have h_poly_bound :
+          (4 * c * n ^ k + 4 * c) ^ 2 + 3 * (4 * c * n ^ k + 4 * c) + 1 < 2 ^ n :=
+        poly_quadratic_bound k (4 * c) n hk_max hn_for_poly
 
-POSSIBLE FAILURES:
-  - `Nat.pow_le_pow_left` may be named `Nat.pow_le_pow_left` (varies base,
-    fixed exponent) — that's what we want. If the name is wrong, try:
-        Nat.pow_le_pow_of_le_left, or
-        pow_le_pow_left (Nat.zero_le _) hA D
-    The latter form is more general. If both fail, search Mathlib with
-    `#check @Nat.pow_le_pow_left` and adapt.
-  - `Nat.pow_lt_pow_right` might be:
-        Nat.pow_lt_pow_right : 1 < b → n < m → b^n < b^m
-    OR (older): Nat.pow_lt_pow_right (h : 1 < b) {{n m : ℕ}} (h' : n < m) ...
-    OR: pow_lt_pow_right_of_lt_one (irrelevant — that's for b<1).
-    If neither works, the equivalent form is:
-        Nat.pow_lt_pow_right_of_lt or pow_lt_pow_right
-    Or use the strict-mono fact directly:
-        exact Nat.pow_lt_pow_right (by norm_num) hB
-  - `← pow_mul` may need to be `← Nat.pow_mul` depending on which is in
-    scope. Try `simp only [← pow_mul]` if the rewrite fails.
-  - The `simp only [pow_zero]` step: depending on whether the goal has
-    `4*0*0 + 8` or `8` after `subst hD`, you may need an extra
-    `norm_num` or `simp` to fold the arithmetic. If `norm_num` after
-    `simp only [pow_zero]` doesn't close, try just `decide` or
-    `simp; norm_num`.
+    Now we show:
+      s^2 + s*n + 5*s + 1 ≤ (4c*n^k + 4c)^2 + 3*(4c*n^k + 4c) + 1
 
-VERIFY at this point:
-  - `lake env lean Proof.lean` builds successfully through the
-    `n_pow_lt_two_pow_n` lemma.
-  - The word `axiom` no longer appears between the start of the file and
-    the `Cook–Levin` section. (It will still appear there for
-    `sat_is_np_complete` and `sat_has_superpoly_lower_bound`, which are
-    intentional.)
+    This is mostly arithmetic. Key facts:
+      (1) s = p(n) ≤ c*n^k + c.
+      (2) 4*(c*n^k + c) = 4c*n^k + 4c.
+      (3) For n ≥ k*c + 1 (which our threshold guarantees), we have
+          n ≤ c*n^k + c (since c ≥ 1, k ≥ 1 implies c*n^k ≥ n; for k = 0
+          we need c ≥ n, which fails — handle k = 0 separately).
+      (4) Therefore s + n ≤ 2 * (c*n^k + c) ≤ q(n)/2 where
+          q(n) = 4c*n^k + 4c.
 
-═══════════════════════════════════════════════════════════════════════════
-PART 2: PROPAGATE hk_max : k ≤ 4 INTO poly_quadratic_bound
-═══════════════════════════════════════════════════════════════════════════
+    HANDLING k = 0 SEPARATELY: When k = 0, p(n) ≤ c·n^0 + c = 2c (constant).
+    In this case s ≤ 2c is a constant, and the count
+      s^2 + s*n + 5*s + 1 ≤ 4c² + 2c·n + 10c + 1 ≤ poly in n
+    is dominated by 2^n for n ≥ some threshold linear in c. Use a direct
+    argument: do `cases k` at the top of the n ≥ n₀ block; for k=0 use
+    `four_n_squared_plus_six_n_plus_one_lt_two_pow_n` or similar; for
+    k ≥ 1 use the chain above.
 
-The lemma `poly_quadratic_bound_k_ge_1` currently has signature:
+    SIMPLER APPROACH (RECOMMENDED): Avoid the k=0 split by using a uniform
+    LARGER coefficient. Apply poly_quadratic_bound with c' = 4c and the
+    same k. The inequality
+      s^2 + s*n + 5*s + 1 ≤ 16*p(n)^2 + 12*p(n) + 1
+    holds for n ≥ p(n) (which holds for k ≥ 1 trivially; for k = 0, we
+    need n ≥ 2c, which our threshold satisfies).
 
-    poly_quadratic_bound_k_ge_1 (k c n : Nat) (hk : k ≥ 1) (hc : c ≥ 1)
-        (hk_max : k ≤ 4) (hn : n ≥ 100 * k + c + 100) : ...
+    Concretely:
+      (a) Show s + n + 5 ≤ 4*p(n) for n large (need p(n) ≥ ???). 
+          Since p(n) ≤ c·n^k + c, we cannot bound p(n) from BELOW just
+          from this. Switch to bounding by the upper bound directly:
+            s · (s + n + 5) + 1 ≤ (c·n^k + c) · (c·n^k + c + n + 5) + 1
+                                ≤ (c·n^k + c) · (2·(c·n^k + c) + 5) + 1   [if n ≤ p(n)]
+                                = 2·p(n)² + 5·p(n) + 1
+                                ≤ 4·p(n)² + 6·p(n) + 1
+                                = ((2c)·n^k + 2c)² + 3·((2c)·n^k + 2c) + 1
+            ... wait, doubling c gives 4·p² + 6·p + 1, which matches.
+          So apply poly_quadratic_bound with c' = 2c, NOT 4c.
 
-The caller `poly_quadratic_bound` has signature:
+      Update threshold: n₀ = 100*k + 2c + 200.
 
-    poly_quadratic_bound (k c : Nat) (n : Nat) (hn : n ≥ 100 * k + c + 100) : ...
+    The arithmetic chain to show s^2 + s*n + 5*s + 1 ≤ (2c·n^k + 2c)² + 3·(2c·n^k + 2c) + 1:
+      LHS = s² + s·n + 5s + 1
+          ≤ s² + s · (c·n^k + c) + 5s + 1     [uses n ≤ c·n^k + c, valid for k ≥ 1, c ≥ 1, n ≥ 1]
+                                              [for k = 0: handle separately or thread bound]
+          = s² + s·p_upper + 5s + 1     where p_upper = c·n^k + c
+          ≤ s · p_upper + s · p_upper + 5·p_upper + 1   [s ≤ p_upper]
+          = 2 · s · p_upper + 5 · p_upper + 1
+          ≤ 2 · p_upper² + 5 · p_upper + 1     [s ≤ p_upper]
+          ≤ 4 · p_upper² + 6 · p_upper + 1     [trivial]
+          = (2 · p_upper)² + 3 · (2 · p_upper) + 1
+          = (2c·n^k + 2c)² + 3·(2c·n^k + 2c) + 1
 
-and currently has a `sorry` in the branch where k ≥ 1 and c ≥ 1, because
-it tries to call `poly_quadratic_bound_k_ge_1` without `hk_max`.
+    NOTE: the "n ≤ c·n^k + c" step fails for k = 0 (gives n ≤ 2c, false
+    when n > 2c). For PATH A with hk_max : k ≤ 4 and assuming k ≥ 1
+    (so we can dispatch k = 0 first), this is fine. Add at the start:
 
-THE FIX: add `(hk_max : k ≤ 4)` to the signature of `poly_quadratic_bound`.
+        cases hk_eq : k with
+        | zero =>
+          -- k = 0: p(n) ≤ 2c (constant). Trivial bound.
+          ... (use four_n_squared_plus_six_n_plus_one_lt_two_pow_n or similar)
+        | succ k' => ...
 
-───────────────────────────────────────────────────────────────────────────
-STEP 2.1: Update poly_quadratic_bound's signature
-───────────────────────────────────────────────────────────────────────────
-
-CHANGE:
-    private theorem poly_quadratic_bound (k c : Nat) (n : Nat)
-        (hn : n ≥ 100 * k + c + 100) : ...
-
-TO:
-    private theorem poly_quadratic_bound (k c : Nat) (n : Nat)
-        (hk_max : k ≤ 4) (hn : n ≥ 100 * k + c + 100) : ...
-
-Then locate the `sorry` inside this theorem (in the branch where both
-`hk : k ≥ 1` and `hc1 : c ≥ 1` are in scope) and replace it with:
-
-    exact poly_quadratic_bound_k_ge_1 k c n hk1 hc1 hk_max hn
-
-───────────────────────────────────────────────────────────────────────────
-STEP 2.2: Check that no callers of poly_quadratic_bound break
-───────────────────────────────────────────────────────────────────────────
-
-Search the file for uses of `poly_quadratic_bound` (the call sites). Right
-now the only consumer should be `shannon_counting_argument`, which is
-itself still a `sorry`, so it doesn't pass any arguments. Adding
-`hk_max` to the signature is safe.
-
-If you find any other call site, you must thread `hk_max` through it.
-If a caller cannot supply `hk_max`, that caller becomes scope-restricted.
-For shannon_counting_argument: leave its sorry alone, but note in the
-proof comment that the eventual proof will need to restrict to k ≤ 4
-(which is acceptable for a circuit-complexity statement, since natural
-polynomial bounds in this domain are low-degree).
+    OR: bound s * n using s · n ≤ s² + s · 1 ≤ s² + s when s ≥ n. But s
+    might be < n if p(n) is small. So we need EITHER k ≥ 1 (so p(n) grows)
+    OR a separate argument for k = 0.
 
 ═══════════════════════════════════════════════════════════════════════════
-PART 3: BUILD AND VERIFY
+STAGE 4: PIGEONHOLE TO EXTRACT THE WITNESS FUNCTION
 ═══════════════════════════════════════════════════════════════════════════
 
-Run:
-    lake env lean proofs/p_versus_np/circuit_lower_bounds/Proof.lean
+Setup:
+  - Domain: NormalizedCircuit n (p n)  (Fintype, has cardinality bound)
+  - Codomain: (Fin n → Bool) → Bool   (Fintype, cardinality 2^(2^n))
 
-Expected outcomes:
-  - Build succeeds in under 1 minute (the runtime budget per NOTES.md).
-  - The ONLY remaining `sorry` in the file is in `shannon_counting_argument`.
-  - The ONLY `axiom` declarations are `sat_is_np_complete` and
-    `sat_has_superpoly_lower_bound` (both in the Cook-Levin section,
-    intentional).
+Need a lemma: if |α| < |β| (both Fintype), then no f : α → β is
+surjective. Equivalently: ∃ b ∈ β, ∀ a ∈ α, f a ≠ b.
 
-If the build fails, report:
-  - Which step failed (Step 1.1, 1.2, 2.1, or 2.2).
-  - The specific Lean error.
-  - Which fallback from the "POSSIBLE FAILURES" notes (if any) you tried.
+Mathlib lemmas to try (in priority order):
 
-DO NOT introduce new `sorry` or `axiom` declarations to paper over failures.
-If a step genuinely cannot be completed, report it cleanly so it can be
-debugged.
+  (1) Finset.exists_not_mem_image_of_card_lt
+      : (Fintype.card β > S.card) → S.image f → ∃ b, b ∉ S.image f
+      — needs adapting from Finset to Fintype.
+
+  (2) Fintype.exists_not_mem_image
+      : Fintype.card β > Finset.univ.image f → ∃ b ∉ ...
+      — may not exist by this exact name.
+
+  (3) Direct contrapositive of Function.Surjective.fintype_card_le:
+      if `f.Surjective`, then `card β ≤ card α`.
+      Use `not_surjective_of_card_lt` or `Finset.exists_ne_of_lt`.
+
+  (4) Most direct path: use `Finset.surj_on_univ` or
+      `Fintype.card_le_of_surjective`.
+      `Fintype.card_le_of_surjective : f.Surjective → card β ≤ card α`.
+      Contrapositive: `card β > card α → ¬f.Surjective`.
+
+Recommended pattern:
+
+    -- Define the denote map.
+    let denote : NormalizedCircuit n (p n) → (Fin n → Bool) → Bool :=
+      fun nc inp => evalCircuit (normalizedToRaw nc) inp
+    -- (verify that `normalizedToRaw` exists in the file; if not, define
+    --  it inline, or use whatever conversion is available)
+
+    -- Show |NormalizedCircuit n (p n)| < |(Fin n → Bool) → Bool|.
+    have h_lt : Fintype.card (NormalizedCircuit n (p n)) 
+                Fintype.card ((Fin n → Bool) → Bool) := by
+      have h_func_card : Fintype.card ((Fin n → Bool) → Bool) = 2 ^ (2 ^ n) := by
+        rw [Fintype.card_fun, Fintype.card_fun, Fintype.card_fin,
+            Fintype.card_bool]
+        ring  -- or `rfl` depending on simp normal form
+      rw [h_func_card]
+      -- combine h_card and h_count_le_2pow and the polynomial bound
+      ...
+
+    -- Apply pigeonhole: denote is not surjective.
+    have h_not_surj : ¬ Function.Surjective denote := fun hs =>
+      absurd (Fintype.card_le_of_surjective denote hs) (not_le.mpr h_lt)
+
+    -- Extract the missing function f.
+    push_neg at h_not_surj
+    obtain ⟨f, hf⟩ := h_not_surj
+    -- hf : ∀ nc, denote nc ≠ f
+    use f
+
+POSSIBLE FAILURES in Stage 4:
+  - `Fintype.card_le_of_surjective` may be named differently. Try:
+      Fintype.card_le_of_surjective, Function.Surjective.card_le,
+      Fintype.exists_not_mem_finset (with an explicit Finset construction)
+  - `push_neg at h_not_surj` may need the `Function.Surjective` to be
+    unfolded first:
+      simp only [Function.Surjective, not_forall] at h_not_surj
+      obtain ⟨f, hf⟩ := h_not_surj
+      simp only [not_exists] at hf
+  - `Fintype.card_fun` for function types: the standard form is
+      Fintype.card (α → β) = Fintype.card β ^ Fintype.card α
+    Check direction; if reversed, swap.
+  - `normalizedToRaw` might be named differently. Search the file.
+    If absent, define inline:
+      let denote : NormalizedCircuit n (p n) → (Fin n → Bool) → Bool :=
+        fun nc inp => evalCircuit ⟨..., ...⟩ inp  -- using nc.1, nc.2
 
 ═══════════════════════════════════════════════════════════════════════════
-DEBUGGING NOTES
+STAGE 5: CONNECT BACK TO BoolCircuit
 ═══════════════════════════════════════════════════════════════════════════
 
-If `nlinarith` fails on h_sub or hB: the inequalities are polynomial in D
-with non-negative discriminants. Add hints:
-    nlinarith [sq_nonneg D, sq_nonneg (D - 1), Nat.zero_le D, Nat.zero_le (D*D)]
+After Stage 4, we have f such that for ALL nc : NormalizedCircuit n (p n),
+denote nc ≠ f. We need: for all c : BoolCircuit n with circuitSize c ≤ p n,
+∃ inp, evalCircuit c inp ≠ f inp.
 
-If `linarith` fails to combine h1, h2, h3 at the end of base_pow_lt_two_pow:
-the issue is usually that h2 is an equality but linarith can't substitute.
-Replace the final step with:
-    rw [h2] at h1
-    exact lt_of_le_of_lt h1 h3
+The link: for any such c, normalize it and use evalCircuit_normalizeCircuit.
 
-If a hypothesis name like `pow_mul` clashes or doesn't exist, find the
-right name with `#check @pow_mul` in a scratch buffer first. Common
-alternatives: `Nat.pow_mul`, `pow_mul_comm`, `← pow_mul`.
+    intro c h_size
+    let nc := normalizeCircuit c h_size
+    -- denote nc = fun inp => evalCircuit (normalizedToRaw nc) inp
+    --           = fun inp => evalCircuit c inp           [by evalCircuit_normalizeCircuit]
+    have h_denote_eq : (fun inp => evalCircuit (normalizedToRaw nc) inp) =
+                       (fun inp => evalCircuit c inp) := by
+      funext inp
+      exact evalCircuit_normalizeCircuit c h_size inp
+    -- We have hf nc : denote nc ≠ f, i.e.,
+    --   (fun inp => evalCircuit (normalizedToRaw nc) inp) ≠ f
+    have h_neq : (fun inp => evalCircuit c inp) ≠ f := by
+      rw [← h_denote_eq]
+      exact hf nc
+    -- Convert "functions differ" to "exists input where they differ":
+    by_contra h_all_eq
+    push_neg at h_all_eq
+    apply h_neq
+    funext inp
+    -- h_all_eq : ∀ inp, ¬ evalCircuit c inp ≠ f inp
+    -- i.e., ∀ inp, evalCircuit c inp = f inp
+    have := h_all_eq inp
+    push_neg at this
+    exact this
 
-The `pow_succ` and `pow_add` rewrites are common sources of trouble. They
-may produce `a^n * a` when you expect `a * a^n`. Always follow with
-`ring` (or `mul_comm`) to normalize.
+POSSIBLE FAILURES in Stage 5:
+  - `funext` may need `funext inp` or `apply funext`. Try both.
+  - The `by_contra; push_neg; ...` structure might need adjustment based
+    on exact goal form. If `push_neg` produces a different shape, use
+    `Classical.byContradiction` and manually negate.
+  - `evalCircuit_normalizeCircuit`'s signature: verify the order of
+    arguments (c first or h_size first). Match the file.
+
+═══════════════════════════════════════════════════════════════════════════
+INTEGRATION AND TESTING
+═══════════════════════════════════════════════════════════════════════════
+
+After all stages compile individually:
+  1. Run `lake env lean Proof.lean`. Build should complete in < 1 minute.
+  2. Verify NO new sorrys were introduced.
+  3. Verify the only remaining `axiom` declarations are `sat_is_np_complete`
+     and `sat_has_superpoly_lower_bound`.
+
+If `shannon_counting_argument`'s signature changed (PATH A), update
+NOTES.md to reflect:
+  - The k ≤ 4 restriction in the theorem statement.
+  - That this restriction is inherited from `poly_quadratic_bound` and can
+    be lifted by extending that lemma to all k.
+
+═══════════════════════════════════════════════════════════════════════════
+COMMON PITFALLS — READ BEFORE STARTING
+═══════════════════════════════════════════════════════════════════════════
+
+(P1) **Fintype synthesis**: `(Fin n → Bool) → Bool` and
+     `NormalizedCircuit n s` should both have automatic `Fintype` instances
+     (the former via `Fintype.instFunUnique` etc., the latter via the
+     `Option × Function` structure). If Lean complains about missing
+     `Fintype` instances, add `inferInstance` calls or `decide`.
+
+(P2) **The denote function**: must use `normalizedToRaw` (or whatever the
+     conversion is named) to bridge from NormalizedCircuit to BoolCircuit.
+     Search the file for the term — it should exist near the definition
+     of NormalizedCircuit.
+
+(P3) **`p_neq_np` and downstream**: After changing
+     shannon_counting_argument's signature (if PATH A), check that
+     `p_neq_np` still compiles. It does NOT use shannon_counting_argument
+     directly (it uses the axiom `sat_has_superpoly_lower_bound`), so
+     should be fine.
+
+(P4) **k = 0 corner case**: If you use the doubled-coefficient approach
+     uniformly, the bound `n ≤ c · n^k + c` fails for k = 0. Either:
+       - Add `cases k` at the start of Stage 3.3 (cleanest).
+       - Strengthen the threshold so 2c ≤ n is also implied.
+     For PATH A's degree-bounded variant, both k = 0 and k ≥ 1 ≤ 4 are in
+     scope, so handle k = 0 explicitly as a constant-polynomial case.
+
+(P5) **Strict vs non-strict inequalities**: poly_quadratic_bound gives
+     STRICT `<`, normalized_circuit_card_le gives `≤`, the chain composes
+     to STRICT. Watch for off-by-one when chaining.
+
+DO NOT introduce new sorrys. If a stage genuinely cannot be completed,
+report the obstacle precisely (which stage, which Lean error, what
+fallback you tried).
 ```
 
 Moreover:
