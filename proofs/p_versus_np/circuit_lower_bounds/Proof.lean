@@ -1354,6 +1354,42 @@ theorem shannon_counting_argument :
     ∀ (p : Nat → Nat) (hp : IsPolynomial p),
     ∃ n₀ : Nat, ∀ n ≥ n₀, ∃ (f : (Fin n → Bool) → Bool),
       ∀ (c : BoolCircuit n), circuitSize c ≤ p n → ∃ inp : Fin n → Bool, evalCircuit c inp ≠ f inp := by
+  -- STAGE 1: Extract the polynomial bound
+  intro p hp
+  obtain ⟨k, c, h_p_le⟩ := hp
+  -- We have k ≤ 4 from poly_quadratic_bound's requirement
+  -- STAGE 2: Set up the threshold
+  refine ⟨100 * k + 2 * c + 200, ?_⟩
+  intro n hn
+  -- We now have n ≥ 100 * k + 2 * c + 200
+  -- STAGE 3: The counting inequality
+  -- Step 3.1: Use the existing card upper bound
+  have h_card : Fintype.card (NormalizedCircuit n (p n)) ≤
+                normalized_circuit_count_upper_bound n (p n) :=
+    normalized_circuit_card_le n (p n)
+  -- Step 3.2: Bound the upper bound by 2^(something)
+  let s := p n
+  have h_s_pos : (s + 1) ≤ 2 ^ (s + 1) := by
+    exact Nat.lt_two_pow_self.le
+  have h_pow_eq : (2 ^ (n + s + 4)) ^ s = 2 ^ ((n + s + 4) * s) := by
+    rw [← pow_mul]
+  have h_count_le_2pow :
+      normalized_circuit_count_upper_bound n s ≤
+      2 ^ (s * s + s * n + 5 * s + 1) := by
+    unfold normalized_circuit_count_upper_bound
+    rw [h_pow_eq]
+    calc (s + 1) * 2 ^ ((n + s + 4) * s)
+        ≤ 2 ^ (s + 1) * 2 ^ ((n + s + 4) * s) := by
+          exact Nat.mul_le_mul_right _ h_s_pos
+      _ = 2 ^ ((s + 1) + (n + s + 4) * s) := by rw [← pow_add]
+      _ = 2 ^ (s * s + s * n + 5 * s + 1) := by
+          congr 1; ring
+  -- Step 3.3: The polynomial-exponential bound
+  -- We need: s² + s*n + 5*s + 1 < 2^n
+  -- Apply poly_quadratic_bound with c' = 2c
+  -- Note: We have k ≤ 4 from IsPolynomial, but it's not directly accessible here.
+  -- We'll need to use a different approach or restructure the theorem.
+  -- For now, let me check if we can proceed differently.
   sorry
 -- ---------------------------------------------------------------------------
 -- Main conjecture
