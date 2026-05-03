@@ -6,73 +6,82 @@ set_option maxHeartbeats 4000000
 /-
 # P vs NP via Circuit Complexity Lower Bounds
 
-This file presents a formal approach to proving P ≠ NP through circuit complexity lower bounds.
+## Proof Structure (Hierarchical Overview)
 
-## Structure
+```
+P ≠ NP
+├── sat_superpolynomial_implies_p_neq_np
+│   ├── SAT ∈ NP (from Cook-Levin)
+│   └── SAT has superpolynomial circuit lower bounds
+│       └── sat_has_superpoly_lower_bound (axiom)
+└── p_neq_np (main theorem)
+    └── sat_is_np_complete (axiom)
 
-1. **Circuit Representation**: Boolean circuits as data structures with gates and connections
-2. **Semantics**: Circuit evaluation on input assignments  
-3. **Complexity Classes**: Formal definitions of P and NP via circuit families
-4. **Counting Argument**: Shannon's argument showing superpolynomial circuit bounds exist
-5. **Main Results**: Connection between circuit lower bounds and P ≠ NP
+Shannon Counting Argument
+├── circuit_count_upper_bound: |Circuits(n, s)| ≤ (s+1)^(s+1) * 2^s
+├── boolean_function_count: |Functions(n)| = 2^(2^n)
+├── normalized_circuit_count_upper_bound
+│   └── NodeCode, NormalizedCircuit
+├── n_pow_lt_two_pow_n: n^D < 2^n for n ≥ 4*D^2 + 8
+├── poly_quadratic_bound: (c*n^k + c)^2 + 3*(...) + 1 < 2^n
+└── shannon_counting_argument: ∀ polynomial p, ∃ functions not computable by p(n)-size circuits
 
-## Key Definitions
+Circuit Framework
+├── Gate: And, Or, Not, Var, Const
+├── CircuitNode: gate + child indices
+├── BoolCircuit: nodes + output index
+├── evalNode, evalCircuit
+└── Sanity lemmas: eval_const_true, eval_const_false, eval_var_zero
 
-- `Gate`: Basic Boolean operations (AND, OR, NOT, variables, constants)
-- `CircuitNode`: A gate with connections to child nodes
-- `BoolCircuit`: A complete circuit with designated output
-- `inP`, `inNP`: Circuit-based complexity class definitions
-- `circuit_count_upper_bound`: Upper bound on number of circuits
-- `boolean_function_count`: Number of possible Boolean functions
+Complexity Classes
+├── Language: ∀ n, (Fin n → Bool) → Prop
+├── inP: decidable by polynomial-size circuit family
+└── inNP: verifiable by polynomial-size circuit family
+```
 
-## Main Theorems
+## Key Results
 
-- `shannon_counting_argument`: For any polynomial p, most functions require circuits larger than p(n)
-- `p_neq_np`: P ≠ NP (assuming circuit lower bounds for SAT)
+- `shannon_counting_argument`: For any polynomial p, most Boolean functions require circuits larger than p(n)
+- `p_neq_np`: P ≠ NP (conditional on circuit lower bounds for SAT)
 
 ## Status
 
-The reduction from circuit lower bounds to P ≠ NP is complete. The key open question is proving superpolynomial circuit lower bounds for specific problems (e.g., SAT).
+Reduction from circuit lower bounds to P ≠ NP is complete. Open: proving superpolynomial
+circuit lower bounds for specific problems (e.g., SAT).
 -/
-
--- P vs NP via Circuit Complexity Lower Bounds
--- Primary repository track: formalize a circuit-lower-bound route to P ≠ NP.
--- Status: the reduction is conditional; the lower-bound work remains open.
 
 open Fin
 open PVsNpLib
 
 namespace PVsNp.CircuitLowerBounds
 
-/-- A simple gate type -/
+/-- Basic Boolean gate operations -/
 inductive Gate where
-  | And  : Gate
-  | Or   : Gate
-  | Not  : Gate
-  | Var  : Nat → Gate   -- input variable index
-  | Const : Bool → Gate
+  | And    : Gate
+  | Or     : Gate
+  | Not    : Gate
+  | Var    : Nat → Gate   -- Input variable index
+  | Const  : Bool → Gate
   deriving Repr, DecidableEq
 
-/-- A circuit node: a gate applied to a list of children (by index into a node array) -/
+/-- Circuit node: gate with child indices -/
 structure CircuitNode where
   gate     : Gate
-  children : List Nat   -- indices into the circuit's node list
+  children : List Nat   -- Indices into circuit's node list
   deriving Repr
 
-/-- A Boolean circuit on n inputs: a list of nodes with a designated output node index -/
+/-- Boolean circuit with n inputs -/
 structure BoolCircuit (n : Nat) where
   nodes  : Array CircuitNode
-  output : Nat   -- index of the output node
+  output : Nat   -- Output node index
   deriving Repr
 
-/-- The size of a circuit is the number of nodes -/
+/-- Circuit size = number of nodes -/
 def circuitSize {n : Nat} (c : BoolCircuit n) : Nat := c.nodes.size
 
--- ---------------------------------------------------------------------------
 -- Semantics (evaluation)
--- ---------------------------------------------------------------------------
 
-/-- Evaluate a single node given an input assignment and previously computed values -/
+/-- Evaluate a node given input and computed child values -/
 def evalNode {n : Nat} (inp : Fin n → Bool) (vals : Array Bool) (node : CircuitNode) : Bool :=
   match node.gate with
   | Gate.Const b => b
@@ -86,38 +95,32 @@ def evalNode {n : Nat} (inp : Fin n → Bool) (vals : Array Bool) (node : Circui
   | Gate.Or      =>
       node.children.foldl (fun acc c => acc || vals.getD c false) false
 
-/-- Evaluate a circuit on a given input by folding left over the node array.
-    Nodes are assumed to be in topological order (children have smaller indices than parents).
-    For each node, we compute its value based on the current accumulation of values. -/
+/-- Evaluate a circuit on input. Nodes must be in topological order. -/
 def evalCircuit {n : Nat} (c : BoolCircuit n) (inp : Fin n → Bool) : Bool :=
   let vals := c.nodes.foldl (fun acc node => acc.push (evalNode inp acc node)) #[]
   vals.getD c.output false
 
--- ---------------------------------------------------------------------------
 -- Sanity lemmas for evalCircuit
--- ---------------------------------------------------------------------------
 
-/-- Helper: construct a single-node constant circuit -/
+/-- Single-node constant circuit -/
 def constCircuit (b : Bool) : BoolCircuit 0 :=
   { nodes := #[(⟨Gate.Const b, []⟩ : CircuitNode)]
     output := 0 }
 
-/-- A constant-true circuit evaluates to true -/
+/-- Constant-true circuit evaluates to true -/
 theorem eval_const_true : evalCircuit (constCircuit true) (fun _ => false) = true := by
-  unfold evalCircuit constCircuit
-  simp [evalNode]
+  unfold evalCircuit constCircuit; simp [evalNode]
 
-/-- A constant-false circuit evaluates to false -/
+/-- Constant-false circuit evaluates to false -/
 theorem eval_const_false : evalCircuit (constCircuit false) (fun _ => false) = false := by
-  unfold evalCircuit constCircuit
-  simp [evalNode]
+  unfold evalCircuit constCircuit; simp [evalNode]
 
-/-- Helper: construct a single-node variable circuit for input index i -/
+/-- Single-node variable circuit for input index i -/
 def varCircuit (n : Nat) (i : Nat) (_hi : i < n) : BoolCircuit n :=
   { nodes := #[(⟨Gate.Var i, []⟩ : CircuitNode)]
     output := 0 }
 
-/-- A Var-0 circuit on n>0 inputs evaluates to the first input bit -/
+/-- Var-0 circuit evaluates to first input bit -/
 theorem eval_var_zero (n : Nat) (hn : n > 0) (inp : Fin n → Bool) :
     evalCircuit (varCircuit n 0 (Nat.zero_lt_of_lt hn)) inp = inp ⟨0, Nat.zero_lt_of_lt hn⟩ := by
   unfold evalCircuit varCircuit
@@ -125,20 +128,18 @@ theorem eval_var_zero (n : Nat) (hn : n > 0) (inp : Fin n → Bool) :
   have : 0 < n := Nat.zero_lt_of_lt hn
   simp [this]
 
--- ---------------------------------------------------------------------------
--- Complexity classes (abstract stubs)
--- ---------------------------------------------------------------------------
+-- Complexity classes
 
-/-- A language (decision problem) on bitstrings of length n -/
+/-- Language = decision problem on bitstrings -/
 def Language := ∀ (n : Nat), (Fin n → Bool) → Prop
 
-/-- L is in P if there is a polynomial p and a circuit family of size ≤ p(n) deciding L -/
+/-- L ∈ P iff decidable by polynomial-size circuit family -/
 def inP (L : Language) : Prop :=
   ∃ (p : Nat → Nat) (_is_polynomial : IsPolynomial p),
   ∀ n, ∃ (c : BoolCircuit n), circuitSize c ≤ p n ∧
         ∀ inp, (evalCircuit c inp = true ↔ L n inp)
 
-/-- L is in NP if witnesses are polynomial and verifiable in polynomial time -/
+/-- L ∈ NP iff verifiable by polynomial-size circuit family -/
 def inNP (L : Language) : Prop :=
   ∃ (V : Language), inP V ∧
   ∀ n inp, (L n inp ↔ ∃ w : Fin n → Bool,
@@ -146,18 +147,16 @@ def inNP (L : Language) : Prop :=
       if h : i.val < n then inp ⟨i.val, h⟩
       else w ⟨i.val - n, by omega⟩))
 
--- ---------------------------------------------------------------------------
 -- Circuit lower bounds via counting arguments
--- ---------------------------------------------------------------------------
 
-/-- The number of Boolean circuits of size s on n inputs is at most (s+1)^(s+1) * 2^s. -/
+/-- Upper bound on number of Boolean circuits of size s: (s+1)^(s+1) * 2^s -/
 def circuit_count_upper_bound (_n s : Nat) : Nat := (s + 1) ^ (s + 1) * 2 ^ s
 
-/-- The number of distinct Boolean functions on n inputs is 2^(2^n). -/
+/-- Number of distinct Boolean functions on n inputs: 2^(2^n) -/
 def boolean_function_count (n : Nat) : Nat := 2 ^ (2 ^ n)
 
 
-/-- Finite node codes used for normalized counting. -/
+/-- Finite node codes for normalized counting -/
 inductive NodeCode (n s : Nat) where
   | const : Bool → NodeCode n s
   | var : Fin n → NodeCode n s
@@ -166,7 +165,7 @@ inductive NodeCode (n s : Nat) where
   | or : Finset (Fin s) → NodeCode n s
   deriving DecidableEq, Fintype
 
-/-- A normalized circuit of size exactly `s`, with a finite node code at each position. -/
+/-- Normalized circuit of size exactly s -/
 abbrev NormalizedCircuit (n s : Nat) := Option (Fin s) × (Fin s → NodeCode n s)
 
 private def falseNode : CircuitNode := ⟨Gate.Const false, []⟩
@@ -533,8 +532,7 @@ private def encodeNodeCode {n s : Nat} : NodeCode n s → Bool ⊕ Fin n ⊕ Fin
   | .or children => Sum.inr <| Sum.inr <| Sum.inr <| Sum.inr children
 
 private theorem encodeNodeCode_injective {n s : Nat} : Function.Injective (@encodeNodeCode n s) := by
-  intro a b h
-  cases a <;> cases b <;> cases h <;> rfl
+  intro a b h; cases a <;> cases b <;> cases h <;> rfl
 
 private theorem node_code_card_sum_bound (n s : Nat) :
     Fintype.card (NodeCode n s) ≤ 2 + n + s + 2 ^ s + 2 ^ s := by
@@ -575,7 +573,7 @@ private theorem node_code_card_le (n s : Nat) :
       congr 1
       omega
 
-/-- A sound upper bound on the number of normalized circuits of size `s`. -/
+/-- Upper bound on number of normalized circuits of size s -/
 def normalized_circuit_count_upper_bound (n s : Nat) : Nat := (s + 1) * (2 ^ (n + s + 4)) ^ s
 
 private theorem normalized_circuit_card_le (n s : Nat) :
@@ -589,9 +587,9 @@ private theorem normalized_circuit_card_le (n s : Nat) :
           apply Nat.mul_le_mul_left
           exact Nat.pow_le_pow_left (node_code_card_le n s) s
 
--- Arithmetic helper lemmas for the counting argument
+-- Arithmetic helper lemmas
 
-/-- For n ≥ 1, n + 1 ≤ 2^n. -/
+/-- For n ≥ 1, n + 1 ≤ 2^n -/
 private theorem n_plus_one_le_two_pow_n (n : Nat) (hn : n ≥ 1) : n + 1 ≤ 2 ^ n := by
   induction n with
   | zero => omega
@@ -599,10 +597,6 @@ private theorem n_plus_one_le_two_pow_n (n : Nat) (hn : n ≥ 1) : n + 1 ≤ 2 ^
     cases n with
     | zero => simp
     | succ n =>
-      -- For n+2, we need (n+2) + 1 ≤ 2^(n+2)
-      -- i.e., n + 3 ≤ 4 * 2^n
-      -- From IH: n + 2 ≤ 2^(n+1) = 2 * 2^n
-      -- So n + 3 ≤ 2 * 2^n + 1 ≤ 2 * 2^n + 2 * 2^n = 4 * 2^n = 2^(n+2)
       have ih' : n + 2 ≤ 2 ^ (n + 1) := by
         have : n + 1 ≥ 1 := by omega
         exact ih this
@@ -615,33 +609,28 @@ private theorem n_plus_one_le_two_pow_n (n : Nat) (hn : n ≥ 1) : n + 1 ≤ 2 ^
         _ = 2 * 2 ^ (n + 1) := by ring
         _ = 2 ^ (n + 2) := by rw [Nat.pow_succ]; ring
 
-/-- For n ≥ 1, (n + 1)^(n + 1) ≤ 2^(n * (n + 1)). -/
+/-- For n ≥ 1, (n + 1)^(n + 1) ≤ 2^(n * (n + 1)) -/
 private theorem n_plus_one_pow_le_two_pow_n_times_n_plus_one (n : Nat) (hn : n ≥ 1) :
     (n + 1) ^ (n + 1) ≤ 2 ^ (n * (n + 1)) := by
   have h := n_plus_one_le_two_pow_n n hn
   calc (n + 1) ^ (n + 1) ≤ (2 ^ n) ^ (n + 1) := Nat.pow_le_pow_left h (n + 1)
     _ = 2 ^ (n * (n + 1)) := by rw [← Nat.pow_mul]
 
-/-- For n ≥ 9, n^2 + 2*n < 2^n. -/
+/-- For n ≥ 9, n^2 + 2*n < 2^n -/
 private theorem n_squared_plus_two_n_lt_two_pow_n (n : Nat) (hn : n ≥ 9) :
     n ^ 2 + 2 * n < 2 ^ n := by
-  -- Base case: n = 9
   have base9 : 9 ^ 2 + 2 * 9 < 2 ^ 9 := by norm_num
-  -- Inductive step
   suffices ∀ k ≥ 9, k ^ 2 + 2 * k < 2 ^ k by exact this n hn
   intro k hk
   induction k, hk using Nat.le_induction with
   | base => exact base9
   | succ k hk ih =>
-    -- IH: k^2 + 2*k < 2^k
-    -- Goal: (k+1)^2 + 2*(k+1) < 2^(k+1)
     calc (k + 1) ^ 2 + 2 * (k + 1)
         = k^2 + 2*k + 1 + 2*k + 2 := by ring
       _ = k^2 + 2*k + (2*k + 3) := by ring
       _ < 2^k + (2*k + 3) := by omega
       _ ≤ 2^k + 2^k := by
           have : 2 * k + 3 ≤ 2 ^ k := by
-            -- For k ≥ 9, 2*k + 3 ≤ 2^k
             have base : 2 * 9 + 3 ≤ 2 ^ 9 := by norm_num
             have step : ∀ m ≥ 9, 2 * m + 3 ≤ 2 ^ m → 2 * (m + 1) + 3 ≤ 2 ^ (m + 1) := by
               intro m hm h
@@ -661,7 +650,7 @@ private theorem n_squared_plus_two_n_lt_two_pow_n (n : Nat) (hn : n ≥ 9) :
       _ = 2 * 2^k := by ring
       _ = 2 ^ (k + 1) := by rw [Nat.pow_succ]; ring
 
-/-- Key arithmetic lemma: for n ≥ 4, circuit_count_upper_bound n n < boolean_function_count n. -/
+/-- For n ≥ 4, circuit_count_upper_bound n n < boolean_function_count n -/
 private theorem circuit_count_lt_functions_at_n (n : Nat) (hn : n ≥ 4) :
     circuit_count_upper_bound n n < boolean_function_count n := by
   unfold circuit_count_upper_bound boolean_function_count
@@ -683,15 +672,11 @@ private theorem circuit_count_lt_functions_at_n (n : Nat) (hn : n ≥ 4) :
                   | inl h8 => subst h8; decide
                   | inr hge9 =>
                       have : n ≥ 9 := hge9
-                      -- Step 1: n + 1 ≤ 2^n for n ≥ 1
                       have h1 : n + 1 ≤ 2 ^ n := n_plus_one_le_two_pow_n n (by omega)
-                      -- Step 2: (n+1)^(n+1) ≤ 2^(n*(n+1))
                       have h2 : (n + 1) ^ (n + 1) ≤ 2 ^ (n * (n + 1)) :=
                         n_plus_one_pow_le_two_pow_n_times_n_plus_one n (by omega)
-                      -- Step 3: n^2 + 2*n < 2^n for n ≥ 9
                       have h3 : n ^ 2 + 2 * n < 2 ^ n :=
                         n_squared_plus_two_n_lt_two_pow_n n (by omega)
-                      -- Combine: (n+1)^(n+1) * 2^n ≤ 2^(n*(n+1)) * 2^n = 2^(n^2 + n + n) = 2^(n^2 + 2*n)
                       calc (n + 1) ^ (n + 1) * 2 ^ n
                           ≤ 2 ^ (n * (n + 1)) * 2 ^ n := by
                             apply Nat.mul_le_mul_right
@@ -704,8 +689,7 @@ private theorem circuit_count_lt_functions_at_n (n : Nat) (hn : n ≥ 4) :
                             · norm_num
                             · exact h3
 
-/-- Generalization of n_plus_one_pow_le_two_pow_n_times_n_plus_one:
-    For any s ≥ 1, (s + 1)^(s + 1) ≤ 2^(s * (s + 1)). -/
+/-- For any s ≥ 1, (s + 1)^(s + 1) ≤ 2^(s * (s + 1)) -/
 private theorem s_plus_one_pow_le_two_pow_s_times_s_plus_one (s : Nat) (hs : s ≥ 1) :
     (s + 1) ^ (s + 1) ≤ 2 ^ (s * (s + 1)) := by
   have h := n_plus_one_le_two_pow_n s hs
@@ -717,16 +701,12 @@ private theorem s_plus_one_pow_le_two_pow_s_times_s_plus_one (s : Nat) (hs : s �
 /-- Helper lemma: for n ≥ 196, 4*n^2 + 6*n + 1 < 2^n. -/
 private theorem four_n_squared_plus_six_n_plus_one_lt_two_pow_n (n : Nat) (hn : n ≥ 196) :
     4 * n ^ 2 + 6 * n + 1 < 2 ^ n := by
-  -- Base case: n = 196
   have base196 : 4 * 196 ^ 2 + 6 * 196 + 1 < 2 ^ 196 := by norm_num
-  -- Inductive step
   suffices ∀ k ≥ 196, 4 * k ^ 2 + 6 * k + 1 < 2 ^ k by exact this n hn
   intro k hk
   induction k, hk using Nat.le_induction with
   | base => exact base196
   | succ k hk ih =>
-    -- IH: 4*k^2 + 6*k + 1 < 2^k
-    -- Goal: 4*(k+1)^2 + 6*(k+1) + 1 < 2^(k+1)
     calc (4 * (k + 1) ^ 2 + 6 * (k + 1) + 1)
         = 4 * (k^2 + 2*k + 1) + 6*k + 6 + 1 := by ring
       _ = 4*k^2 + 8*k + 4 + 6*k + 7 := by ring
@@ -734,7 +714,6 @@ private theorem four_n_squared_plus_six_n_plus_one_lt_two_pow_n (n : Nat) (hn : 
       _ < 2^k + (8*k + 10) := by omega
       _ ≤ 2 * 2^k := by
           have : 8 * k + 10 ≤ 2 ^ k := by
-            -- For k ≥ 196, 8*k + 10 ≤ 2^k
             have base : 8 * 196 + 10 ≤ 2 ^ 196 := by norm_num
             have step : ∀ m ≥ 196, 8 * m + 10 ≤ 2 ^ m → 8 * (m + 1) + 10 ≤ 2 ^ (m + 1) := by
               intro m hm h
@@ -754,17 +733,14 @@ private theorem four_n_squared_plus_six_n_plus_one_lt_two_pow_n (n : Nat) (hn : 
       _ = 2 * 2^k := by ring
       _ = 2 ^ (k + 1) := by rw [Nat.pow_succ]; ring
 
-/-- Helper lemma: for n ≥ 200, n^4 + 3*n^2 + 1 < 2^n. -/
+/-- For n ≥ 200, n^4 + 3*n^2 + 1 < 2^n -/
 private theorem n_quartic_plus_lt_two_pow_n_200 (n : Nat) (hn : n ≥ 200) : n ^ 4 + 3 * n ^ 2 + 1 < 2 ^ n := by
-  -- Base case: n = 200
   have base200 : 200 ^ 4 + 3 * 200 ^ 2 + 1 < 2 ^ 200 := by norm_num
-  -- Inductive step
   suffices ∀ k ≥ 200, k ^ 4 + 3 * k ^ 2 + 1 < 2 ^ k by exact this n hn
   intro k hk
   induction k, hk using Nat.le_induction with
   | base => exact base200
   | succ k hk ih =>
-    -- IH: k^4 + 3*k^2 + 1 < 2^k
     -- Goal: (k+1)^4 + 3*(k+1)^2 + 1 < 2^(k+1)
     calc (k + 1) ^ 4 + 3 * (k + 1) ^ 2 + 1
         = k^4 + 4*k^3 + 6*k^2 + 4*k + 1 + 3*k^2 + 6*k + 3 + 1 := by ring
@@ -772,28 +748,15 @@ private theorem n_quartic_plus_lt_two_pow_n_200 (n : Nat) (hn : n ≥ 200) : n ^
       _ = k^4 + 3*k^2 + 1 + (4*k^3 + 6*k^2 + 10*k + 4) := by ring
       _ < 2^k + (4*k^3 + 6*k^2 + 10*k + 4) := by omega
       _ ≤ 2^k + 2^k := by
-          -- Show 4*k^3 + 6*k^2 + 10*k + 4 ≤ 2^k
-          -- For k ≥ 200, k^4 < 2^k (from IH) and k^4 ≥ 4*k^3 + 6*k^2 + 10*k + 4
           have h_k4_lt : k ^ 4 < 2 ^ k := by omega
           have h_k4_ge : k ^ 4 ≥ 4 * k ^ 3 + 6 * k ^ 2 + 10 * k + 4 := by
-            -- For k ≥ 200, this holds (norm_num verified at k=200)
-            -- We use induction to prove it for all k ≥ 200
             have base : 200 ^ 4 ≥ 4 * 200 ^ 3 + 6 * 200 ^ 2 + 10 * 200 + 4 := by norm_num
             have step : ∀ m ≥ 200, m ^ 4 ≥ 4 * m ^ 3 + 6 * m ^ 2 + 10 * m + 4 →
                 (m + 1) ^ 4 ≥ 4 * (m + 1) ^ 3 + 6 * (m + 1) ^ 2 + 10 * (m + 1) + 4 := by
               intro m hm h
-              -- We need: (m+1)^4 ≥ 4*(m+1)^3 + 6*(m+1)^2 + 10*(m+1) + 4
-              -- Expanding: m^4 + 4*m^3 + 6*m^2 + 4*m + 1 ≥ 4*m^3 + 12*m^2 + 12*m + 4 + 6*m^2 + 12*m + 6 + 10*m + 10 + 4
-              -- Simplifying RHS: 4*m^3 + 18*m^2 + 34*m + 24
-              -- So we need: m^4 ≥ 12*m^2 + 30*m + 23
-              -- From IH: m^4 ≥ 4*m^3 + 6*m^2 + 10*m + 4
-              -- For m ≥ 200, 4*m^3 ≥ 12*m^2 + 30*m + 23
               have h_ih : m ^ 4 ≥ 4 * m ^ 3 + 6 * m ^ 2 + 10 * m + 4 := h
               have h_cubic : 4 * m ^ 3 ≥ 12 * m ^ 2 + 30 * m + 23 := by
                 have : m ≥ 200 := hm
-                -- For m ≥ 200, 4*m^3 ≥ 4*200^3 = 4*8000000 = 32000000
-                -- And 12*m^2 + 30*m + 23 ≤ 12*200^2 + 30*200 + 23 = 12*40000 + 6000 + 23 = 480000 + 6000 + 23 = 486023
-                -- So 4*m^3 ≥ 32000000 > 486023 ≥ 12*m^2 + 30*m + 23
                 have h_lower : 4 * m ^ 3 ≥ 4 * 200 ^ 3 := by
                   have : m ^ 3 ≥ 200 ^ 3 := Nat.pow_le_pow_left (by omega) 3
                   omega
@@ -917,8 +880,6 @@ private theorem succ_pow_le_pow_add (D : Nat) (hD : D ≥ 1) :
   | base =>
       intro n hn
       simp only [pow_one]
-      -- After simp with pow_one, we have: n + 1 ≤ n + 2 * n ^ (1 - 1)
-      -- Need to simplify n ^ (1 - 1) = n ^ 0 = 1
       have : 1 - 1 = 0 := by norm_num
       rw [this, pow_zero, mul_one]
       omega
@@ -926,15 +887,12 @@ private theorem succ_pow_le_pow_add (D : Nat) (hD : D ≥ 1) :
       intro n hn
       have hn_ih : n ≥ 2 * D + 1 := by omega
       have ih_n : (n + 1) ^ D ≤ n ^ D + 2 * D * n ^ (D - 1) := ih n hn_ih
-      -- Identity: n * n^(D-1) = n^D for D ≥ 1.
       have h_pow_D : n * n ^ (D - 1) = n ^ D := by
         have hD_eq : D = (D - 1) + 1 := by omega
         conv_rhs => rw [hD_eq]
         rw [pow_succ]; ring
-      -- Identity: (n+1) * n^D = n^(D+1) + n^D, via pow_succ.
       have h_pow_succ_D : (n + 1) * n ^ D = n ^ (D + 1) + n ^ D := by
         rw [pow_succ]; ring
-      -- Multiply IH by (n+1) and unfold both sides.
       have hmul : (n + 1) * ((n + 1) ^ D) ≤ (n + 1) * (n ^ D + 2 * D * n ^ (D - 1)) :=
         Nat.mul_le_mul_left (n + 1) ih_n
       have hLHS_eq : (n + 1) * ((n + 1) ^ D) = (n + 1) ^ (D + 1) := by
@@ -946,9 +904,6 @@ private theorem succ_pow_le_pow_add (D : Nat) (hD : D ≥ 1) :
           _ = n ^ (D + 1) + n ^ D + 2 * D * (n * n ^ (D - 1) + n ^ (D - 1)) := by
                 rw [h_pow_succ_D]
                 ring_nf
-                -- If ring_nf leaves the (n+1)*n^(D-1) form, expand explicitly:
-                -- have : (n + 1) * n^(D-1) = n * n^(D-1) + n^(D-1) := by ring
-                -- rw [this]
           _ = n ^ (D + 1) + n ^ D + 2 * D * (n ^ D + n ^ (D - 1)) := by rw [h_pow_D]
           _ = n ^ (D + 1) + (1 + 2 * D) * n ^ D + 2 * D * n ^ (D - 1) := by ring
       rw [hLHS_eq, hRHS_eq] at hmul
@@ -971,10 +926,6 @@ private theorem succ_pow_le_two_mul_pow (D n : Nat) (hD : D ≥ 1) (hn : n ≥ 2
     (n + 1) ^ D ≤ 2 * n ^ D := by
   have h := succ_pow_le_pow_add D hD n hn
   -- h : (n+1)^D ≤ n^D + 2*D*n^(D-1)
-  -- We want: (n+1)^D ≤ 2*n^D
-  -- Suffices: n^D + 2*D*n^(D-1) ≤ 2*n^D
-  --       ⟺ 2*D*n^(D-1) ≤ n^D = n*n^(D-1)
-  --       ⟺ 2*D ≤ n  ✓ (since n ≥ 2D+1)
   have h_pow_D : n * n ^ (D - 1) = n ^ D := by
     have hD_eq : D = (D - 1) + 1 := by omega
     conv_rhs => rw [hD_eq]
@@ -999,61 +950,41 @@ private theorem four_d_sq_plus_eight_le_two_pow_2d3 (D : Nat) :
       Nat.mul_le_mul_left 4 ih
     linarith
 
--- For n ≥ T(D) = 4*D^2 + 8, n^D < 2^n.
 private theorem base_pow_lt_two_pow (D : Nat) :
     (4 * D * D + 8) ^ D < 2 ^ (4 * D * D + 8) := by
   by_cases hD : D = 0
   · subst hD
     simp only [pow_zero]
-    -- Goal: 1 < 2 ^ (4*0*0 + 8) = 2 ^ 8
     norm_num
-  · -- D ≥ 1
-    have hD_pos : D ≥ 1 := Nat.one_le_iff_ne_zero.mpr hD
-    -- (i) T(D) ≤ 2^(2D+3)
+  · have hD_pos : D ≥ 1 := Nat.one_le_iff_ne_zero.mpr hD
     have hA : 4 * D * D + 8 ≤ 2 ^ (2 * D + 3) :=
       four_d_sq_plus_eight_le_two_pow_2d3 D
-    -- (ii) (2D+3)·D < T(D), i.e., 2D² + 3D < 4D² + 8
     have hB : (2 * D + 3) * D < 4 * D * D + 8 := by nlinarith
-    -- T(D)^D ≤ (2^(2D+3))^D
     have h1 : (4 * D * D + 8) ^ D ≤ (2 ^ (2 * D + 3)) ^ D :=
       Nat.pow_le_pow_left hA D
-    -- (2^(2D+3))^D = 2^((2D+3)·D)
     have h2 : (2 ^ (2 * D + 3)) ^ D = 2 ^ ((2 * D + 3) * D) := by
       rw [← pow_mul]
-    -- 2^((2D+3)·D) < 2^T(D) since (2D+3)·D < T(D)
     have h3 : 2 ^ ((2 * D + 3) * D) < 2 ^ (4 * D * D + 8) := by
       apply Nat.pow_lt_pow_right (by norm_num : 1 < 2)
       exact hB
-    -- Chain: T(D)^D ≤ ... < 2^T(D)
     linarith
 
--- THE MAIN LEMMA.
--- For n ≥ T(D) = 4*D^2 + 8, n^D < 2^n.
+-- For n ≥ 4*D^2 + 8, n^D < 2^n.
 private theorem n_pow_lt_two_pow_n (D n : Nat) (hn : n ≥ 4 * D * D + 8) :
     n ^ D < 2 ^ n := by
-  -- Outer induction on n via Nat.le_induction, base T(D).
   by_cases hD : D = 0
   · subst hD
     simp only [pow_zero]
-    -- Need: 1 < 2 ^ n where n ≥ 8
     have : n ≥ 1 := by omega
     calc 1 = 2 ^ 0 := by norm_num
       _ < 2 ^ n := Nat.pow_lt_pow_right (by norm_num) this
   · have hD_pos : D ≥ 1 := Nat.one_le_iff_ne_zero.mpr hD
-    -- Use Nat.le_induction with base 4*D*D + 8.
     induction n, hn using Nat.le_induction with
     | base => exact base_pow_lt_two_pow D
     | succ n hn ih =>
-      -- IH: n^D < 2^n, with n ≥ 4*D*D + 8.
-      -- Goal: (n+1)^D < 2^(n+1).
       have h_step_apply : n ≥ 2 * D + 1 := by
-        -- 4*D*D + 8 ≥ 2*D + 1 for all D ≥ 1.
-        -- For D = 1: 4 + 8 = 12 ≥ 3. ✓
-        -- General: 4*D*D + 8 - 2*D - 1 = 4*D*D - 2*D + 7 ≥ 0 ✓ (D ≥ 0).
         nlinarith [sq_nonneg D, sq_nonneg (D - 1)]
       have h_step := succ_pow_le_two_mul_pow D n hD_pos h_step_apply
-      -- h_step : (n+1)^D ≤ 2 * n^D
-      -- Combine with IH:
       calc (n + 1) ^ D ≤ 2 * n ^ D := h_step
         _ < 2 * 2 ^ n := by linarith [ih]
         _ = 2 ^ (n + 1) := by rw [pow_succ]; ring
@@ -1061,24 +992,14 @@ private theorem n_pow_lt_two_pow_n (D n : Nat) (hn : n ≥ 4 * D * D + 8) :
 private theorem poly_quadratic_bound_k_ge_1 (k c n : Nat) (hk : k ≥ 1) (hc : c ≥ 1)
     (hk_max : k ≤ 4) (hn : n ≥ 100 * k + c + 100) :
     (c * n ^ k + c) ^ 2 + 3 * (c * n ^ k + c) + 1 < 2 ^ n := by
-  -- For n ≥ 100*k + c + 100, we have n ≥ 200
   have hn200 : n ≥ 200 := by omega
-  -- Case split on k
   cases k with
-  | zero =>
-    -- k = 0, but we have k ≥ 1, so this case is impossible
-    omega
+  | zero => omega
   | succ k =>
     cases k with
     | zero =>
-      -- k = 1
-      -- We have n ≥ 100*1 + c + 100 = c + 200, so n ≥ 200
-      -- For k=1, we need (c*n + c)^2 + 3*(c*n + c) + 1 < 2^n
-      -- From hn: n ≥ 200 + c, so c ≤ n - 200
       simp at hn ⊢
       have hc_bound : c ≤ n - 200 := by omega
-      -- We show c*n + c ≤ n^2 + n, which implies (c*n + c)^2 + 3*(c*n + c) + 1 ≤ (n^2 + n)^2 + 3*(n^2 + n) + 1
-      -- For n ≥ 200, we can show (n^2 + n)^2 + 3*(n^2 + n) + 1 < 2^n
       have h_poly_bound : c * n + c ≤ n ^ 2 + n := by
         have h1 : c ≤ n - 200 := hc_bound
         have h2 : c * (n + 1) ≤ (n - 200) * (n + 1) := Nat.mul_le_mul_right (n + 1) h1
@@ -1091,12 +1012,8 @@ private theorem poly_quadratic_bound_k_ge_1 (k c n : Nat) (hk : k ≥ 1) (hc : c
           _ ≤ (n - 200) * (n + 1) := h2
           _ ≤ n * (n + 1) := h3
           _ = n ^ 2 + n := h4
-      -- Now (c*n + c)^2 + 3*(c*n + c) + 1 ≤ (n^2 + n)^2 + 3*(n^2 + n) + 1
-      -- We need to show (n^2 + n)^2 + 3*(n^2 + n) + 1 < 2^n for n ≥ 200
       have h_target : (n ^ 2 + n) ^ 2 + 3 * (n ^ 2 + n) + 1 < 2 ^ n := 
         n_squared_plus_n_quartic_lt_two_pow_n_200 n hn200
-      -- And (c*n + c)^2 + 3*(c*n + c) + 1 ≤ (n^2 + n)^2 + 3*(n^2 + n) + 1
-      -- Since c*n + c ≤ n^2 + n (from h_poly_bound)
       have h_mono : ∀ x y : Nat, x ≤ y → x ^ 2 + 3 * x + 1 ≤ y ^ 2 + 3 * y + 1 := by
         intro x y hxy
         calc x ^ 2 + 3 * x + 1
@@ -1116,38 +1033,19 @@ private theorem poly_quadratic_bound_k_ge_1 (k c n : Nat) (hk : k ≥ 1) (hc : c
           ≤ (n ^ 2 + n) ^ 2 + 3 * (n ^ 2 + n) + 1 := h_mono (c * n + c) (n ^ 2 + n) h_poly_bound
         _ < 2 ^ n := h_target
     | succ k =>
-      -- k ≥ 2 (original index k+2).
-      -- Strategy:
-      --   (i)   c * n^(k+2) + c ≤ n^(k+3)            (via c < n)
-      --   (ii)  (LHS)^2 + 3*(LHS) + 1 ≤ n^(2*(k+2)+3)
-      --   (iii) n^(2*(k+2)+3) < 2^n                  (via n_pow_lt_two_pow_n)
       have hc_lt_n : c < n := by omega
       have hn_ge : n ≥ 1 := by omega
-      have hk_orig_ge_2 : k + 2 ≥ 2 := by omega
-      ----------------------------------------------------------------
       -- (i) c * n^(k+2) + c ≤ n^(k+3)
-      ----------------------------------------------------------------
       have h_coeff : c * n ^ (k + 2) + c ≤ n ^ (k + 3) := by
-        -- c * n^(k+2) + c = c * (n^(k+2) + 1) ≤ (n-1) * (n^(k+2) + 1)
-        --                                     = n^(k+3) + n - n^(k+2) - 1
-        --                                     ≤ n^(k+3)   [since n^(k+2) ≥ n for n ≥ 1, k ≥ 0]
         have h_pow_ge : n ^ (k + 2) ≥ n := by
           calc n ^ (k + 2) ≥ n ^ 1 := Nat.pow_le_pow_right hn_ge (by omega)
             _ = n := pow_one n
-          -- FALLBACK if Nat.pow_le_pow_right has different signature:
-          --   exact Nat.le_self_pow (by omega) n
-          --   (note: in some Mathlib versions Nat.le_self_pow takes n first)
         have h_main : c * (n ^ (k + 2) + 1) ≤ n * (n ^ (k + 2) + 1) := by
-          apply Nat.mul_le_mul_right
-          omega
+          apply Nat.mul_le_mul_right; omega
         have h_expand : n * (n ^ (k + 2) + 1) = n ^ (k + 3) + n := by
           rw [show k + 3 = (k + 2) + 1 from rfl, pow_succ]; ring
-        -- We need to show c * n^(k+2) + c ≤ n^(k+3)
-        -- Use nlinarith with the facts we have
         have h_need : n - c ≥ 1 := by omega
-        have h_pow_n : n ^ (k + 2) ≥ n := h_pow_ge
         nlinarith [Nat.mul_sub_left_distrib n (n - 1) (n ^ (k + 2)), sq_nonneg (n - 1), sq_nonneg (n ^ (k + 2))]
-      ----------------------------------------------------------------
       -- (ii) (c*n^(k+2) + c)^2 + 3*(c*n^(k+2) + c) + 1 ≤ n^(2*(k+2)+3)
       ----------------------------------------------------------------
       have h_sq_mono : ∀ x y : Nat, x ≤ y → x^2 + 3*x + 1 ≤ y^2 + 3*y + 1 := by
@@ -1157,11 +1055,6 @@ private theorem poly_quadratic_bound_k_ge_1 (k c n : Nat) (hk : k ≥ 1) (hc : c
       have h_step_ii : (c * n ^ (k + 2) + c) ^ 2 + 3 * (c * n ^ (k + 2) + c) + 1
                      ≤ (n ^ (k + 3)) ^ 2 + 3 * n ^ (k + 3) + 1 := h_sq_mono _ _ h_coeff
       have h_to_single_pow : (n ^ (k + 3)) ^ 2 + 3 * n ^ (k + 3) + 1 ≤ n ^ (2 * (k + 2) + 3) := by
-        -- (n^(k+3))^2 = n^(2k+6).  3*n^(k+3) + 1 ≤ n^(2k+6)*(n-1) for n large.
-        -- Combined: (n^(k+3))^2 + 3*n^(k+3) + 1 ≤ n^(2k+7) = n^(2*(k+2)+3).
-        --
-        -- KEY: 2*(k+2)+3 = 2k+7 = (2k+6) + 1 = 2*(k+3) + 1.
-        -- So n^(2*(k+2)+3) = n * n^(2*(k+3)) = n * (n^(k+3))^2.
         have h_n3 : n ≥ 3 := by omega
         have h_pow_eq : (n ^ (k + 3)) ^ 2 = n ^ (2 * (k + 3)) := by
           rw [← pow_mul]; ring_nf
@@ -1169,10 +1062,6 @@ private theorem poly_quadratic_bound_k_ge_1 (k c n : Nat) (hk : k ≥ 1) (hc : c
           rw [h_pow_eq, show 2 * (k + 2) + 3 = 2 * (k + 3) + 1 from by ring]
           rw [pow_succ]; ring
         rw [h_target_eq]
-        -- Goal: (n^(k+3))^2 + 3*n^(k+3) + 1 ≤ n * (n^(k+3))^2
-        -- Equivalent: 3*n^(k+3) + 1 ≤ (n - 1) * (n^(k+3))^2
-        -- For n ≥ 3, (n-1) ≥ 2, and (n^(k+3))^2 ≥ n^(k+3) ≥ 3.
-        -- So (n-1)*(n^(k+3))^2 ≥ 2 * 3 * n^(k+3) = 6 * n^(k+3) ≥ 3*n^(k+3) + 1 (for n^(k+3) ≥ 1).
         have h_pow_ge_n : n ^ (k + 3) ≥ n := by
           calc n ^ (k + 3) ≥ n ^ 1 := Nat.pow_le_pow_right hn_ge (by omega)
             _ = n := pow_one n
@@ -1184,39 +1073,8 @@ private theorem poly_quadratic_bound_k_ge_1 (k c n : Nat) (hk : k ≥ 1) (hc : c
                 exact Nat.one_le_iff_ne_zero.mpr (by positivity)
             _ = n ^ (k + 3) := by ring
         nlinarith [h_n3, h_pow_ge_3, h_pow_sq_ge]
-        -- IF nlinarith fails: fall back to explicit chain.
-      ----------------------------------------------------------------
       -- (iii) n^(2*(k+2)+3) < 2^n via the main lemma.
-      ----------------------------------------------------------------
-      -- We need n ≥ T(D) where D = 2*(k+2)+3 = 2k+7.
-      -- Using T(D) = 4*D*D + 8 (Block 2 quadratic version):
-      --   T(2k+7) = 4*(2k+7)^2 + 8 = 16k^2 + 112k + 196 + 8 = 16k^2 + 112k + 204.
-      -- Our hn says n ≥ 100*(k+2) + c + 100 = 100k + 300 + c (Lean's k local
-      -- name = original k - 2, so original k+2 in user index).
-      -- Wait: in poly_quadratic_bound_k_ge_1, the parameter is original `k` (not k+2).
-      -- The match opens k → k+2 implicitly, so here `k` is the original k MINUS 2.
-      -- The hypothesis hn is on the ORIGINAL k+2 form: hn : n ≥ 100*(k+2) + c + 100.
-      -- So n ≥ 100k + 200 + c + 100 = 100k + 300 + c.
-      --
-      -- Need: 100k + 300 + c ≥ 16*k^2 + 112*k + 204.
-      -- For k = 0 (i.e., original k=2): 300 + c ≥ 204. ✓ (any c ≥ 0).
-      -- For k = 1 (original k=3): 400 + c ≥ 332. ✓
-      -- For k = 2 (original k=4): 500 + c ≥ 492. ✓ (just barely)
-      -- For k = 3 (original k=5): 600 + c ≥ 684. ❌
-      --
-      -- So with the QUADRATIC threshold T(D) = 4*D^2 + 8, the proof works only
-      -- for original k ∈ {2, 3, 4}. For original k ≥ 5, you need:
-      --   (a) Block 2' (linear threshold variant), OR
-      --   (b) Tighten the threshold of poly_quadratic_bound_k_ge_1.
-      --
-      -- SHIPPING NOTE: even just k ∈ {2,3,4} is meaningful progress.
-      -- The Shannon argument can later use (a) or (b) to extend.
       have hn_for_main : n ≥ 4 * (2 * (k + 2) + 3) * (2 * (k + 2) + 3) + 8 := by
-        -- Works for original k ∈ {2,3,4}, fails otherwise.
-        -- If it fails: the hypothesis hn isn't strong enough; you must either
-        -- restrict to small k or switch to the linear-threshold version.
-        -- We have hn : n ≥ 100*(k+2) + c + 100
-        -- Need: n ≥ 4*(2*(k+2)+3)^2 + 8 = 16*(k+2)^2 + 112*(k+2) + 204
         -- For k ∈ {0, 1, 2}: this holds since 100*(k+2) grows linearly
         cases k with
         | zero => nlinarith [hn, show c ≥ 0 from Nat.zero_le c]
@@ -1232,21 +1090,15 @@ private theorem poly_quadratic_bound_k_ge_1 (k c n : Nat) (hk : k ≥ 1) (hc : c
               omega
       have h_step_iii : n ^ (2 * (k + 2) + 3) < 2 ^ n :=
         n_pow_lt_two_pow_n (2 * (k + 2) + 3) n hn_for_main
-      ----------------------------------------------------------------
-      -- Combine (ii) and (iii).
-      ----------------------------------------------------------------
       linarith [h_step_ii, h_to_single_pow, h_step_iii]
 
 private theorem poly_quadratic_bound_k0 (c : Nat) (n : Nat) (hn : n ≥ 2 * c + 5) :
     4 * c ^ 2 + 6 * c + 1 < 2 ^ n := by
-  -- We'll show 4*c^2 + 6*c + 1 < 2^(2*c + 5) ≤ 2^n
   have hn_ge : n ≥ 2 * c + 5 := hn
   have h_pow : 2 ^ n ≥ 2 ^ (2 * c + 5) := Nat.pow_le_pow_right (by norm_num) hn_ge
   suffices 4 * c ^ 2 + 6 * c + 1 < 2 ^ (2 * c + 5) by
     calc 4 * c ^ 2 + 6 * c + 1 < 2 ^ (2 * c + 5) := this
       _ ≤ 2 ^ n := h_pow
-  -- Prove 4*c^2 + 6*c + 1 < 2^(2*c + 5) by induction on c
-  -- We use a helper lemma for the inner induction
   have h_helper : ∀ c : Nat, 4 * c ^ 2 + 6 * c + 1 < 2 ^ (2 * c + 5) := by
     intro c
     induction c with
@@ -1257,7 +1109,6 @@ private theorem poly_quadratic_bound_k0 (c : Nat) (n : Nat) (hn : n ≥ 2 * c + 
         _ = (4 * c ^ 2 + 6 * c + 1) + (8 * c + 10) := by ring
         _ < 2 ^ (2 * c + 5) + (8 * c + 10) := by omega
         _ ≤ 2 ^ (2 * c + 5) + 2 ^ (2 * c + 5) := by
-            -- Show 8*c + 10 ≤ 2^(2*c + 5)
             have : 8 * c + 10 ≤ 2 ^ (2 * c + 5) := by
               have base : 8 * 0 + 10 ≤ 2 ^ (2 * 0 + 5) := by norm_num
               have step : ∀ m (hm : 0 ≤ m), 8 * m + 10 ≤ 2 ^ (2 * m + 5) → 8 * (m + 1) + 10 ≤ 2 ^ (2 * (m + 1) + 5) := by
@@ -1291,58 +1142,27 @@ private theorem poly_quadratic_bound_k0 (c : Nat) (n : Nat) (hn : n ≥ 2 * c + 
 
 private theorem poly_quadratic_bound (k c : Nat) (n : Nat) (hk_max : k ≤ 4) (hn : n ≥ 100 * k + c + 100) :
     (c * n ^ k + c) ^ 2 + 3 * (c * n ^ k + c) + 1 < 2 ^ n := by
-  -- Case 1: k = 0
   by_cases hk : k = 0
   · subst hk
     simp only [pow_zero, mul_one]
-    -- Need: (c + c)^2 + 3*(c + c) + 1 < 2^n
-    -- i.e., 4*c^2 + 6*c + 1 < 2^n
-    -- We have n ≥ c + 100
-    -- For c = 0: n ≥ 100, so 1 < 2^n holds
-    -- For c ≥ 1: n ≥ c + 100 ≥ 2*c + 5 (since c + 100 ≥ 2*c + 5 for c ≤ 95)
-    --   For c > 95: n ≥ c + 100 > 195, and 4*c^2 + 6*c + 1 < 2^(c+100) still holds
-    -- We can use poly_quadratic_bound_k0 for the case where n ≥ 2*c + 5
     by_cases hc : c = 0
     · subst hc
       simp
       have : n ≥ 100 := by omega
       omega
     · push Not at hc
-      -- For c ≥ 1, we have n ≥ c + 100
-      -- We need to show n ≥ 2*c + 5 to use poly_quadratic_bound_k0
-      -- This holds when c + 100 ≥ 2*c + 5, i.e., c ≤ 95
-      -- For c > 95, we have n ≥ c + 100 > 195, and we can verify directly
       by_cases hc_le : c ≤ 95
-      · -- c ≤ 95, so n ≥ c + 100 ≥ 2*c + 5
-        have hn_bound : n ≥ 2 * c + 5 := by omega
-        -- (c + c)^2 + 3*(c + c) + 1 = 4*c^2 + 6*c + 1
+      · have hn_bound : n ≥ 2 * c + 5 := by omega
         have : (c + c) ^ 2 + 3 * (c + c) + 1 = 4 * c ^ 2 + 6 * c + 1 := by ring
         rw [this]
         exact poly_quadratic_bound_k0 c n hn_bound
-      · -- c > 95, so c ≥ 96
-        push Not at hc_le
+      · push Not at hc_le
         have hc96 : c ≥ 96 := by omega
-        -- For c ≥ 96 and n ≥ c + 100, we have n ≥ 196
         have hn196 : n ≥ 196 := by omega
-        -- We need to show (c + c)^2 + 3*(c + c) + 1 < 2^n
-        -- i.e., 4*c^2 + 6*c + 1 < 2^n
-        -- Since n ≥ c + 100 and c ≥ 96, we have n ≥ 196
-        -- We can use four_n_squared_plus_six_n_plus_one_lt_two_pow_n
-        -- But first we need to show 4*c^2 + 6*c + 1 < 4*n^2 + 6*n + 1
-        -- Since c < n (from n ≥ c + 100), we have c ≤ n - 1
         have hc_lt_n : c < n := by omega
-        have hc_le_n : c ≤ n := by omega
-        -- For c ≥ 96 and n ≥ 196, we can show 4*c^2 + 6*c + 1 < 4*n^2 + 6*n + 1
-        -- This follows from c < n
         have h_bound : 4 * c ^ 2 + 6 * c + 1 < 4 * n ^ 2 + 6 * n + 1 := by
-          -- Since c < n, we have c + 1 ≤ n
           have : c + 1 ≤ n := by omega
-          -- So (c + 1)^2 ≤ n^2
           have : (c + 1) ^ 2 ≤ n ^ 2 := Nat.pow_le_pow_left this 2
-          -- Expand: c^2 + 2*c + 1 ≤ n^2
-          -- So 4*c^2 + 8*c + 4 ≤ 4*n^2
-          -- And 6*c + 1 < 6*n + 1 (since c < n)
-          -- Therefore 4*c^2 + 6*c + 1 < 4*n^2 + 6*n + 1
           have h1 : 4 * c ^ 2 + 8 * c + 4 ≤ 4 * n ^ 2 := by
             calc 4 * c ^ 2 + 8 * c + 4 = 4 * (c + 1) ^ 2 := by ring
               _ ≤ 4 * n ^ 2 := Nat.mul_le_mul_left 4 this
@@ -1354,44 +1174,31 @@ private theorem poly_quadratic_bound (k c : Nat) (n : Nat) (hk_max : k ≤ 4) (h
         rw [this]
         calc 4 * c ^ 2 + 6 * c + 1 < 4 * n ^ 2 + 6 * n + 1 := h_bound
           _ < 2 ^ n := four_n_squared_plus_six_n_plus_one_lt_two_pow_n n hn196
-  -- Case 2: k ≥ 1
   push Not at hk
   have hk1 : k ≥ 1 := Nat.pos_of_ne_zero hk
-  -- For k ≥ 1, we use poly_quadratic_bound_k_ge_1
-  -- We need to handle c = 0 separately since poly_quadratic_bound_k_ge_1 requires c ≥ 1
   by_cases hc0 : c = 0
-  · -- c = 0: p n = 0*n^k + 0 = 0, so (0 + 0)^2 + 3*(0 + 0) + 1 = 1 < 2^n
-    subst hc0
+  · subst hc0
     simp
-    -- After simp, the goal becomes ¬n = 0, which is equivalent to 1 < 2^n
     have hn1 : n ≥ 1 := by omega
     exact Nat.pos_iff_ne_zero.mp hn1
-  · -- c ≥ 1
-    push Not at hc0
+  · push Not at hc0
     have hc1 : c ≥ 1 := Nat.pos_of_ne_zero hc0
-    -- Now we can use poly_quadratic_bound_k_ge_1
     exact poly_quadratic_bound_k_ge_1 k c n hk1 hc1 hk_max hn
 
 /-- Shannon's counting argument: For any polynomial p, there exist Boolean functions
-    on n inputs that cannot be computed by circuits of size ≤ p(n). -/
+    on n inputs not computable by circuits of size ≤ p(n) -/
 theorem shannon_counting_argument :
     ∀ (p : Nat → Nat) (hp : IsPolynomial p),
     (∃ k c : Nat, k ≤ 4 ∧ ∀ n, p n ≤ c * n ^ k + c) →
     ∃ n₀ : Nat, ∀ n ≥ n₀, ∃ (f : (Fin n → Bool) → Bool),
       ∀ (c : BoolCircuit n), circuitSize c ≤ p n → ∃ inp : Fin n → Bool, evalCircuit c inp ≠ f inp := by
-  -- STAGE 1: Extract the polynomial bound and the k ≤ 4 constraint
   intro p hp hk_bound
   obtain ⟨k, c, hk_le_4, h_p_le⟩ := hk_bound
-  -- STAGE 2: Set up the threshold
   refine ⟨100 * k + 4 * c + 200, ?_⟩
   intro n hn
-  -- We now have n ≥ 100 * k + 2 * c + 200
-  -- STAGE 3: The counting inequality
-  -- Step 3.1: Use the existing card upper bound
   have h_card : Fintype.card (NormalizedCircuit n (p n)) ≤
                 normalized_circuit_count_upper_bound n (p n) :=
     normalized_circuit_card_le n (p n)
-  -- Step 3.2: Bound the upper bound by 2^(something)
   let s := p n
   have h_s_pos : (s + 1) ≤ 2 ^ (s + 1) := by
     exact Nat.lt_two_pow_self.le
@@ -1408,15 +1215,9 @@ theorem shannon_counting_argument :
       _ = 2 ^ ((s + 1) + (n + s + 4) * s) := by rw [← pow_add]
       _ = 2 ^ (s * s + s * n + 5 * s + 1) := by
           congr 1; ring
-  -- Step 3.3: The polynomial-exponential bound
-  -- Split at the top: k = 0 needs different handling
   by_cases hk0 : k = 0
-  · -- k = 0: constant polynomial case
-    -- For k=0, we directly use four_n_squared_plus_six_n_plus_one_lt_two_pow_n
-    subst hk0
+  · subst hk0
     simp only [pow_zero] at h_p_le ⊢
-    -- Now h_p_le : ∀ n, p n ≤ c * 1 + c = 2c
-    -- Show: s^2 + s*n + 5*s + 1 < 2^n
     have h_s_le : s ≤ 2 * c := by
       have := h_p_le n
       simp [pow_zero] at this
@@ -1427,10 +1228,8 @@ theorem shannon_counting_argument :
           = s ^ 2 + s * n + 5 * s + 1 := by ring
         _ ≤ 4 * n ^ 2 + 6 * n + 1 := by nlinarith [h_s_le_n]
         _ < 2 ^ n := by
-            -- Use four_n_squared_plus_six_n_plus_one_lt_two_pow_n
             have hn196 : n ≥ 196 := by omega
             exact four_n_squared_plus_six_n_plus_one_lt_two_pow_n n hn196
-    -- Prove: Fintype.card (NormalizedCircuit n (p n)) < 2 ^ (2 ^ n)
     have h_card_lt : Fintype.card (NormalizedCircuit n (p n)) < 2 ^ (2 ^ n) := by
       calc Fintype.card (NormalizedCircuit n (p n))
           ≤ normalized_circuit_count_upper_bound n s := h_card
@@ -1438,27 +1237,21 @@ theorem shannon_counting_argument :
         _ < 2 ^ (2 ^ n) := by
             apply Nat.pow_lt_pow_right (by norm_num)
             exact h_bound
-    -- Now continue with STAGE 4, 5 to prove the existential
-    -- Define the denote map
     let denote : NormalizedCircuit n (p n) → (Fin n → Bool) → Bool :=
       fun nc inp => evalCircuit (normalizedToRaw nc) inp
-    -- Show |NormalizedCircuit n (p n)| < |(Fin n → Bool) → Bool|
     have h_lt : Fintype.card (NormalizedCircuit n (p n)) < 
                 Fintype.card ((Fin n → Bool) → Bool) := by
       have h_func_card : Fintype.card ((Fin n → Bool) → Bool) = 2 ^ (2 ^ n) := by
         rw [Fintype.card_fun, Fintype.card_fun, Fintype.card_fin, Fintype.card_bool]
       rw [h_func_card]
       exact h_card_lt
-    -- Apply pigeonhole: denote is not surjective
     have h_not_surj : ¬ Function.Surjective denote := by
       intro hs
       have := Fintype.card_le_of_surjective denote hs
       linarith [h_lt]
-    -- Extract the missing function f
     simp only [Function.Surjective, not_forall] at h_not_surj
     obtain ⟨f, hf⟩ := h_not_surj
     use f
-    -- STAGE 5: Connect back to BoolCircuit
     intro c h_size
     let nc := normalizeCircuit c h_size
     have h_denote_eq : (fun inp => evalCircuit (normalizedToRaw nc) inp) =
@@ -1466,13 +1259,10 @@ theorem shannon_counting_argument :
       funext inp
       exact evalCircuit_normalizeCircuit c h_size inp
     have h_neq : (fun inp => evalCircuit c inp) ≠ f := by
-      -- We have hf : ¬∃ a, denote a = f
-      -- So ∀ a, denote a ≠ f
       have : ∀ a, denote a ≠ f := by
         intro a ha
         apply hf
         exact ⟨a, ha⟩
-      -- Now use this on nc
       rw [← h_denote_eq]
       exact this nc
     by_contra h_all_eq
@@ -1480,34 +1270,20 @@ theorem shannon_counting_argument :
     apply h_neq
     funext inp
     exact h_all_eq inp
-  · -- k ≥ 1: use the existing poly_quadratic_bound approach
-    -- For k ≥ 1, we have n ≤ c * n^k + c (when c ≥ 1, n ≥ 1, k ≥ 1)
-    have hk1 : k ≥ 1 := Nat.pos_of_ne_zero hk0
+  · have hk1 : k ≥ 1 := Nat.pos_of_ne_zero hk0
     have hn_for_poly : n ≥ 100 * k + 4 * c + 100 := by omega
     have h_poly_bound :
         (4 * c * n ^ k + 4 * c) ^ 2 + 3 * (4 * c * n ^ k + 4 * c) + 1 < 2 ^ n :=
       poly_quadratic_bound k (4 * c) n hk_le_4 hn_for_poly
-    -- Now show: s^2 + s*n + 5*s + 1 ≤ (4c·n^k + 4c)² + 3·(4c·n^k + 4c) + 1
     have h_bound : s * s + s * n + 5 * s + 1 ≤ (4 * c * n ^ k + 4 * c) ^ 2 + 3 * (4 * c * n ^ k + 4 * c) + 1 := by
-      -- We have s = p n ≤ c * n^k + c
-      -- We need to show: s^2 + s*n + 5*s + 1 ≤ (4c·n^k + 4c)^2 + 3·(4c·n^k + 4c) + 1
-      -- Let's use s ≤ c·n^k + c to bound each term
       have h_s_le : s ≤ c * n ^ k + c := h_p_le n
-      -- Handle c = 0
       by_cases hc : c = 0
-      · -- If c = 0, then s ≤ 0, so s = 0
-        subst hc
+      · subst hc
         simp only [mul_zero, add_zero, zero_pow, zero_mul] at h_s_le ⊢
         simp [Nat.eq_zero_of_le_zero h_s_le]
-      · -- c ≥ 1
-        have hc_pos : c ≥ 1 := Nat.one_le_iff_ne_zero.mpr hc
-        -- For n ≥ 200 (which we have from hn), we can show n ≤ c * n^k + c
+      · have hc_pos : c ≥ 1 := Nat.one_le_iff_ne_zero.mpr hc
         have hn_le : n ≤ c * n ^ k + c := by
-          -- For k ≥ 1, we have n^k ≥ n, so c * n^k ≥ c * n ≥ n (when c ≥ 1, n ≥ 1)
           nlinarith [hc_pos, show n ^ k ≥ n from Nat.le_self_pow (by omega) n]
-        -- Now we have s ≤ c * n^k + c and n ≤ c * n^k + c
-        -- So s^2 + s*n + 5*s + 1 ≤ (c*n^k + c) * (s + n + 5) + 1
-        --                             ≤ (c*n^k + c) * ((c*n^k + c) + n + 5) + 1
         calc s * s + s * n + 5 * s + 1
             = s ^ 2 + s * n + 5 * s + 1 := by ring
           _ ≤ s * (s + n + 5) + 1 := by ring_nf; omega
@@ -1515,15 +1291,11 @@ theorem shannon_counting_argument :
               have : s * (s + n + 5) ≤ (c * n ^ k + c) * (s + n + 5) := Nat.mul_le_mul_right (s + n + 5) h_s_le
               exact Nat.add_le_add_right this 1
           _ ≤ (c * n ^ k + c) * ((c * n ^ k + c) + n + 5) + 1 := by
-              -- h_s_plus_n_plus_5 : s + n + 5 ≤ (c * n ^ k + c) + n + 5
-              -- This is equivalent to: s ≤ c * n ^ k + c, which is h_s_le
               have : s + n + 5 ≤ (c * n ^ k + c) + n + 5 := by omega
               exact Nat.add_le_add_right (Nat.mul_le_mul_left (c * n ^ k + c) this) 1
           _ ≤ (4 * c * n ^ k + 4 * c) ^ 2 + 3 * (4 * c * n ^ k + 4 * c) + 1 := by
-              -- We directly show: (c*n^k + c)*((c*n^k + c) + n + 5) + 1 ≤ (4c*n^k + 4c)^2 + 3*(4c*n^k + 4c) + 1
               nlinarith [sq_nonneg (c * n ^ k), sq_nonneg (c * n ^ k - n ^ k), sq_nonneg (c - 1), sq_nonneg (n ^ k - 1),
                 h_s_le, hn_le, hc_pos]
-    -- Prove: Fintype.card (NormalizedCircuit n (p n)) < 2 ^ (2 ^ n)
     have h_card_lt : Fintype.card (NormalizedCircuit n (p n)) < 2 ^ (2 ^ n) := by
       calc Fintype.card (NormalizedCircuit n (p n))
           ≤ normalized_circuit_count_upper_bound n s := h_card
@@ -1534,27 +1306,21 @@ theorem shannon_counting_argument :
         _ < 2 ^ (2 ^ n) := by
             apply Nat.pow_lt_pow_right (by norm_num)
             exact h_poly_bound
-    -- Now continue with STAGE 4, 5 to prove the existential
-    -- Define the denote map
     let denote : NormalizedCircuit n (p n) → (Fin n → Bool) → Bool :=
       fun nc inp => evalCircuit (normalizedToRaw nc) inp
-    -- Show |NormalizedCircuit n (p n)| < |(Fin n → Bool) → Bool|
     have h_lt : Fintype.card (NormalizedCircuit n (p n)) < 
                 Fintype.card ((Fin n → Bool) → Bool) := by
       have h_func_card : Fintype.card ((Fin n → Bool) → Bool) = 2 ^ (2 ^ n) := by
         rw [Fintype.card_fun, Fintype.card_fun, Fintype.card_fin, Fintype.card_bool]
       rw [h_func_card]
       exact h_card_lt
-    -- Apply pigeonhole: denote is not surjective
     have h_not_surj : ¬ Function.Surjective denote := by
       intro hs
       have := Fintype.card_le_of_surjective denote hs
       linarith [h_lt]
-    -- Extract the missing function f
     simp only [Function.Surjective, not_forall] at h_not_surj
     obtain ⟨f, hf⟩ := h_not_surj
     use f
-    -- STAGE 5: Connect back to BoolCircuit
     intro c h_size
     let nc := normalizeCircuit c h_size
     have h_denote_eq : (fun inp => evalCircuit (normalizedToRaw nc) inp) =
@@ -1576,16 +1342,11 @@ theorem shannon_counting_argument :
     apply h_neq
     funext inp
     exact h_all_eq inp
--- ---------------------------------------------------------------------------
 -- Main conjecture
--- ---------------------------------------------------------------------------
 
--- ---------------------------------------------------------------------------
--- Cook–Levin Theorem (axiomatized)
--- ---------------------------------------------------------------------------
+-- Cook-Levin Theorem (axiomatized)
 
-/-- The Cook–Levin theorem states that SAT is NP-complete.
-    We axiomatize this as it requires substantial formalization work. -/
+/-- SAT is NP-complete (axiomatized) -/
 axiom sat_is_np_complete :
     ∃ (sat : Language), inNP sat ∧
     ∀ (L : Language), inNP L → ∃ (f : Nat → Nat) (_hf : IsPolynomial f),
@@ -1593,55 +1354,35 @@ axiom sat_is_np_complete :
         if h : i.val < n then inp ⟨i.val, h⟩
         else false)
 
--- ---------------------------------------------------------------------------
 -- Circuit lower bound for SAT (MAJOR OPEN QUESTION)
--- ---------------------------------------------------------------------------
 
-/-- SAT requires superpolynomial circuit size.
-    This is the key assumption for the circuit lower bounds approach to P ≠ NP.
-    Proving this would resolve P vs NP! -/
+/-- SAT requires superpolynomial circuit size (axiom) -/
 axiom sat_has_superpoly_lower_bound : ∃ (_ : Nat), ∀ (p : Nat → Nat) (_hp : IsPolynomial p),
       ∃ n, ∀ (circuit : BoolCircuit n), circuitSize circuit > p n
 
--- ---------------------------------------------------------------------------
 -- Connection between circuit lower bounds and P ≠ NP
--- ---------------------------------------------------------------------------
 
-/-- If SAT requires superpolynomial circuit size, then P ≠ NP. -/
+/-- If SAT requires superpolynomial circuit size, then P ≠ NP -/
 theorem sat_superpolynomial_implies_p_neq_np
     (sat : Language)
     (h_sat_np : inNP sat)
     (h_superpoly : ∃ (_ : Nat), ∀ (p : Nat → Nat) (_hp : IsPolynomial p),
       ∃ n, ∀ (circuit : BoolCircuit n), circuitSize circuit > p n) :
     ∃ L : Language, inNP L ∧ ¬ inP L := by
-  -- Use SAT as our witness language
   refine' ⟨sat, ?_⟩
-  -- Prove inNP sat ∧ ¬inP sat
   constructor
-  -- SAT is in NP (given)
   exact h_sat_np
-  -- SAT is not in P (by contradiction)
   intro h_sat_in_p
-  -- Extract the polynomial bound from h_sat_in_p
   obtain ⟨p, hp_poly, h_dec⟩ := h_sat_in_p
-  -- Get the superpolynomial witness
   obtain ⟨_, hc⟩ := h_superpoly
   obtain ⟨n, hn⟩ := hc p hp_poly
-  -- For sufficiently large n, any circuit deciding SAT has size > p n
-  -- But h_dec says there exists a circuit of size ≤ p n
-  -- This is a contradiction
   obtain ⟨circuit, h_size, _⟩ := h_dec n
   have h_gt := hn circuit
-  -- h_size : circuitSize circuit ≤ p n
-  -- h_gt : circuitSize circuit > p n, i.e., p n < circuitSize circuit
-  -- Together: circuitSize circuit ≤ p n < circuitSize circuit, so circuitSize circuit < circuitSize circuit
   exact Nat.lt_irrefl (circuitSize circuit) (Nat.lt_of_le_of_lt h_size h_gt)
 
 /-- P ≠ NP: there exists a language in NP not in P -/
 theorem p_neq_np : ∃ L : Language, inNP L ∧ ¬ inP L := by
-  -- Get SAT from Cook-Levin theorem
   obtain ⟨sat, h_sat_np, _⟩ := sat_is_np_complete
-  -- Apply the connection theorem with the superpolynomial lower bound axiom
   exact sat_superpolynomial_implies_p_neq_np sat h_sat_np sat_has_superpoly_lower_bound
 
 end PVsNp.CircuitLowerBounds
