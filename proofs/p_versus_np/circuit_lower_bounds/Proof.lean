@@ -1418,53 +1418,19 @@ theorem shannon_counting_argument :
         cases k with
         | zero =>
           -- k = 0: p n ≤ c + c = 2c (constant)
-          -- We have s ≤ 2c
-          -- And we need: s^2 + s*n + 5*s + 1 < 2^n
-          -- i.e.: 4c^2 + 2c*n + 10c + 1 < 2^n
-          -- We have n ≥ 4c + 200
-          -- Key insight: For n ≥ 196, we have n^3 < 2^n (from n_pow_lt_two_pow_n)
-          -- And for c ≤ n (which must hold since n ≥ 4c + 200 implies c ≤ n/4):
-          --   4c^2 + 2c*n + 10c + 1 ≤ 4c*n + 2c*n + 10c + 1 = 16c*n + 10c + 1 ≤ 16n*n + 10n + 1 ≤ n^3
-          -- The last inequality holds for n ≥ 196
+          -- We have s ≤ 2c and we need: 4c^2 + 2c*n + 10c + 1 < 2^n
+          -- We have n ≥ 4c + 200, so c ≤ (n - 200)/4
           have hn196 : n ≥ 196 := by omega
-          -- First establish that c ≤ n (actually c ≤ n/4)
-          have hc_bound : c ≤ n := by omega
-          -- Now bound each term
-          have h1 : 4 * c ^ 2 ≤ n ^ 3 := by
-            have : c ^ 2 ≤ n ^ 3 / 4 := by sorry
-            omega
-          have h2 : 2 * c * n ≤ n ^ 3 := by
-            have : 2 * c ≤ n ^ 2 := by
-              have : c ≤ n := hc_bound
-              nlinarith [show n ≥ 2 from by omega]
-            nlinarith
-          have h3 : 10 * c + 1 ≤ n ^ 3 := by
-            calc 10 * c + 1 ≤ 10 * n + 1 := Nat.add_le_add_right (Nat.mul_le_mul_right n (by omega)) 1
-              _ ≤ n ^ 3 := by
-                  have : n ≥ 10 := by omega
-                  nlinarith
-          -- Combine: we have shown each term ≤ n^3, so total ≤ 4*n^3 + n^3 = 5*n^3
-          -- Actually, we showed 4*c^2 ≤ n^3, 2*c*n ≤ n^3, 10*c + 1 ≤ n^3
-          -- So total ≤ n^3 + n^3 + n^3 = 3*n^3
-          -- But we need < 2^n. Since n ≥ 200, we have 2^n > n^3
-          -- In fact, for n ≥ 4*4*4 + 8 = 72, we have n^4 < 2^n
-          -- So n^3 < n^4 < 2^n, giving us 4*c^2 + 2*c*n + 10*c + 1 ≤ 3*n^3 < 3*n^4 < 2^n
-          have hn4 : n ≥ 4 * 4 * 4 + 8 := by omega
-          have h_4th_lt : n ^ 4 < 2 ^ n := n_pow_lt_two_pow_n 4 n hn4
-          have h_cube_lt_4th : n ^ 3 < n ^ 4 := by
-            calc n ^ 3 < n ^ 3 * n := by
-                have : n ≥ 2 := by omega
-                calc n ^ 3 = n ^ 3 * 1 := by ring
-                  _ < n ^ 3 * n := Nat.mul_lt_mul_left (show 0 < n ^ 3 from Nat.pow_pos (by omega)) this
-              _ = n ^ 4 := by ring
-          have h_bound : 4 * c ^ 2 + 2 * c * n + 10 * c + 1 ≤ 3 * n ^ 3 := by nlinarith
-          -- We need to show 4*c^2 + 2*c*n + 10*c + 1 < 2^n
-          -- We have a factor of 3, but we can tighten the bounds to use n^4
-          -- Re-do the bounds: use n^4 instead
-          have : 4 * c ^ 2 + 2 * c * n + 10 * c + 1 ≤ 4 * n ^ 4 := by nlinarith [hn196]
-          have : 4 * n ^ 4 < 2 ^ n := nlinarith [h_4th_lt]
-          linarith
-          nlinarith
+          -- Show c ≤ n/4
+          have hc_bound : 4 * c ≤ n := by omega
+          -- Show 4c^2 + 2c*n + 10c + 1 < 2^n
+          -- First show 4c^2 + 2c*n + 10c + 1 ≤ 4*n^2 + 6*n + 1
+          have h_bound : 4 * c ^ 2 + 2 * c * n + 10 * c + 1 ≤ 4 * n ^ 2 + 6 * n + 1 := by
+            nlinarith [hc_bound, show n ≥ 1 from by omega]
+          -- Then use four_n_squared_plus_six_n_plus_one_lt_two_pow_n
+          have h_4n2_lt : 4 * n ^ 2 + 6 * n + 1 < 2 ^ n := four_n_squared_plus_six_n_plus_one_lt_two_pow_n n hn196
+          -- Combine
+          sorry  -- Can't prove n ≤ 2c; need to restructure for k=0 case
         | succ k' =>
           -- k = k' + 1 ≥ 1
           have hk_pos : k' + 1 ≥ 1 := by omega
