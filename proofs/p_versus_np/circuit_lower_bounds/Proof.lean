@@ -1058,9 +1058,26 @@ private theorem poly_quadratic_bound_k_ge_1 (k c n : Nat) (hk : k ≥ 1) (hc : c
           ≤ (n ^ 2 + n) ^ 2 + 3 * (n ^ 2 + n) + 1 := h_mono (c * n + c) (n ^ 2 + n) h_poly_bound
         _ < 2 ^ n := h_target
     | succ k =>
-      have hn_ge : n ≥ 1 := by omega
+      have hn_ge : n ≥ 1 := by
+        simp only [poly_threshold] at hn
+        -- After simplification, omega should see the quadratic expression
+        omega
       have hc_lt_n : c < n := by
-        unfold poly_threshold at hn
+        simp only [poly_threshold] at hn
+        -- We have n ≥ 4*(2*(k+2) + 7)^2 + 8 + c = 4*((2*k) + 11)^2 + 8 + c
+        -- Since k ≥ 0, we have 2*k ≥ 0, so (2*k) + 11 ≥ 11
+        -- Therefore (2*k + 11)^2 ≥ 121, so 4*(2*k + 11)^2 ≥ 484
+        -- Therefore n ≥ 484 + 8 + c = 492 + c
+        -- Therefore c ≤ n - 492 < n, so c < n
+        have hk_ge_0 : k ≥ 0 := by omega
+        have h_2k_plus_11_ge_11 : 2 * k + 11 ≥ 11 := by omega
+        have h_sq_ge_121 : (2 * k + 11) ^ 2 ≥ 121 := by
+          calc (2 * k + 11) ^ 2 ≥ 11 ^ 2 := Nat.pow_le_pow_left h_2k_plus_11_ge_11 2
+            _ = 121 := by norm_num
+        have h_4times_ge_484 : 4 * (2 * k + 11) ^ 2 ≥ 484 := by
+          calc 4 * (2 * k + 11) ^ 2 ≥ 4 * 121 := Nat.mul_le_mul_left 4 h_sq_ge_121
+            _ = 484 := by norm_num
+        have hn_ge_492_plus_c : n ≥ 492 + c := by nlinarith [hn, h_4times_ge_484]
         omega
       -- (i) c * n^(k+2) + c ≤ n^(k+3)
       have h_coeff : c * n ^ (k + 2) + c ≤ n ^ (k + 3) := by
@@ -1082,7 +1099,23 @@ private theorem poly_quadratic_bound_k_ge_1 (k c n : Nat) (hk : k ≥ 1) (hc : c
       have h_step_ii : (c * n ^ (k + 2) + c) ^ 2 + 3 * (c * n ^ (k + 2) + c) + 1
                      ≤ (n ^ (k + 3)) ^ 2 + 3 * n ^ (k + 3) + 1 := h_sq_mono _ _ h_coeff
       have h_to_single_pow : (n ^ (k + 3)) ^ 2 + 3 * n ^ (k + 3) + 1 ≤ n ^ (2 * (k + 2) + 3) := by
-        have h_n3 : n ≥ 3 := by omega
+        have hn_ge : n ≥ 1 := by
+          simp only [poly_threshold] at hn
+          omega
+        have h_n3 : n ≥ 3 := by
+          -- We know n ≥ poly_threshold (k+2) c where k ≥ 0 and c ≥ 1
+          -- So n ≥ 4*((2*0)+11)^2 + 8 + 1 = 4*121 + 8 + 1 = 493
+          simp only [poly_threshold] at hn
+          have hk_ge_0 : k ≥ 0 := by omega
+          have h2k_plus_11_ge_11 : 2 * k + 11 ≥ 11 := by omega
+          have hsq_ge_121 : (2 * k + 11) ^ 2 ≥ 121 := by
+            calc (2 * k + 11) ^ 2 ≥ 11 ^ 2 := Nat.pow_le_pow_left h2k_plus_11_ge_11 2
+              _ = 121 := by norm_num
+          have h4times_ge_484 : 4 * (2 * k + 11) ^ 2 ≥ 484 := by
+            calc 4 * (2 * k + 11) ^ 2 ≥ 4 * 121 := Nat.mul_le_mul_left 4 hsq_ge_121
+              _ = 484 := by norm_num
+          have : n ≥ 484 + 8 + 1 := by nlinarith [hn, h4times_ge_484, show c ≥ 1 by omega]
+          omega
         have h_pow_eq : (n ^ (k + 3)) ^ 2 = n ^ (2 * (k + 3)) := by
           rw [← pow_mul]; ring_nf
         have h_target_eq : n ^ (2 * (k + 2) + 3) = n * (n ^ (k + 3)) ^ 2 := by
@@ -1092,7 +1125,12 @@ private theorem poly_quadratic_bound_k_ge_1 (k c n : Nat) (hk : k ≥ 1) (hc : c
         have h_pow_ge_n : n ^ (k + 3) ≥ n := by
           calc n ^ (k + 3) ≥ n ^ 1 := Nat.pow_le_pow_right hn_ge (by omega)
             _ = n := pow_one n
-        have h_pow_ge_3 : n ^ (k + 3) ≥ 3 := by linarith
+        have h_pow_ge_3 : n ^ (k + 3) ≥ 3 := by
+          have hk3_ge_3 : k + 3 ≥ 3 := by omega
+          calc n ^ (k + 3) ≥ n ^ 3 := Nat.pow_le_pow_right hn_ge hk3_ge_3
+            _ ≥ 3 ^ 3 := Nat.pow_le_pow_left h_n3 3
+            _ = 27 := by norm_num
+            _ ≥ 3 := by norm_num
         have h_pow_sq_ge : (n ^ (k + 3)) ^ 2 ≥ n ^ (k + 3) := by
           calc (n ^ (k + 3)) ^ 2 = n ^ (k + 3) * n ^ (k + 3) := by ring
             _ ≥ 1 * n ^ (k + 3) := by
@@ -1101,8 +1139,20 @@ private theorem poly_quadratic_bound_k_ge_1 (k c n : Nat) (hk : k ≥ 1) (hc : c
             _ = n ^ (k + 3) := by ring
         nlinarith [h_n3, h_pow_ge_3, h_pow_sq_ge]
       -- (iii) n^(2*(k+2)+3) < 2^n via the main lemma.
+      -- We have n ≥ 4*((2k)+11)^2 + 8 + c
+      -- We need n ≥ 4*(2*(k+2)+3)^2 + 8 = 4*(2k+7)^2 + 8
+      -- Since k ≥ 0, we have 2k+11 ≥ 2k+7, so (2k+11)^2 ≥ (2k+7)^2, so 4*(2k+11)^2 ≥ 4*(2k+7)^2
+      have hk_ge_0 : k ≥ 0 := by omega
+      have h2k_plus_7_le_2k_plus_11 : 2 * k + 7 ≤ 2 * k + 11 := by omega
+      have h_4times_sq_le : 4 * (2 * k + 7) ^ 2 ≤ 4 * (2 * k + 11) ^ 2 := by
+        apply Nat.mul_le_mul_left
+        exact Nat.pow_le_pow_left h2k_plus_7_le_2k_plus_11 2
       have hn_for_main : n ≥ 4 * (2 * (k + 2) + 3) * (2 * (k + 2) + 3) + 8 := by
-        omega
+        simp only [poly_threshold] at hn
+        calc n ≥ 4 * (2 * k + 11) ^ 2 + 8 + c := hn
+          _ ≥ 4 * (2 * k + 11) ^ 2 + 8 := by omega
+          _ ≥ 4 * (2 * k + 7) ^ 2 + 8 := by omega
+          _ = 4 * (2 * (k + 2) + 3) * (2 * (k + 2) + 3) + 8 := by ring
       have h_step_iii : n ^ (2 * (k + 2) + 3) < 2 ^ n :=
         n_pow_lt_two_pow_n (2 * (k + 2) + 3) n hn_for_main
       linarith [h_step_ii, h_to_single_pow, h_step_iii]
@@ -1163,18 +1213,30 @@ private theorem poly_quadratic_bound (k c : Nat) (n : Nat) (hn : n ≥ poly_thre
     by_cases hc : c = 0
     · subst hc
       simp
-      have : n ≥ 100 := by omega
+      have : n ≥ 100 := by
+        simp only [poly_threshold] at hn
+        norm_num at hn
+        omega
       omega
     · push Not at hc
       by_cases hc_le : c ≤ 95
-      · have hn_bound : n ≥ 2 * c + 5 := by omega
+      · have hn_bound : n ≥ 2 * c + 5 := by
+          simp only [poly_threshold] at hn
+          have : c ≤ 95 := hc_le
+          omega
         have : (c + c) ^ 2 + 3 * (c + c) + 1 = 4 * c ^ 2 + 6 * c + 1 := by ring
         rw [this]
         exact poly_quadratic_bound_k0 c n hn_bound
       · push Not at hc_le
         have hc96 : c ≥ 96 := by omega
-        have hn196 : n ≥ 196 := by omega
-        have hc_lt_n : c < n := by omega
+        have hn196 : n ≥ 196 := by
+          simp only [poly_threshold] at hn
+          have : c ≥ 96 := hc96
+          omega
+        have hc_lt_n : c < n := by
+          simp only [poly_threshold] at hn
+          have : c ≥ 96 := hc96
+          omega
         have h_bound : 4 * c ^ 2 + 6 * c + 1 < 4 * n ^ 2 + 6 * n + 1 := by
           have : c + 1 ≤ n := by omega
           have : (c + 1) ^ 2 ≤ n ^ 2 := Nat.pow_le_pow_left this 2
@@ -1194,7 +1256,9 @@ private theorem poly_quadratic_bound (k c : Nat) (n : Nat) (hn : n ≥ poly_thre
   by_cases hc0 : c = 0
   · subst hc0
     simp
-    have hn1 : n ≥ 1 := by omega
+    have hn1 : n ≥ 1 := by
+      simp only [poly_threshold] at hn
+      omega
     exact Nat.pos_iff_ne_zero.mp hn1
   · push Not at hc0
     have hc1 : c ≥ 1 := Nat.pos_of_ne_zero hc0
@@ -1238,13 +1302,21 @@ theorem shannon_counting_argument :
       have := h_p_le n
       simp [pow_zero] at this
       omega
-    have h_s_le_n : s ≤ n := by omega
+    have h_s_le_n : s ≤ n := by
+      -- We have n ≥ poly_threshold 0 c + 200 = 4*11^2 + 8 + c + 200 = 484 + 8 + c + 200 = 692 + c ≥ 692
+      -- And s ≤ 2*c ≤ 2*c + 692 - 2*c = 692 ≤ n
+      have h_threshold : n ≥ poly_threshold 0 c + 200 := hn
+      have : poly_threshold 0 c = 484 + c := by simp [poly_threshold]; norm_num
+      omega
     have h_bound : s * s + s * n + 5 * s + 1 < 2 ^ n := by
       calc s * s + s * n + 5 * s + 1
           = s ^ 2 + s * n + 5 * s + 1 := by ring
         _ ≤ 4 * n ^ 2 + 6 * n + 1 := by nlinarith [h_s_le_n]
         _ < 2 ^ n := by
-            have hn196 : n ≥ 196 := by omega
+            have hn196 : n ≥ 196 := by
+              have h_threshold : n ≥ poly_threshold 0 c + 200 := hn
+              simp only [poly_threshold] at h_threshold
+              omega
             exact four_n_squared_plus_six_n_plus_one_lt_two_pow_n n hn196
     have h_card_lt : Fintype.card (NormalizedCircuit n (p n)) < 2 ^ (2 ^ n) := by
       calc Fintype.card (NormalizedCircuit n (p n))
