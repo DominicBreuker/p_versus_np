@@ -674,7 +674,7 @@ class GitPushResult:
 
 
 def append_failure_note(problem_name: str, approach_name: str, message: str) -> None:
-    notes_path = REPO_ROOT / "proofs" / problem_name / approach_name / "NOTES.md"
+    notes_path = REPO_ROOT / "proofs" / problem_name / approach_name / "log.txt"
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     bullet = (
         f"- {timestamp} — Researcher workflow hit a technical interruption: {message}. "

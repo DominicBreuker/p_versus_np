@@ -213,7 +213,7 @@ class VibeExecutionTests(unittest.TestCase):
                 self.assertIn("Resuming mock Vibe session", output.getvalue())
 
     def test_append_failure_note_creates_technical_interruptions_section(self):
-        notes_path = REPO_ROOT / "proofs" / "p_versus_np" / "circuit_lower_bounds" / "NOTES.md"
+        notes_path = REPO_ROOT / "proofs" / "p_versus_np" / "circuit_lower_bounds" / "log.txt"
         original = notes_path.read_text(encoding="utf-8")
         try:
             notes_path.write_text("# Progress Notes\n", encoding="utf-8")
