@@ -1419,29 +1419,64 @@ theorem shannon_counting_argument :
         | zero =>
           -- k = 0: p n ≤ c + c = 2c (constant)
           -- We have s ≤ 2c
-          -- And the goal: s^2 + s*n + 5*s + 1 ≤ (4c)^2 + 3*(4c) + 1 = 16c^2 + 12c + 1
-          -- which is 4c^2 + 6c + 1 + (12c^2 + 6c + s*n)
-          -- For this to work, we need s*n ≤ 12c^2 + 6c
-          -- Since s ≤ 2c, we have s*n ≤ 2c*n
-          -- But we don't have a bound on n in terms of c
-          -- However, recall that n ≥ 100*0 + 4*c + 200 = 4c + 200
-          -- This means n is LARGE compared to c!
-          -- For n ≥ 4c + 200, we have s*n ≤ 2c*n ≤ 2c*(n), but
-          -- the issue is that the RHS (4c)^2 grows as c^2, while the LHS s*n grows as c*n
-          -- This won't work without a different bound.
-          -- Let's change approach: use the same bound (2c) instead of (4c) for k=0
-          sorry
+          -- And we need: s^2 + s*n + 5*s + 1 < 2^n
+          -- i.e.: 4c^2 + 2c*n + 10c + 1 < 2^n
+          -- We have n ≥ 4c + 200
+          -- Key insight: For n ≥ 196, we have n^3 < 2^n (from n_pow_lt_two_pow_n)
+          -- And for c ≤ n (which must hold since n ≥ 4c + 200 implies c ≤ n/4):
+          --   4c^2 + 2c*n + 10c + 1 ≤ 4c*n + 2c*n + 10c + 1 = 16c*n + 10c + 1 ≤ 16n*n + 10n + 1 ≤ n^3
+          -- The last inequality holds for n ≥ 196
+          have hn196 : n ≥ 196 := by omega
+          -- First establish that c ≤ n (actually c ≤ n/4)
+          have hc_bound : c ≤ n := by omega
+          -- Now bound each term
+          have h1 : 4 * c ^ 2 ≤ n ^ 3 := by
+            have : c ^ 2 ≤ n ^ 3 / 4 := by sorry
+            omega
+          have h2 : 2 * c * n ≤ n ^ 3 := by
+            have : 2 * c ≤ n ^ 2 := by
+              have : c ≤ n := hc_bound
+              nlinarith [show n ≥ 2 from by omega]
+            nlinarith
+          have h3 : 10 * c + 1 ≤ n ^ 3 := by
+            calc 10 * c + 1 ≤ 10 * n + 1 := Nat.add_le_add_right (Nat.mul_le_mul_right n (by omega)) 1
+              _ ≤ n ^ 3 := by
+                  have : n ≥ 10 := by omega
+                  nlinarith
+          -- Combine: we have shown each term ≤ n^3, so total ≤ 4*n^3 + n^3 = 5*n^3
+          -- Actually, we showed 4*c^2 ≤ n^3, 2*c*n ≤ n^3, 10*c + 1 ≤ n^3
+          -- So total ≤ n^3 + n^3 + n^3 = 3*n^3
+          -- But we need < 2^n. Since n ≥ 200, we have 2^n > n^3
+          -- In fact, for n ≥ 4*4*4 + 8 = 72, we have n^4 < 2^n
+          -- So n^3 < n^4 < 2^n, giving us 4*c^2 + 2*c*n + 10*c + 1 ≤ 3*n^3 < 3*n^4 < 2^n
+          have hn4 : n ≥ 4 * 4 * 4 + 8 := by omega
+          have h_4th_lt : n ^ 4 < 2 ^ n := n_pow_lt_two_pow_n 4 n hn4
+          have h_cube_lt_4th : n ^ 3 < n ^ 4 := by
+            calc n ^ 3 < n ^ 3 * n := by
+                have : n ≥ 2 := by omega
+                calc n ^ 3 = n ^ 3 * 1 := by ring
+                  _ < n ^ 3 * n := Nat.mul_lt_mul_left (show 0 < n ^ 3 from Nat.pow_pos (by omega)) this
+              _ = n ^ 4 := by ring
+          have h_bound : 4 * c ^ 2 + 2 * c * n + 10 * c + 1 ≤ 3 * n ^ 3 := by nlinarith
+          -- We need to show 4*c^2 + 2*c*n + 10*c + 1 < 2^n
+          -- We have a factor of 3, but we can tighten the bounds to use n^4
+          -- Re-do the bounds: use n^4 instead
+          have : 4 * c ^ 2 + 2 * c * n + 10 * c + 1 ≤ 4 * n ^ 4 := by nlinarith [hn196]
+          have : 4 * n ^ 4 < 2 ^ n := nlinarith [h_4th_lt]
+          linarith
+          nlinarith
         | succ k' =>
-          -- k ≥ 1
-          have hk_pos : k ≥ 1 := by omega
-          calc n ≤ n * n := by omega
-            _ ≤ c * n ^ k := by
-                have : n ^ k ≥ n := Nat.pow_le_pow_right (by omega) (by omega)
-                calc n * n ≤ n * (c * n ^ k) := Nat.mul_le_mul_left n (Nat.mul_le_mul_right n this)
-                  _ = c * (n * n ^ k) := by ring
-                  _ = c * (n ^ (k + 1)) := by rw [← pow_succ]
-                  _ = c * n ^ k := by rw [Nat.add_comm 1 k]; rfl
-            _ ≤ c * n ^ k + c := by omega
+          -- k = k' + 1 ≥ 1
+          have hk_pos : k' + 1 ≥ 1 := by omega
+          -- We want to show: n ≤ c * n^(k' + 1) + c
+          -- This is equivalent to: n - c ≤ c * n^(k' + 1)
+          -- For c ≥ 1 and n ≥ 200, this holds
+          -- Case 1: k' + 1 = 1 (k' = 0): Need n ≤ c * n + c, i.e., 0 ≤ c(n - 1) + (c - n)
+          -- But actually, we need a different approach. Let's use nlinarith.
+          -- We know n ≥ 200 and c ≥ 1.
+          -- For n ≥ 2 and c ≥ 1, we have c * n^(k' + 1) ≥ c * n ≥ n (when n^(k'+1) ≥ n, i.e., k' + 1 ≥ 1, true)
+          -- So c * n^(k' + 1) + c ≥ n + c ≥ n
+          nlinarith [hc_pos, show n ^ (k' + 1) ≥ n from Nat.le_self_pow (by omega) n]
       -- Now we have s ≤ c * n^k + c and n ≤ c * n^k + c
       -- So s + n ≤ 2 * (c * n^k + c)
 
@@ -1456,11 +1491,10 @@ theorem shannon_counting_argument :
             have : s * (s + n + 5) ≤ (c * n ^ k + c) * (s + n + 5) := Nat.mul_le_mul_right (s + n + 5) h_s_le
             exact Nat.add_le_add_right this 1
         _ ≤ (c * n ^ k + c) * ((c * n ^ k + c) + n + 5) + 1 := by
-            -- h_s_plus_n_plus_5 : s + n + 5 ≤ 2 * (c * n ^ k + c) + 5
-            -- But we need: s + n + 5 ≤ (c * n ^ k + c) + n + 5
+            -- h_s_plus_n_plus_5 : s + n + 5 ≤ (c * n ^ k + c) + n + 5
             -- This is equivalent to: s ≤ c * n ^ k + c, which is h_s_le
             have : s + n + 5 ≤ (c * n ^ k + c) + n + 5 := by omega
-            exact Nat.add_le_add_left (Nat.mul_le_mul_left (c * n ^ k + c) this) 1
+            exact Nat.add_le_add_right (Nat.mul_le_mul_left (c * n ^ k + c) this) 1
         _ ≤ (4 * c * n ^ k + 4 * c) ^ 2 + 3 * (4 * c * n ^ k + 4 * c) + 1 := by
             -- We directly show: (c*n^k + c)*((c*n^k + c) + n + 5) + 1 ≤ (4c*n^k + 4c)^2 + 3*(4c*n^k + 4c) + 1
             nlinarith [sq_nonneg (c * n ^ k), sq_nonneg (c * n ^ k - n ^ k), sq_nonneg (c - 1), sq_nonneg (n ^ k - 1),
