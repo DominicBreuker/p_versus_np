@@ -1412,59 +1412,55 @@ theorem shannon_counting_argument :
       have hc_pos : c ≥ 1 := Nat.one_le_iff_ne_zero.mpr hc
       -- For n ≥ 200 (which we have from hn), we can show n ≤ c * n^k + c
       have hn_large : n ≥ 200 := by omega
-      have hn_le : n ≤ c * n ^ k + c := by
-        -- For k = 0, this becomes n ≤ c + c = 2c, which may not hold
-        -- For k ≥ 1, we have n^k ≥ n, so c * n^k ≥ c * n ≥ n (when c ≥ 1, n ≥ 1)
-        cases k with
-        | zero =>
-          -- k = 0: p n ≤ c + c = 2c (constant)
-          -- We have s ≤ 2c and we need: 4c^2 + 2c*n + 10c + 1 < 2^n
-          -- We have n ≥ 4c + 200, so c ≤ (n - 200)/4
-          have hn196 : n ≥ 196 := by omega
-          -- Show c ≤ n/4
-          have hc_bound : 4 * c ≤ n := by omega
-          -- Show 4c^2 + 2c*n + 10c + 1 < 2^n
-          -- First show 4c^2 + 2c*n + 10c + 1 ≤ 4*n^2 + 6*n + 1
-          have h_bound : 4 * c ^ 2 + 2 * c * n + 10 * c + 1 ≤ 4 * n ^ 2 + 6 * n + 1 := by
-            nlinarith [hc_bound, show n ≥ 1 from by omega]
-          -- Then use four_n_squared_plus_six_n_plus_one_lt_two_pow_n
-          have h_4n2_lt : 4 * n ^ 2 + 6 * n + 1 < 2 ^ n := four_n_squared_plus_six_n_plus_one_lt_two_pow_n n hn196
-          -- Combine
-          sorry  -- Can't prove n ≤ 2c; need to restructure for k=0 case
-        | succ k' =>
-          -- k = k' + 1 ≥ 1
-          have hk_pos : k' + 1 ≥ 1 := by omega
-          -- We want to show: n ≤ c * n^(k' + 1) + c
-          -- This is equivalent to: n - c ≤ c * n^(k' + 1)
-          -- For c ≥ 1 and n ≥ 200, this holds
-          -- Case 1: k' + 1 = 1 (k' = 0): Need n ≤ c * n + c, i.e., 0 ≤ c(n - 1) + (c - n)
-          -- But actually, we need a different approach. Let's use nlinarith.
-          -- We know n ≥ 200 and c ≥ 1.
-          -- For n ≥ 2 and c ≥ 1, we have c * n^(k' + 1) ≥ c * n ≥ n (when n^(k'+1) ≥ n, i.e., k' + 1 ≥ 1, true)
-          -- So c * n^(k' + 1) + c ≥ n + c ≥ n
-          nlinarith [hc_pos, show n ^ (k' + 1) ≥ n from Nat.le_self_pow (by omega) n]
-      -- Now we have s ≤ c * n^k + c and n ≤ c * n^k + c
-      -- So s + n ≤ 2 * (c * n^k + c)
+      -- Try to prove hn_le; if k=0 this might fail
+      by_cases hk0_inner : k = 0
+      · -- k = 0
+        subst hk0_inner
+        simp only [pow_zero] at h_s_le ⊢
+        -- For k=0, we have s ≤ 2c, need: s^2 + s*n + 5*s + 1 ≤ 64c^2 + 24c + 1
+        -- <=> 4c^2 + 2c*n + 10c + 1 ≤ 64c^2 + 24c + 1 (using s ≤ 2c)
+        -- I.e., 2c*n ≤ 60c^2 + 14c
+        -- We have n ≥ 4c + 200
+        -- As discussed, we DON'T have n ≤ 30c + 7 for small c
+        -- But wait, we also have h_poly_bound which guarantees the RHS is < 2^n
+        -- And we have four_n_squared_plus_six_n_plus_one_lt_two_pow_n for the LHS bound
+        -- 
+        -- Actually, looking more carefully, the goal is to prove:
+        -- s^2 + s*n + 5*s + 1 < 2^n
+        -- And we have h_poly_bound: 64c^2 + 24c + 1 < 2^n
+        -- So if we can prove s^2 + s*n + 5*s + 1 ≤ 64c^2 + 24c + 1, we're done
+        --
+        -- But nlinarith might not have enough info. Let's give it h_s_le explicitly as s ≤ 2c
+        have h_s_le_2c : s ≤ 2 * c := by omega
+        nlinarith [sq_nonneg c, sq_nonneg (n - 100 * c), sq_nonneg (s - 2 * c), h_s_le_2c, hc_pos, show n ≥ 1 from by omega]
+      · -- k ≥ 1, so we can prove hn_le
+        have hk_pos : k ≥ 1 := Nat.one_le_iff_ne_zero.mpr hk0_inner
+        have hn_le : n ≤ c * n ^ k + c := by
+          -- We want to show: n ≤ c * n^k + c
+          -- This is equivalent to: n - c ≤ c * n^k
+          -- For k ≥ 1 and c ≥ 1 and n ≥ 200, this holds
+          nlinarith [hc_pos, show n ^ k ≥ n from Nat.le_self_pow (by omega) n]
+        -- Now we have s ≤ c * n^k + c and n ≤ c * n^k + c
+        -- So s + n ≤ 2 * (c * n^k + c)
 
-      -- And s ≤ c * n^k + c
-      -- Therefore:
-      -- s^2 + s*n + 5*s + 1
-      --   ≤ s * (s + n + 5) + 1
-      --   ≤ (c * n^k + c) * (2 * (c * n^k + c) + 5) + 1
-      calc s ^ 2 + s * n + 5 * s + 1
-          ≤ s * (s + n + 5) + 1 := by ring_nf; omega
-        _ ≤ (c * n ^ k + c) * (s + n + 5) + 1 := by
-            have : s * (s + n + 5) ≤ (c * n ^ k + c) * (s + n + 5) := Nat.mul_le_mul_right (s + n + 5) h_s_le
-            exact Nat.add_le_add_right this 1
-        _ ≤ (c * n ^ k + c) * ((c * n ^ k + c) + n + 5) + 1 := by
-            -- h_s_plus_n_plus_5 : s + n + 5 ≤ (c * n ^ k + c) + n + 5
-            -- This is equivalent to: s ≤ c * n ^ k + c, which is h_s_le
-            have : s + n + 5 ≤ (c * n ^ k + c) + n + 5 := by omega
-            exact Nat.add_le_add_right (Nat.mul_le_mul_left (c * n ^ k + c) this) 1
-        _ ≤ (4 * c * n ^ k + 4 * c) ^ 2 + 3 * (4 * c * n ^ k + 4 * c) + 1 := by
-            -- We directly show: (c*n^k + c)*((c*n^k + c) + n + 5) + 1 ≤ (4c*n^k + 4c)^2 + 3*(4c*n^k + 4c) + 1
-            nlinarith [sq_nonneg (c * n ^ k), sq_nonneg (c * n ^ k - n ^ k), sq_nonneg (c - 1), sq_nonneg (n ^ k - 1),
-              h_s_le, hn_le, hc_pos]
+        -- And s ≤ c * n^k + c
+        -- Therefore:
+        -- s^2 + s*n + 5*s + 1
+        --   ≤ s * (s + n + 5) + 1
+        --   ≤ (c * n^k + c) * (2 * (c * n^k + c) + 5) + 1
+        calc s ^ 2 + s * n + 5 * s + 1
+            ≤ s * (s + n + 5) + 1 := by ring_nf; omega
+          _ ≤ (c * n ^ k + c) * (s + n + 5) + 1 := by
+              have : s * (s + n + 5) ≤ (c * n ^ k + c) * (s + n + 5) := Nat.mul_le_mul_right (s + n + 5) h_s_le
+              exact Nat.add_le_add_right this 1
+          _ ≤ (c * n ^ k + c) * ((c * n ^ k + c) + n + 5) + 1 := by
+              -- This is equivalent to: s ≤ c * n^k + c, which is h_s_le
+              have : s + n + 5 ≤ (c * n ^ k + c) + n + 5 := by omega
+              exact Nat.add_le_add_right (Nat.mul_le_mul_left (c * n ^ k + c) this) 1
+          _ ≤ (4 * c * n ^ k + 4 * c) ^ 2 + 3 * (4 * c * n ^ k + 4 * c) + 1 := by
+              -- Now we can use hn_le
+              nlinarith [sq_nonneg (c * n ^ k), sq_nonneg (c * n ^ k - n ^ k), sq_nonneg (c - 1), sq_nonneg (n ^ k - 1),
+                h_s_le, hn_le, hc_pos]
   -- Combine to get the counting inequality
   have h_card_lt : Fintype.card (NormalizedCircuit n (p n)) < 2 ^ (2 ^ n) := by
     calc Fintype.card (NormalizedCircuit n (p n))
