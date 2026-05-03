@@ -1393,14 +1393,67 @@ theorem shannon_counting_argument :
     simp only [pow_zero] at h_p_le ⊢
     -- Now h_p_le : ∀ n, p n ≤ c * 1 + c = 2c
     -- Show: s^2 + s*n + 5*s + 1 < 2^n
-    have h_s_le : s ≤ 2 * c := h_p_le n
+    have h_s_le : s ≤ 2 * c := by
+      have := h_p_le n
+      simp [pow_zero] at this
+      omega
     have h_s_le_n : s ≤ n := by omega
-    calc s ^ 2 + s * n + 5 * s + 1
-        ≤ 4 * n ^ 2 + 6 * n + 1 := by nlinarith [h_s_le_n]
-      _ < 2 ^ n := by
-          -- Use four_n_squared_plus_six_n_plus_one_lt_two_pow_n
-          have hn196 : n ≥ 196 := by omega
-          exact four_n_squared_plus_six_n_plus_one_lt_two_pow_n n hn196
+    have h_bound : s ^ 2 + s * n + 5 * s + 1 < 2 ^ n := by
+      calc s ^ 2 + s * n + 5 * s + 1
+          ≤ 4 * n ^ 2 + 6 * n + 1 := by nlinarith [h_s_le_n]
+        _ < 2 ^ n := by
+            -- Use four_n_squared_plus_six_n_plus_one_lt_two_pow_n
+            have hn196 : n ≥ 196 := by omega
+            exact four_n_squared_plus_six_n_plus_one_lt_two_pow_n n hn196
+    -- Prove: Fintype.card (NormalizedCircuit n (p n)) < 2 ^ (2 ^ n)
+    calc Fintype.card (NormalizedCircuit n (p n))
+        ≤ normalized_circuit_count_upper_bound n s := h_card
+      _ ≤ 2 ^ (s * s + s * n + 5 * s + 1) := h_count_le_2pow
+      _ < 2 ^ (2 ^ n) := by
+          apply Nat.pow_lt_pow_right (by norm_num)
+          exact h_bound
+    -- Now continue with STAGE 4, 5 to prove the existential
+    -- Define the denote map
+    let denote : NormalizedCircuit n (p n) → (Fin n → Bool) → Bool :=
+      fun nc inp => evalCircuit (normalizedToRaw nc) inp
+    -- Show |NormalizedCircuit n (p n)| < |(Fin n → Bool) → Bool|
+    have h_lt : Fintype.card (NormalizedCircuit n (p n)) < 
+                Fintype.card ((Fin n → Bool) → Bool) := by
+      have h_func_card : Fintype.card ((Fin n → Bool) → Bool) = 2 ^ (2 ^ n) := by
+        rw [Fintype.card_fun, Fintype.card_fun, Fintype.card_fin, Fintype.card_bool]
+      rw [h_func_card]
+      exact h_card_lt
+    -- Apply pigeonhole: denote is not surjective
+    have h_not_surj : ¬ Function.Surjective denote := by
+      intro hs
+      have := Fintype.card_le_of_surjective denote hs
+      linarith [h_lt]
+    -- Extract the missing function f
+    simp only [Function.Surjective, not_forall] at h_not_surj
+    obtain ⟨f, hf⟩ := h_not_surj
+    use f
+    -- STAGE 5: Connect back to BoolCircuit
+    intro c h_size
+    let nc := normalizeCircuit c h_size
+    have h_denote_eq : (fun inp => evalCircuit (normalizedToRaw nc) inp) =
+                       (fun inp => evalCircuit c inp) := by
+      funext inp
+      exact evalCircuit_normalizeCircuit c h_size inp
+    have h_neq : (fun inp => evalCircuit c inp) ≠ f := by
+      -- We have hf : ¬∃ a, denote a = f
+      -- This means ∀ a, denote a ≠ f
+      have : ∀ a, denote a ≠ f := by
+        intro a ha
+        apply hf
+        exact ⟨a, ha⟩
+      -- Now use this on nc
+      rw [← h_denote_eq]
+      exact this nc
+    by_contra h_all_eq
+    push_neg at h_all_eq
+    apply h_neq
+    funext inp
+    exact h_all_eq inp
   · -- k ≥ 1: use the existing poly_quadratic_bound approach
     -- For k ≥ 1, we have n ≤ c * n^k + c (when c ≥ 1, n ≥ 1, k ≥ 1)
     have hk1 : k ≥ 1 := Nat.pos_of_ne_zero hk0
