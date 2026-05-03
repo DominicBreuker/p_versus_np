@@ -1385,105 +1385,50 @@ theorem shannon_counting_argument :
       _ = 2 ^ (s * s + s * n + 5 * s + 1) := by
           congr 1; ring
   -- Step 3.3: The polynomial-exponential bound
-  -- We need: s² + s*n + 5*s + 1 < 2^n where s = p n ≤ c * n ^ k + c
-  -- We use poly_quadratic_bound with 4c instead of c (as suggested in the prompt)
-  have hn_for_poly : n ≥ 100 * k + 4 * c + 100 := by omega
-  have h_poly_bound :
-      (4 * c * n ^ k + 4 * c) ^ 2 + 3 * (4 * c * n ^ k + 4 * c) + 1 < 2 ^ n :=
-    poly_quadratic_bound k (4 * c) n hk_le_4 hn_for_poly
-  -- Now show: s^2 + s*n + 5*s + 1 ≤ (4c·n^k + 4c)² + 3·(4c·n^k + 4c) + 1
-  have h_bound : s ^ 2 + s * n + 5 * s + 1 ≤ (4 * c * n ^ k + 4 * c) ^ 2 + 3 * (4 * c * n ^ k + 4 * c) + 1 := by
-    -- We have s = p n ≤ c * n^k + c
-    -- We need to show: s^2 + s*n + 5*s + 1 ≤ (4c·n^k + 4c)^2 + 3·(4c·n^k + 4c) + 1
-    -- Let's use s ≤ c·n^k + c to bound each term
-    have h_s_le : s ≤ c * n ^ k + c := h_p_le n
-    -- First, show s * n ≤ (c * n^k + c) * n
-    have h_sn : s * n ≤ (c * n ^ k + c) * n := Nat.mul_le_mul_right n h_s_le
-    -- Now we need to bound s * n more carefully
-    -- Split on k = 0 first (as per instructions)
-    by_cases hk0 : k = 0
-    · -- k = 0: constant polynomial case
-      -- When k = 0, we have s ≤ c * n^0 + c = c + c = 2c (constant bound)
-      subst hk0
-      simp only [pow_zero] at h_s_le ⊢
-      -- Now h_s_le : s ≤ c + c = 2 * c
-      -- We need to show: s^2 + s*n + 5*s + 1 ≤ (4c + 4c)^2 + 3*(4c + 4c) + 1
-      --                                 = (8c)^2 + 3*8c + 1 = 64c^2 + 24c + 1
-      -- Simplifying RHS: (4 * c * 1 + 4 * c) = 8c
-      -- So RHS = (8c)^2 + 3*(8c) + 1 = 64c^2 + 24c + 1
-      -- We have n ≥ 100 * 0 + 4 * c + 100 = 4c + 100, so n ≥ 100 when c = 0
-      -- For k = 0, we need a direct constant-degree bound
-      -- Show s ≤ 2c
-      have h_s_le_2c : s ≤ 2 * c := by omega
-      -- Show: s^2 + s*n + 5*s + 1 ≤ 4*c^2 + 6*c + 1
-      -- Wait, let me recalculate. After subst hk0:
-      -- (4 * c * n ^ 0 + 4 * c) = (4 * c * 1 + 4 * c) = 8c
-      -- So RHS = (8c)^2 + 3*(8c) + 1 = 64c^2 + 24c + 1
-      -- But we have s ≤ 2c, so s^2 ≤ 4c^2, etc.
-      -- Actually, let me use the direct approach suggested in instructions:
-      -- 1. show s ≤ 2c
-      -- 2. show exponent is at most 4*n^2 + 6*n + 1
-      -- 3. finish with four_n_squared_plus_six_n_plus_one_lt_two_pow_n
-      have h_s_le_2c : s ≤ 2 * c := by omega
-      -- s^2 + s*n + 5*s + 1 ≤ 4c^2 + 2c*n + 10c + 1 (since s ≤ 2c)
-      have h_bound : s ^ 2 + s * n + 5 * s + 1 ≤ 4 * c ^ 2 + 2 * c * n + 10 * c + 1 := by
-        nlinarith [h_s_le_2c]
-      -- Now we need: 4c^2 + 2cn + 10c + 1 < 2^n
-      -- We have n ≥ 4c + 100, and for k=0 we use n ≥ 196
-      have hn196 : n ≥ 196 := by omega
-      -- First show 4c^2 + 2cn + 10c + 1 ≤ 4n^2 + 6n + 1
-      have h_bound2 : 4 * c ^ 2 + 2 * c * n + 10 * c + 1 ≤ 4 * n ^ 2 + 6 * n + 1 := by
-        have hc_bound : 4 * c ≤ n := by omega
-        nlinarith [hc_bound, show n ≥ 1 from by omega]
-      -- Then use 4n^2 + 6n + 1 < 2^n for n ≥ 196
-      have h_4n2_lt : 4 * n ^ 2 + 6 * n + 1 < 2 ^ n := four_n_squared_plus_six_n_plus_one_lt_two_pow_n n hn196
-      -- Prove directly: s^2 + sn + 5s + 1 ≤ (4c*1 + 4c)^2 + 3*(4c*1 + 4c) + 1 = (8c)^2 + 3*8c + 1
-      -- We use direct computation for the k=0 case
-      -- After subst hk0, the goal is: s^2 + sn + 5s + 1 ≤ 64c^2 + 24c + 1
-      -- We have s ≤ 2c and n ≥ 4c + 100, so s*n ≤ 2c(4c + 100) = 8c^2 + 200c
-      -- Also s^2 ≤ (2c)^2 = 4c^2 and 5s ≤ 10c
-      -- So: s^2 + sn + 5s + 1 ≤ 4c^2 + (8c^2 + 200c) + 10c + 1 = 12c^2 + 210c + 1
-      -- We need: 12c^2 + 210c + 1 ≤ 64c^2 + 24c + 1
-      -- Which is: 0 ≤ 52c^2 - 186c, i.e., 0 ≤ 26c^2 - 93c, i.e., 0 ≤ c(26c - 93)
-      -- This holds when c = 0 or c ≥ 4 (since 26*4 - 93 = 104 - 93 = 11 ≥ 0)
-      -- For c = 1: 26 - 93 = -67 < 0, so we need different approach
-      -- For c = 2: 104 - 186 = -82 < 0
-      -- For c = 3: 234 - 279 = -45 < 0
-      -- For c = 4: 416 - 372 = 44 ≥ 0
-      --
-      -- The hint says we should NOT force the k≥1 style. So let's use h_4n2_lt:
-      -- We know: s^2 + sn + 5s + 1 ≤ 4n^2 + 6n + 1 < 2^n for n ≥ 196
-      -- Since 4n^2 + 6n + 1 < 2^n, in particular any value ≤ 4n^2 + 6n + 1 is also < 2^n
-      -- But our goal is ≤ (8c)^2 + 3*8c + 1 = 64c^2 + 24c + 1
-      -- We cannot prove this for c = 1,2,3 as shown above.
-      --
-      -- RECONSIDER: Maybe we need to use a DIFFERENT h_poly_bound_k0
-      -- Or perhaps the prompt expects us to use four_n_squared_plus_six_n_plus_one_lt_two_pow_n
-      -- to show: 4n^2 + 6n + 1 < 2^n
-      -- And then since s^2 + sn + 5s + 1 ≤ 4n^2 + 6n + 1, we have < 2^n
-      -- And < implies ≤, so we can use h_poly_bound_k0 := h_4n2_lt
-      sorry
-    · -- k ≥ 1
-      -- For k ≥ 1, we proceed with the existing strategy
-      have hk1 : k ≥ 1 := Nat.pos_of_ne_zero hk0
-      -- Now handle c = 0
+  -- Split at the top: k = 0 needs different handling
+  by_cases hk0 : k = 0
+  · -- k = 0: constant polynomial case
+    -- For k=0, we directly use four_n_squared_plus_six_n_plus_one_lt_two_pow_n
+    subst hk0
+    simp only [pow_zero] at h_p_le ⊢
+    -- Now h_p_le : ∀ n, p n ≤ c * 1 + c = 2c
+    -- Show: s^2 + s*n + 5*s + 1 < 2^n
+    have h_s_le : s ≤ 2 * c := h_p_le n
+    have h_s_le_n : s ≤ n := by omega
+    calc s ^ 2 + s * n + 5 * s + 1
+        ≤ 4 * n ^ 2 + 6 * n + 1 := by nlinarith [h_s_le_n]
+      _ < 2 ^ n := by
+          -- Use four_n_squared_plus_six_n_plus_one_lt_two_pow_n
+          have hn196 : n ≥ 196 := by omega
+          exact four_n_squared_plus_six_n_plus_one_lt_two_pow_n n hn196
+  · -- k ≥ 1: use the existing poly_quadratic_bound approach
+    -- For k ≥ 1, we have n ≤ c * n^k + c (when c ≥ 1, n ≥ 1, k ≥ 1)
+    have hk1 : k ≥ 1 := Nat.pos_of_ne_zero hk0
+    have hn_for_poly : n ≥ 100 * k + 4 * c + 100 := by omega
+    have h_poly_bound :
+        (4 * c * n ^ k + 4 * c) ^ 2 + 3 * (4 * c * n ^ k + 4 * c) + 1 < 2 ^ n :=
+      poly_quadratic_bound k (4 * c) n hk_le_4 hn_for_poly
+    -- Now show: s^2 + s*n + 5*s + 1 ≤ (4c·n^k + 4c)² + 3·(4c·n^k + 4c) + 1
+    have h_bound : s ^ 2 + s * n + 5 * s + 1 ≤ (4 * c * n ^ k + 4 * c) ^ 2 + 3 * (4 * c * n ^ k + 4 * c) + 1 := by
+      -- We have s = p n ≤ c * n^k + c
+      -- We need to show: s^2 + s*n + 5*s + 1 ≤ (4c·n^k + 4c)^2 + 3·(4c·n^k + 4c) + 1
+      -- Let's use s ≤ c·n^k + c to bound each term
+      have h_s_le : s ≤ c * n ^ k + c := h_p_le n
+      -- Handle c = 0
       by_cases hc : c = 0
       · -- If c = 0, then s ≤ 0, so s = 0
         subst hc
-        simp only [mul_zero, zero_add, pow_zero, mul_one, zero_pow, zero_mul, add_zero,
+        simp only [mul_zero, zero_add, zero_pow, zero_mul, add_zero,
           Nat.zero_le, true_and] at h_s_le ⊢
         simp [Nat.eq_zero_of_le_zero h_s_le]
       · -- c ≥ 1
         have hc_pos : c ≥ 1 := Nat.one_le_iff_ne_zero.mpr hc
         -- For n ≥ 200 (which we have from hn), we can show n ≤ c * n^k + c
-        have hn_large : n ≥ 200 := by omega
         have hn_le : n ≤ c * n ^ k + c := by
           -- For k ≥ 1, we have n^k ≥ n, so c * n^k ≥ c * n ≥ n (when c ≥ 1, n ≥ 1)
           nlinarith [hc_pos, show n ^ k ≥ n from Nat.le_self_pow (by omega) n]
         -- Now we have s ≤ c * n^k + c and n ≤ c * n^k + c
-        -- So s + n ≤ 2 * (c * n^k + c)
-        -- And s ≤ c * n^k + c
-        -- Therefore: s^2 + s*n + 5*s + 1 ≤ (c*n^k + c) * (s + n + 5) + 1
+        -- So s^2 + s*n + 5*s + 1 ≤ (c*n^k + c) * (s + n + 5) + 1
         --                             ≤ (c*n^k + c) * ((c*n^k + c) + n + 5) + 1
         calc s ^ 2 + s * n + 5 * s + 1
             ≤ s * (s + n + 5) + 1 := by ring_nf; omega
@@ -1499,7 +1444,6 @@ theorem shannon_counting_argument :
               -- We directly show: (c*n^k + c)*((c*n^k + c) + n + 5) + 1 ≤ (4c*n^k + 4c)^2 + 3*(4c*n^k + 4c) + 1
               nlinarith [sq_nonneg (c * n ^ k), sq_nonneg (c * n ^ k - n ^ k), sq_nonneg (c - 1), sq_nonneg (n ^ k - 1),
                 h_s_le, hn_le, hc_pos]
-  -- Combine to get the counting inequality
   have h_card_lt : Fintype.card (NormalizedCircuit n (p n)) < 2 ^ (2 ^ n) := by
     calc Fintype.card (NormalizedCircuit n (p n))
         ≤ normalized_circuit_count_upper_bound n s := h_card
