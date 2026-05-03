@@ -109,7 +109,7 @@ INSERT immediately above the `axiom base_pow_lt_two_pow` declaration:
 
 POSSIBLE FAILURES:
   - `Nat.mul_le_mul_left` signature varies: it may be
-    `Nat.mul_le_mul_left (k : ℕ) {m n : ℕ} (h : m ≤ n) : k * m ≤ k * n`
+    `Nat.mul_le_mul_left (k : ℕ) {{m n : ℕ}} (h : m ≤ n) : k * m ≤ k * n`
     in which case the call needs an explicit k:
         Nat.mul_le_mul_left 4 ih
     Or it may be the generic mul_le_mul_left' from ordered semirings.
@@ -167,7 +167,7 @@ POSSIBLE FAILURES:
     `#check @Nat.pow_le_pow_left` and adapt.
   - `Nat.pow_lt_pow_right` might be:
         Nat.pow_lt_pow_right : 1 < b → n < m → b^n < b^m
-    OR (older): Nat.pow_lt_pow_right (h : 1 < b) {n m : ℕ} (h' : n < m) ...
+    OR (older): Nat.pow_lt_pow_right (h : 1 < b) {{n m : ℕ}} (h' : n < m) ...
     OR: pow_lt_pow_right_of_lt_one (irrelevant — that's for b<1).
     If neither works, the equivalent form is:
         Nat.pow_lt_pow_right_of_lt or pow_lt_pow_right
