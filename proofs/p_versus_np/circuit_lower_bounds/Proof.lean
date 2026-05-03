@@ -1007,29 +1007,36 @@ private theorem n_pow_lt_two_pow_n (D n : Nat) (hn : n ≥ 4 * D * D + 8) :
         _ < 2 * 2 ^ n := by linarith [ih]
         _ = 2 ^ (n + 1) := by rw [pow_succ]; ring
 
+def poly_threshold (k c : Nat) : Nat := 4 * (2 * k + 7) ^ 2 + 8 + c
+
 private theorem poly_quadratic_bound_k_ge_1 (k c n : Nat) (hk : k ≥ 1) (hc : c ≥ 1)
-    (hk_max : k ≤ 4) (hn : n ≥ 100 * k + c + 100) :
+    (hn : n ≥ poly_threshold k c) :
     (c * n ^ k + c) ^ 2 + 3 * (c * n ^ k + c) + 1 < 2 ^ n := by
-  have hn200 : n ≥ 200 := by omega
   cases k with
   | zero => omega
   | succ k =>
     cases k with
     | zero =>
       simp at hn ⊢
-      have hc_bound : c ≤ n - 200 := by omega
+      have hc_bound : c ≤ n - 332 := by
+        have : n ≥ 332 + c := by
+          simp only [poly_threshold] at hn
+          omega
+        have : n - 332 ≥ c := by omega
+        omega
       have h_poly_bound : c * n + c ≤ n ^ 2 + n := by
-        have h1 : c ≤ n - 200 := hc_bound
-        have h2 : c * (n + 1) ≤ (n - 200) * (n + 1) := Nat.mul_le_mul_right (n + 1) h1
-        have h3 : (n - 200) * (n + 1) ≤ n * (n + 1) := by
+        have h1 : c ≤ n - 332 := hc_bound
+        have h2 : c * (n + 1) ≤ (n - 332) * (n + 1) := Nat.mul_le_mul_right (n + 1) h1
+        have h3 : (n - 332) * (n + 1) ≤ n * (n + 1) := by
           apply Nat.mul_le_mul_right
-          have : n ≥ 200 := by omega
-          exact Nat.sub_le n 200
+          have : n ≥ 332 := by omega
+          exact Nat.sub_le n 332
         have h4 : n * (n + 1) = n ^ 2 + n := by ring
         calc c * n + c = c * (n + 1) := by ring
-          _ ≤ (n - 200) * (n + 1) := h2
+          _ ≤ (n - 332) * (n + 1) := h2
           _ ≤ n * (n + 1) := h3
           _ = n ^ 2 + n := h4
+      have hn200 : n ≥ 200 := by omega
       have h_target : (n ^ 2 + n) ^ 2 + 3 * (n ^ 2 + n) + 1 < 2 ^ n := 
         n_squared_plus_n_quartic_lt_two_pow_n_200 n hn200
       have h_mono : ∀ x y : Nat, x ≤ y → x ^ 2 + 3 * x + 1 ≤ y ^ 2 + 3 * y + 1 := by
@@ -1051,8 +1058,10 @@ private theorem poly_quadratic_bound_k_ge_1 (k c n : Nat) (hk : k ≥ 1) (hc : c
           ≤ (n ^ 2 + n) ^ 2 + 3 * (n ^ 2 + n) + 1 := h_mono (c * n + c) (n ^ 2 + n) h_poly_bound
         _ < 2 ^ n := h_target
     | succ k =>
-      have hc_lt_n : c < n := by omega
       have hn_ge : n ≥ 1 := by omega
+      have hc_lt_n : c < n := by
+        unfold poly_threshold at hn
+        omega
       -- (i) c * n^(k+2) + c ≤ n^(k+3)
       have h_coeff : c * n ^ (k + 2) + c ≤ n ^ (k + 3) := by
         have h_pow_ge : n ^ (k + 2) ≥ n := by
@@ -1093,19 +1102,7 @@ private theorem poly_quadratic_bound_k_ge_1 (k c n : Nat) (hk : k ≥ 1) (hc : c
         nlinarith [h_n3, h_pow_ge_3, h_pow_sq_ge]
       -- (iii) n^(2*(k+2)+3) < 2^n via the main lemma.
       have hn_for_main : n ≥ 4 * (2 * (k + 2) + 3) * (2 * (k + 2) + 3) + 8 := by
-        -- For k ∈ {0, 1, 2}: this holds since 100*(k+2) grows linearly
-        cases k with
-        | zero => nlinarith [hn, show c ≥ 0 from Nat.zero_le c]
-        | succ k' =>
-          cases k' with
-          | zero => nlinarith [hn, show c ≥ 0 from Nat.zero_le c]
-          | succ k'' =>
-            cases k'' with
-            | zero => nlinarith [hn, show c ≥ 0 from Nat.zero_le c]
-            | succ k''' =>
-              -- k ≥ 3, the quadratic bound doesn't work (original k ≥ 5+2=7?)
-              -- But we have hk_max : k ≤ 4, so this case is unreachable!
-              omega
+        omega
       have h_step_iii : n ^ (2 * (k + 2) + 3) < 2 ^ n :=
         n_pow_lt_two_pow_n (2 * (k + 2) + 3) n hn_for_main
       linarith [h_step_ii, h_to_single_pow, h_step_iii]
@@ -1158,7 +1155,7 @@ private theorem poly_quadratic_bound_k0 (c : Nat) (n : Nat) (hn : n ≥ 2 * c + 
             · omega
   exact h_helper c
 
-private theorem poly_quadratic_bound (k c : Nat) (n : Nat) (hk_max : k ≤ 4) (hn : n ≥ 100 * k + c + 100) :
+private theorem poly_quadratic_bound (k c : Nat) (n : Nat) (hn : n ≥ poly_threshold k c) :
     (c * n ^ k + c) ^ 2 + 3 * (c * n ^ k + c) + 1 < 2 ^ n := by
   by_cases hk : k = 0
   · subst hk
@@ -1201,18 +1198,19 @@ private theorem poly_quadratic_bound (k c : Nat) (n : Nat) (hk_max : k ≤ 4) (h
     exact Nat.pos_iff_ne_zero.mp hn1
   · push Not at hc0
     have hc1 : c ≥ 1 := Nat.pos_of_ne_zero hc0
-    exact poly_quadratic_bound_k_ge_1 k c n hk1 hc1 hk_max hn
+    exact poly_quadratic_bound_k_ge_1 k c n hk1 hc1 hn
 
 /-- Shannon's counting argument: For any polynomial p, there exist Boolean functions
     on n inputs not computable by circuits of size ≤ p(n) -/
 theorem shannon_counting_argument :
     ∀ (p : Nat → Nat) (hp : IsPolynomial p),
-    (∃ k c : Nat, k ≤ 4 ∧ ∀ n, p n ≤ c * n ^ k + c) →
+    (∃ k c : Nat, ∀ n, p n ≤ c * n ^ k + c) →
     ∃ n₀ : Nat, ∀ n ≥ n₀, ∃ (f : (Fin n → Bool) → Bool),
       ∀ (c : BoolCircuit n), circuitSize c ≤ p n → ∃ inp : Fin n → Bool, evalCircuit c inp ≠ f inp := by
   intro p hp hk_bound
-  obtain ⟨k, c, hk_le_4, h_p_le⟩ := hk_bound
-  refine ⟨100 * k + 4 * c + 200, ?_⟩
+  -- Extract the bound from hk_bound (without k ≤ 4 constraint)
+  obtain ⟨k, c, h_p_le⟩ := hk_bound
+  refine ⟨poly_threshold k c + 200, ?_⟩
   intro n hn
   have h_card : Fintype.card (NormalizedCircuit n (p n)) ≤
                 normalized_circuit_count_upper_bound n (p n) :=
@@ -1289,10 +1287,10 @@ theorem shannon_counting_argument :
     funext inp
     exact h_all_eq inp
   · have hk1 : k ≥ 1 := Nat.pos_of_ne_zero hk0
-    have hn_for_poly : n ≥ 100 * k + 4 * c + 100 := by omega
+    have hn_for_poly : n ≥ poly_threshold k c := by omega
     have h_poly_bound :
         (4 * c * n ^ k + 4 * c) ^ 2 + 3 * (4 * c * n ^ k + 4 * c) + 1 < 2 ^ n :=
-      poly_quadratic_bound k (4 * c) n hk_le_4 hn_for_poly
+      poly_quadratic_bound k (4 * c) n hn_for_poly
     have h_bound : s * s + s * n + 5 * s + 1 ≤ (4 * c * n ^ k + 4 * c) ^ 2 + 3 * (4 * c * n ^ k + 4 * c) + 1 := by
       have h_s_le : s ≤ c * n ^ k + c := h_p_le n
       by_cases hc : c = 0
