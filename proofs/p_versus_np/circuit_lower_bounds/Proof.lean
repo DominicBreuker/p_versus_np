@@ -1398,20 +1398,22 @@ theorem shannon_counting_argument :
       simp [pow_zero] at this
       omega
     have h_s_le_n : s ≤ n := by omega
-    have h_bound : s ^ 2 + s * n + 5 * s + 1 < 2 ^ n := by
-      calc s ^ 2 + s * n + 5 * s + 1
-          ≤ 4 * n ^ 2 + 6 * n + 1 := by nlinarith [h_s_le_n]
+    have h_bound : s * s + s * n + 5 * s + 1 < 2 ^ n := by
+      calc s * s + s * n + 5 * s + 1
+          = s ^ 2 + s * n + 5 * s + 1 := by ring
+        _ ≤ 4 * n ^ 2 + 6 * n + 1 := by nlinarith [h_s_le_n]
         _ < 2 ^ n := by
             -- Use four_n_squared_plus_six_n_plus_one_lt_two_pow_n
             have hn196 : n ≥ 196 := by omega
             exact four_n_squared_plus_six_n_plus_one_lt_two_pow_n n hn196
     -- Prove: Fintype.card (NormalizedCircuit n (p n)) < 2 ^ (2 ^ n)
-    calc Fintype.card (NormalizedCircuit n (p n))
-        ≤ normalized_circuit_count_upper_bound n s := h_card
-      _ ≤ 2 ^ (s * s + s * n + 5 * s + 1) := h_count_le_2pow
-      _ < 2 ^ (2 ^ n) := by
-          apply Nat.pow_lt_pow_right (by norm_num)
-          exact h_bound
+    have h_card_lt : Fintype.card (NormalizedCircuit n (p n)) < 2 ^ (2 ^ n) := by
+      calc Fintype.card (NormalizedCircuit n (p n))
+          ≤ normalized_circuit_count_upper_bound n s := h_card
+        _ ≤ 2 ^ (s * s + s * n + 5 * s + 1) := h_count_le_2pow
+        _ < 2 ^ (2 ^ n) := by
+            apply Nat.pow_lt_pow_right (by norm_num)
+            exact h_bound
     -- Now continue with STAGE 4, 5 to prove the existential
     -- Define the denote map
     let denote : NormalizedCircuit n (p n) → (Fin n → Bool) → Bool :=
@@ -1462,7 +1464,7 @@ theorem shannon_counting_argument :
         (4 * c * n ^ k + 4 * c) ^ 2 + 3 * (4 * c * n ^ k + 4 * c) + 1 < 2 ^ n :=
       poly_quadratic_bound k (4 * c) n hk_le_4 hn_for_poly
     -- Now show: s^2 + s*n + 5*s + 1 ≤ (4c·n^k + 4c)² + 3·(4c·n^k + 4c) + 1
-    have h_bound : s ^ 2 + s * n + 5 * s + 1 ≤ (4 * c * n ^ k + 4 * c) ^ 2 + 3 * (4 * c * n ^ k + 4 * c) + 1 := by
+    have h_bound : s * s + s * n + 5 * s + 1 ≤ (4 * c * n ^ k + 4 * c) ^ 2 + 3 * (4 * c * n ^ k + 4 * c) + 1 := by
       -- We have s = p n ≤ c * n^k + c
       -- We need to show: s^2 + s*n + 5*s + 1 ≤ (4c·n^k + 4c)^2 + 3·(4c·n^k + 4c) + 1
       -- Let's use s ≤ c·n^k + c to bound each term
@@ -1471,8 +1473,7 @@ theorem shannon_counting_argument :
       by_cases hc : c = 0
       · -- If c = 0, then s ≤ 0, so s = 0
         subst hc
-        simp only [mul_zero, zero_add, zero_pow, zero_mul, add_zero,
-          Nat.zero_le, true_and] at h_s_le ⊢
+        simp only [mul_zero, add_zero, zero_pow, zero_mul] at h_s_le ⊢
         simp [Nat.eq_zero_of_le_zero h_s_le]
       · -- c ≥ 1
         have hc_pos : c ≥ 1 := Nat.one_le_iff_ne_zero.mpr hc
@@ -1483,8 +1484,9 @@ theorem shannon_counting_argument :
         -- Now we have s ≤ c * n^k + c and n ≤ c * n^k + c
         -- So s^2 + s*n + 5*s + 1 ≤ (c*n^k + c) * (s + n + 5) + 1
         --                             ≤ (c*n^k + c) * ((c*n^k + c) + n + 5) + 1
-        calc s ^ 2 + s * n + 5 * s + 1
-            ≤ s * (s + n + 5) + 1 := by ring_nf; omega
+        calc s * s + s * n + 5 * s + 1
+            = s ^ 2 + s * n + 5 * s + 1 := by ring
+          _ ≤ s * (s + n + 5) + 1 := by ring_nf; omega
           _ ≤ (c * n ^ k + c) * (s + n + 5) + 1 := by
               have : s * (s + n + 5) ≤ (c * n ^ k + c) * (s + n + 5) := Nat.mul_le_mul_right (s + n + 5) h_s_le
               exact Nat.add_le_add_right this 1
@@ -1497,62 +1499,59 @@ theorem shannon_counting_argument :
               -- We directly show: (c*n^k + c)*((c*n^k + c) + n + 5) + 1 ≤ (4c*n^k + 4c)^2 + 3*(4c*n^k + 4c) + 1
               nlinarith [sq_nonneg (c * n ^ k), sq_nonneg (c * n ^ k - n ^ k), sq_nonneg (c - 1), sq_nonneg (n ^ k - 1),
                 h_s_le, hn_le, hc_pos]
-  have h_card_lt : Fintype.card (NormalizedCircuit n (p n)) < 2 ^ (2 ^ n) := by
-    calc Fintype.card (NormalizedCircuit n (p n))
-        ≤ normalized_circuit_count_upper_bound n s := h_card
-      _ ≤ 2 ^ (s * s + s * n + 5 * s + 1) := h_count_le_2pow
-      _ ≤ 2 ^ ((4 * c * n ^ k + 4 * c) ^ 2 + 3 * (4 * c * n ^ k + 4 * c) + 1) := by
-          apply Nat.pow_le_pow_right (by norm_num)
-          -- Convert s*s to s^2
-          show s * s + s * n + 5 * s + 1 ≤ (4 * c * n ^ k + 4 * c) ^ 2 + 3 * (4 * c * n ^ k + 4 * c) + 1
-          convert h_bound using 2
-          ring
-      _ < 2 ^ (2 ^ n) := by
-          apply Nat.pow_lt_pow_right (by norm_num)
-          exact h_poly_bound
-  -- STAGE 4: Pigeonhole to extract the witness function
-  -- Define the denote map
-  let denote : NormalizedCircuit n (p n) → (Fin n → Bool) → Bool :=
-    fun nc inp => evalCircuit (normalizedToRaw nc) inp
-  -- Show |NormalizedCircuit n (p n)| < |(Fin n → Bool) → Bool|
-  have h_lt : Fintype.card (NormalizedCircuit n (p n)) < 
-              Fintype.card ((Fin n → Bool) → Bool) := by
-    have h_func_card : Fintype.card ((Fin n → Bool) → Bool) = 2 ^ (2 ^ n) := by
-      rw [Fintype.card_fun, Fintype.card_fun, Fintype.card_fin, Fintype.card_bool]
-    rw [h_func_card]
-    exact h_card_lt
-  -- Apply pigeonhole: denote is not surjective
-  have h_not_surj : ¬ Function.Surjective denote := by
-    intro hs
-    have := Fintype.card_le_of_surjective denote hs
-    linarith [h_lt]
-  -- Extract the missing function f
-  -- push_neg at h_not_surj
-  simp only [Function.Surjective, not_forall] at h_not_surj
-  obtain ⟨f, hf⟩ := h_not_surj
-  use f
-  -- STAGE 5: Connect back to BoolCircuit
-  intro c h_size
-  let nc := normalizeCircuit c h_size
-  have h_denote_eq : (fun inp => evalCircuit (normalizedToRaw nc) inp) =
-                     (fun inp => evalCircuit c inp) := by
+    -- Prove: Fintype.card (NormalizedCircuit n (p n)) < 2 ^ (2 ^ n)
+    have h_card_lt : Fintype.card (NormalizedCircuit n (p n)) < 2 ^ (2 ^ n) := by
+      calc Fintype.card (NormalizedCircuit n (p n))
+          ≤ normalized_circuit_count_upper_bound n s := h_card
+        _ ≤ 2 ^ (s * s + s * n + 5 * s + 1) := h_count_le_2pow
+        _ ≤ 2 ^ ((4 * c * n ^ k + 4 * c) ^ 2 + 3 * (4 * c * n ^ k + 4 * c) + 1) := by
+            apply Nat.pow_le_pow_right (by norm_num)
+            exact h_bound
+        _ < 2 ^ (2 ^ n) := by
+            apply Nat.pow_lt_pow_right (by norm_num)
+            exact h_poly_bound
+    -- Now continue with STAGE 4, 5 to prove the existential
+    -- Define the denote map
+    let denote : NormalizedCircuit n (p n) → (Fin n → Bool) → Bool :=
+      fun nc inp => evalCircuit (normalizedToRaw nc) inp
+    -- Show |NormalizedCircuit n (p n)| < |(Fin n → Bool) → Bool|
+    have h_lt : Fintype.card (NormalizedCircuit n (p n)) < 
+                Fintype.card ((Fin n → Bool) → Bool) := by
+      have h_func_card : Fintype.card ((Fin n → Bool) → Bool) = 2 ^ (2 ^ n) := by
+        rw [Fintype.card_fun, Fintype.card_fun, Fintype.card_fin, Fintype.card_bool]
+      rw [h_func_card]
+      exact h_card_lt
+    -- Apply pigeonhole: denote is not surjective
+    have h_not_surj : ¬ Function.Surjective denote := by
+      intro hs
+      have := Fintype.card_le_of_surjective denote hs
+      linarith [h_lt]
+    -- Extract the missing function f
+    simp only [Function.Surjective, not_forall] at h_not_surj
+    obtain ⟨f, hf⟩ := h_not_surj
+    use f
+    -- STAGE 5: Connect back to BoolCircuit
+    intro c h_size
+    let nc := normalizeCircuit c h_size
+    have h_denote_eq : (fun inp => evalCircuit (normalizedToRaw nc) inp) =
+                       (fun inp => evalCircuit c inp) := by
+      funext inp
+      exact evalCircuit_normalizeCircuit c h_size inp
+    have h_neq : (fun inp => evalCircuit c inp) ≠ f := by
+      -- We have hf : ¬∃ a, denote a = f
+      -- This means ∀ a, denote a ≠ f
+      have : ∀ a, denote a ≠ f := by
+        intro a ha
+        apply hf
+        exact ⟨a, ha⟩
+      -- Now use this on nc
+      rw [← h_denote_eq]
+      exact this nc
+    by_contra h_all_eq
+    push_neg at h_all_eq
+    apply h_neq
     funext inp
-    exact evalCircuit_normalizeCircuit c h_size inp
-  have h_neq : (fun inp => evalCircuit c inp) ≠ f := by
-    -- We have hf : ¬∃ a, denote a = f
-    -- This means ∀ a, denote a ≠ f
-    have : ∀ a, denote a ≠ f := by
-      intro a ha
-      apply hf
-      exact ⟨a, ha⟩
-    -- Now use this on nc
-    rw [← h_denote_eq]
-    exact this nc
-  by_contra h_all_eq
-  push_neg at h_all_eq
-  apply h_neq
-  funext inp
-  exact h_all_eq inp
+    exact h_all_eq inp
 -- ---------------------------------------------------------------------------
 -- Main conjecture
 -- ---------------------------------------------------------------------------

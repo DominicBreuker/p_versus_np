@@ -7,10 +7,14 @@
   5. Applying pigeonhole to extract witness function f not in image of denote
   6. Connecting back to BoolCircuit via evalCircuit_normalizeCircuit
 - BLOCKER RESOLVED: Used 4c instead of requiring k ≤ 2
-- Remaining sorry: k=0 case in poly-exponential bound (polynomial bound doesn't grow with n)
-  For k=0 (constant polynomial), the counting argument needs nlinarith or separate handling
+- Completed k=0 case in poly-exponential bound by:
+  * Restructuring Stage 3.3 to split at the top on k = 0
+  * For k=0 branch: proving s ≤ n directly, then using four_n_squared_plus_six_n_plus_one_lt_two_pow_n
+  * For k ≥ 1 branch: keeping existing poly_quadratic_bound_k_ge_1 approach
+- Remaining: Finalize proof by addressing unused variable warnings and deprecated push_neg
 Implementation notes:
 - Fixed calc chain in poly_quadratic_bound_k_ge_1  
 - Fixed Fintype.card_fun arithmetic (removed unnecessary ring tactic)
 - Used nlinarith for complex polynomial inequalities requires k ≤ 4 which is not accessible from IsPolynomial
+- Removed duplicate code in k ≥ 1 branch
 - Next step: Address k ≤ 4 requirement (either change theorem signature or use different approach)
