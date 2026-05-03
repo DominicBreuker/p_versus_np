@@ -34,158 +34,194 @@ The command should not time out! If it does, we may have computationally intensi
 
 If the proof is in good shape, your job is to make a material improvement to the proof, working into the following direction (parts may be done already, and note that all code snippets below are unvalidated ideas, there could be mistakes!):
 
+Here is the updated engineer-facing guide, tuned to the proof state you just showed.
 
-## What you should do, in order
+The repository guidance is still pointing at the same core target: close the remaining `sorry` in Stage 3.3, keep the proof moving in small steps, and do not drift into unrelated proof redesign.  The important correction is that you should now treat the current `k = 0` branch as the main obstruction created by the recent edit, and **remove the mixed proof style** that was introduced there.
 
-### 1) Do not start by changing the theorem statement
+# Updated guide for you
 
-The current top-level threshold in `shannon_counting_argument` is
+## 1) Undo the bad structural mix in Stage 3.3
 
-```lean
-refine ⟨100 * k + 4 * c + 200, ?_⟩
-```
+The recent edit did two incompatible things at once:
 
-Leave that alone at first. In the current file, the real issue is **not** the threshold; it is that the proof tries to force a uniform polynomial bound through a case where `k = 0`, and that branch is structurally wrong.
+* it kept the old `k ≥ 1`-style route, where `n ≤ c * n ^ k + c` is used to control `s + n`,
+* but it also inserted a new `k = 0` branch that tries to prove a different kind of bound using the same final shape.
 
-### 2) Treat Stage 3.3 as the real work area
+That combination is what is breaking the proof.
 
-The important block is the one that starts with:
+you should **not** try to salvage the current `k = 0` branch line by line. The branch should be rewritten around a clean goal:
 
-```lean
--- Step 3.3: The polynomial-exponential bound
-```
+* in the `k = 0` branch, prove the exponent is bounded directly by something like `4 * n ^ 2 + 6 * n + 1`,
+* then finish with the existing lemma `four_n_squared_plus_six_n_plus_one_lt_two_pow_n`.
 
-and then defines:
+Do **not** continue trying to prove a bound of the form `s^2 + s*n + 5*s + 1 ≤ 64*c^2 + 24*c + 1` and then somehow convert that to `2^n`. That is the wrong shape for the proof.
 
-```lean
-have hn_for_poly : n ≥ 100 * k + 4 * c + 100 := by omega
-have h_poly_bound :
-    (4 * c * n ^ k + 4 * c) ^ 2 + 3 * (4 * c * n ^ k + 4 * c) + 1 < 2 ^ n :=
-  poly_quadratic_bound k (4 * c) n hk_le_4 hn_for_poly
-```
+## 2) Split Stage 3.3 at the top, not inside a later lemma
 
-That part is actually a good shape. The problem starts after that, inside the proof of `h_bound`.
+The current failure mode comes from splitting too late.
 
-### 3) Move the `k = 0` split outward
-
-Right now, the file tries to prove everything under one `h_bound`, and only later notices that `k = 0` is special. That is too late.
-
-You should rewrite Stage 3.3 so that the proof does this first:
+you should structure Stage 3.3 like this:
 
 ```lean
 by_cases hk0 : k = 0
+· -- k = 0 branch: direct polynomial-vs-exponential argument
+· -- k ≥ 1 branch: use the existing `poly_quadratic_bound` strategy
 ```
 
-and then prove two separate branches:
+This split should happen **before** trying to prove the key auxiliary inequality `h_bound`.
 
-* `hk0 : k = 0`
-* `hk0 : k ≠ 0`, from which `hk_pos : k ≥ 1` follows
+That is the main lesson from the failed edit: do not first build a `k`-agnostic proof object and only afterward discover that `k = 0` needs a different argument.
 
-This is the main structural fix. Do **not** try to salvage the current `sorry` by proving `n ≤ 2 * c` or anything similar in the `k = 0` branch. That inequality is simply not available from the current hypotheses.
+## 3) In the `k = 0` branch, use `n`, not `c`, as the comparison variable
 
-### 4) In the `k = 0` branch, use a direct constant-degree bound
+The current `k = 0` branch is spending time on `c`-dependent expressions like `64*c^2 + 24*c + 1`. That is a dead end.
 
-This branch should be handled in a very concrete way:
+A better route is:
 
-* `subst hk0`
-* use `h_p_le n` to get a bound of the form `s ≤ 2 * c`
-* use the fact that the top-level threshold gives `n ≥ 4 * c + 200`, hence `4 * c ≤ n` and also `n ≥ 196`
-* prove the exponent bound by comparing to a simple polynomial in `n`, then use the existing helper
+1. `subst hk0`
+2. use `h_p_le n` to get `s ≤ 2 * c`
+3. use the threshold `n ≥ 4 * c + 100` to deduce `2 * c ≤ n`
+4. conclude `s ≤ n`
+5. prove
+   [
+   s^2 + s*n + 5*s + 1 \le 4*n^2 + 6*n + 1
+   ]
+6. apply `four_n_squared_plus_six_n_plus_one_lt_two_pow_n`
+
+That is the cleanest path.
+
+### Why this is better
+
+The current branch is trying to prove an inequality in terms of `c`, but the final exponential lemma is in terms of `n`. That mismatch is exactly why the proof gets stuck.
+
+Once you switch to `s ≤ n`, the arithmetic becomes much more stable:
+
+* `s^2 ≤ n^2`
+* `s*n ≤ n^2`
+* `5*s ≤ 5*n`
+
+Then the left side is clearly at most `2*n^2 + 5*n + 1`, which is safely below `4*n^2 + 6*n + 1`.
+
+### Concrete target sublemma
+
+you should aim to prove something of this form:
 
 ```lean
-four_n_squared_plus_six_n_plus_one_lt_two_pow_n
+have hs_le_n : s ≤ n := by
+  -- from h_p_le n and hn
 ```
 
-This is the right endpoint for the `k = 0` branch. You should not try to force the `k ≥ 1` style argument here, because the `n ≤ c * n ^ k + c` step collapses when `k = 0`.
+and then finish with a short `calc` chain, not a giant `nlinarith`.
 
-A good concrete target for this branch is:
+## 4) In the `k ≥ 1` branch, keep the current shape, but simplify the `n ≤ c * n ^ k + c` proof
 
-1. show `s ≤ 2 * c`,
-2. show the exponent is at most `4 * n ^ 2 + 6 * n + 1`,
-3. finish with `four_n_squared_plus_six_n_plus_one_lt_two_pow_n`.
+The current `k ≥ 1` branch is much closer to workable, but it still has a fragile step:
 
-If the arithmetic is messy, split it into a standalone local lemma in the proof file and keep it linear.
+```lean
+have hn_le : n ≤ c * n ^ k + c := by
+  ...
+```
 
-### 5) In the `k ≥ 1` branch, keep the current `x := c * n ^ k + c` strategy
+you should **not** prove this with a vague `nlinarith` over a `Nat` power statement. That is likely to fail or become unstable.
 
-This branch is much closer to being workable. The current proof already tries to do the right thing:
+Instead:
 
-* handle `c = 0` separately,
-* then assume `c ≥ 1`,
-* then derive `n ≤ c * n ^ k + c`,
-* then bound `s^2 + s*n + 5*s + 1` by a polynomial in `c * n ^ k + c`,
-* then apply `poly_quadratic_bound`.
+* first prove `1 ≤ c` from `hc : c ≠ 0`,
+* then prove `n ≤ n ^ k` for `k ≥ 1` and `n ≥ 1` using an explicit lemma or an induction-based helper,
+* then derive `n ≤ c * n ^ k ≤ c * n ^ k + c`.
 
-That is the correct overall shape.
+If no library lemma is immediately available for `n ≤ n ^ k`, search before inventing a complicated argument.
 
-The main improvement You should make here is to avoid relying on a brittle `nlinarith` call for the crucial `n ≤ c * n ^ k + c` step. That step should be proven by an explicit monotonicity argument, not by hoping arithmetic automation understands powers of naturals.
+### Practical warning
 
-### 6) Use explicit monotonicity lemmas for powers
+The line
 
-The likely Lean obstacle here is that `nlinarith` will not reason well about `Nat` powers. You should search for or build a small helper lemma proving something like:
+```lean
+nlinarith [hc_pos, show n ^ k ≥ n from Nat.le_self_pow (by omega) n]
+```
 
-* if `k ≥ 1`, then `n ≤ n ^ k`,
-* and if `c ≥ 1`, then `n ≤ c * n ^ k + c`
+is very likely not valid as written. It tries to use a power lemma in a way Lean probably will not accept, and even if it parses, `nlinarith` is the wrong tool for a goal that still contains `Nat` exponentiation.
 
-This should be done with `Nat.pow_le_pow_right` or another monotonicity lemma, not by a large `nlinarith` block.
+So you should replace that with:
 
-A good rule is:
+* an explicit monotonicity lemma,
+* or a small helper theorem in the proof file,
+* or a library lemma if one exists.
 
-* use `omega` only after the goal is purely linear,
-* use power lemmas before that,
-* never ask `nlinarith` to discover the behavior of `n ^ k` from scratch.
+## 5) Delete the redundant and contradictory commentary in the branch
 
-### 7) Keep the `c = 0` subcase simple
+The current branch has a lot of internal comments that argue with each other:
 
-In the `k ≥ 1` branch, the current proof already has a `c = 0` split. That is good. You should keep it, but make it minimal:
+* “For k = 0, this becomes…”
+* “For k ≥ 1, we have…”
+* “Actually, let me use the direct approach…”
+* “RECONSIDER…”
 
-* if `c = 0`, then `s = 0` from `h_p_le n`,
-* then the target inequality becomes trivial.
+Those comments are useful as debugging notes, but they should not remain in the final proof branch.
 
-Do not let this subcase sprawl into the main proof.
+you should delete all speculative commentary once the branch structure is fixed. The proof should read like a sequence of verified lemmas, not a scratchpad.
 
-## The biggest likely failure modes
+## 6) Do not try to repair the current `sorry` in place; replace the whole branch
 
-The most likely Lean failures are:
+The right move now is not “fill in the missing line.”
 
-1. trying to prove a false inequality in the `k = 0` case,
-2. using `nlinarith` on a goal that still contains `Nat` powers,
-3. proving a valid inequality in a form that is too awkward for the next lemma,
-4. changing the threshold when it is not actually the blocker.
+The right move is:
 
-The best response to all four is the same: split earlier, simplify the algebraic target, and prove the bounds in smaller lemmas.
+* rewrite the `k = 0` branch as a standalone proof,
+* keep the `k ≥ 1` branch separate,
+* and only then decide whether the final `h_bound` calculation should be expressed as:
 
-## What not to do
+  * a direct `calc` chain,
+  * or a helper lemma about the exponent.
 
-Do not:
+The current `sorry` is a symptom of the branch being the wrong shape.
 
-* patch only the `sorry` without refactoring the `k = 0` branch,
-* replace the current threshold preemptively,
-* rewrite Stage 4 or Stage 5,
-* add new `sorry`s,
-* or keep forcing the same tactic after it has already failed on the same shape.
+## 7) A concrete implementation plan
 
-## Recommended concrete next edit
+Here is the exact order I would tell you to follow:
 
-The next edit should be:
+1. **Locate Stage 3.3** and remove the mixed proof block.
+2. **Add a top-level `by_cases hk0 : k = 0`**.
+3. In the `hk0` branch:
 
-1. introduce `by_cases hk0 : k = 0` in Stage 3.3,
-2. move the current `k = 0` sketch into its own branch,
-3. keep the existing `k ≥ 1` branch with the current `poly_quadratic_bound k (4 * c) n hk_le_4 hn_for_poly`,
-4. remove the old inner `sorry`,
-5. re-run Lean,
-6. only then decide whether any threshold adjustment is actually needed.
+   * `subst hk0`
+   * prove `s ≤ n`
+   * prove `s^2 + s*n + 5*s + 1 ≤ 4*n^2 + 6*n + 1`
+   * finish with `four_n_squared_plus_six_n_one_lt_two_pow_n`
+4. In the `hk0 : k ≠ 0` branch:
 
-## Final target shape
+   * derive `hk_pos : 1 ≤ k`
+   * keep the `c = 0` split
+   * prove `n ≤ c * n ^ k + c` with a clean monotonicity lemma
+   * keep the existing polynomial bound path
+5. **Run Lean immediately** after each branch is completed.
+6. Only if Lean complains about a specific inequality, add a small helper lemma for that exact inequality.
+7. Update `NOTES.md` and `log.txt` to say:
 
-The successful end state should look like this:
+   * the proof was restructured around the `k = 0` / `k ≥ 1` split,
+   * the main remaining obstacle, if any, is the exact monotonicity lemma for `n ≤ n ^ k`,
+   * and the next task is to close the final arithmetic gap.
 
-* Stage 3.3 has two clean branches,
-* the `k = 0` branch ends via a direct polynomial-vs-exponential comparison,
-* the `k ≥ 1` branch uses the existing `poly_quadratic_bound` route,
-* the rest of the theorem stays unchanged.
+## 8) The main assumption to double-check
 
-That is the most realistic path from the current proof to a finished Shannon counting argument.
+The important assumption to verify is this:
+
+> the `k = 0` branch can be closed using a direct comparison to `4*n^2 + 6*n + 1`.
+
+That is the right direction, but you should still check the exact arithmetic shape in Lean before committing to it. The branch should compare the exponent to a polynomial in `n`, not to a polynomial in `c`.
+
+If that comparison is awkward, you should still keep the same strategy but prove a slightly stronger intermediate bound that is easier for Lean to accept.
+
+## 9) The most likely successful version of the proof
+
+The final proof will probably look like this:
+
+* a top-level split on `k = 0`,
+* a direct constant-case argument for `k = 0`,
+* an existing `poly_quadratic_bound`-based argument for `k ≥ 1`,
+* and a short chain of arithmetic lemmas connecting `s` to the comparison term.
+
+That is the simplest path from the current state to a finished Shannon counting argument.
 
 
 Moreover:
