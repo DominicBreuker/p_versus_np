@@ -17,4 +17,14 @@ Implementation notes:
 - Fixed Fintype.card_fun arithmetic (removed unnecessary ring tactic)
 - Used nlinarith for complex polynomial inequalities requires k ≤ 4 which is not accessible from IsPolynomial
 - Removed duplicate code in k ≥ 1 branch
+
+2026-05-03 (Phase 2, Step 2.1-2.3): Completed generalization to arbitrary k
+- Changed poly_quadratic_bound threshold from 100*k + c + 100 to poly_threshold k c = 4*(2k+7)^2 + 8 + c
+- Dropped k ≤ 4 constraint: now IsPolynomial provides c directly without polynomial degree restriction
+- Updated shannon_counting_argument to:
+  * Remove redundant explicit polynomial witness parameter (now extracted from IsPolynomial)
+  * Use poly_threshold k (4c) + 200 as the threshold
+  * Updated k=0 case proof to use linarith instead of omega for bound calculations
+- Unblocked: poly_quadratic_bound now works for arbitrarily large k values
+- Remaining: Remove unused `hp` parameter warning
 - Next step: Address k ≤ 4 requirement (either change theorem signature or use different approach)

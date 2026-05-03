@@ -1268,13 +1268,12 @@ private theorem poly_quadratic_bound (k c : Nat) (n : Nat) (hn : n ≥ poly_thre
     on n inputs not computable by circuits of size ≤ p(n) -/
 theorem shannon_counting_argument :
     ∀ (p : Nat → Nat) (hp : IsPolynomial p),
-    (∃ k c : Nat, ∀ n, p n ≤ c * n ^ k + c) →
     ∃ n₀ : Nat, ∀ n ≥ n₀, ∃ (f : (Fin n → Bool) → Bool),
       ∀ (c : BoolCircuit n), circuitSize c ≤ p n → ∃ inp : Fin n → Bool, evalCircuit c inp ≠ f inp := by
-  intro p hp hk_bound
-  -- Extract the bound from hk_bound (without k ≤ 4 constraint)
-  obtain ⟨k, c, h_p_le⟩ := hk_bound
-  refine ⟨poly_threshold k c + 200, ?_⟩
+  intro p hp
+  -- Extract the bound from IsPolynomial (without k ≤ 4 constraint)
+  obtain ⟨k, c, h_p_le⟩ := hp
+  refine ⟨poly_threshold k (4*c) + 200, ?_⟩
   intro n hn
   have h_card : Fintype.card (NormalizedCircuit n (p n)) ≤
                 normalized_circuit_count_upper_bound n (p n) :=
@@ -1303,20 +1302,20 @@ theorem shannon_counting_argument :
       simp [pow_zero] at this
       omega
     have h_s_le_n : s ≤ n := by
-      -- We have n ≥ poly_threshold 0 c + 200 = 4*11^2 + 8 + c + 200 = 484 + 8 + c + 200 = 692 + c ≥ 692
-      -- And s ≤ 2*c ≤ 2*c + 692 - 2*c = 692 ≤ n
-      have h_threshold : n ≥ poly_threshold 0 c + 200 := hn
-      have : poly_threshold 0 c = 484 + c := by simp [poly_threshold]; norm_num
-      omega
+      -- We have n ≥ poly_threshold 0 (4*c) + 200 = 204 + 4c + 200 = 404 + 4c
+      -- We want to show s ≤ n, where s ≤ 2c and n ≥ 404 + 4c
+      -- Clearly 2c ≤ 404 + 4c, so s ≤ 2c ≤ n. Use linarith to handle this.
+      simp only [poly_threshold] at hn
+      linarith [h_s_le, hn]
     have h_bound : s * s + s * n + 5 * s + 1 < 2 ^ n := by
       calc s * s + s * n + 5 * s + 1
           = s ^ 2 + s * n + 5 * s + 1 := by ring
         _ ≤ 4 * n ^ 2 + 6 * n + 1 := by nlinarith [h_s_le_n]
         _ < 2 ^ n := by
             have hn196 : n ≥ 196 := by
-              have h_threshold : n ≥ poly_threshold 0 c + 200 := hn
+              have h_threshold : n ≥ poly_threshold 0 (4*c) + 200 := hn
               simp only [poly_threshold] at h_threshold
-              omega
+              linarith
             exact four_n_squared_plus_six_n_plus_one_lt_two_pow_n n hn196
     have h_card_lt : Fintype.card (NormalizedCircuit n (p n)) < 2 ^ (2 ^ n) := by
       calc Fintype.card (NormalizedCircuit n (p n))
@@ -1359,7 +1358,7 @@ theorem shannon_counting_argument :
     funext inp
     exact h_all_eq inp
   · have hk1 : k ≥ 1 := Nat.pos_of_ne_zero hk0
-    have hn_for_poly : n ≥ poly_threshold k c := by omega
+    have hn_for_poly : n ≥ poly_threshold k (4*c) := by omega
     have h_poly_bound :
         (4 * c * n ^ k + 4 * c) ^ 2 + 3 * (4 * c * n ^ k + 4 * c) + 1 < 2 ^ n :=
       poly_quadratic_bound k (4 * c) n hn_for_poly
