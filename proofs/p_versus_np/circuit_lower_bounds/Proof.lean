@@ -1393,8 +1393,78 @@ theorem shannon_counting_argument :
     poly_quadratic_bound k (4 * c) n hk_le_4 hn_for_poly
   -- Now show: s^2 + s*n + 5*s + 1 ≤ (4c·n^k + 4c)² + 3·(4c·n^k + 4c) + 1
   have h_bound : s ^ 2 + s * n + 5 * s + 1 ≤ (4 * c * n ^ k + 4 * c) ^ 2 + 3 * (4 * c * n ^ k + 4 * c) + 1 := by
-    -- With 4c instead of 2c, the inequality should be more manageable
-    sorry
+    -- We have s = p n ≤ c * n^k + c
+    -- We need to show: s^2 + s*n + 5*s + 1 ≤ (4c·n^k + 4c)^2 + 3·(4c·n^k + 4c) + 1
+    -- Let's use s ≤ c·n^k + c to bound each term
+    have h_s_le : s ≤ c * n ^ k + c := h_p_le n
+    -- First, show s * n ≤ (c * n^k + c) * n
+    have h_sn : s * n ≤ (c * n ^ k + c) * n := Nat.mul_le_mul_right n h_s_le
+    -- Now we need to bound s * n more carefully
+    -- For n ≥ 1 and k ≥ 0, we have n ≤ c * n^k + c when c ≥ 1
+    -- But we need to handle c = 0 separately
+    by_cases hc : c = 0
+    · -- If c = 0, then s ≤ 0, so s = 0
+      subst hc
+      simp only [mul_zero, zero_add, pow_zero, mul_one, zero_pow, zero_mul, add_zero,
+        Nat.zero_le, true_and] at h_s_le ⊢
+      simp [Nat.eq_zero_of_le_zero h_s_le]
+    · -- c ≥ 1
+      have hc_pos : c ≥ 1 := Nat.one_le_iff_ne_zero.mpr hc
+      -- For n ≥ 200 (which we have from hn), we can show n ≤ c * n^k + c
+      have hn_large : n ≥ 200 := by omega
+      have hn_le : n ≤ c * n ^ k + c := by
+        -- For k = 0, this becomes n ≤ c + c = 2c, which may not hold
+        -- For k ≥ 1, we have n^k ≥ n, so c * n^k ≥ c * n ≥ n (when c ≥ 1, n ≥ 1)
+        cases k with
+        | zero =>
+          -- k = 0: p n ≤ c + c = 2c (constant)
+          -- We have s ≤ 2c
+          -- And the goal: s^2 + s*n + 5*s + 1 ≤ (4c)^2 + 3*(4c) + 1 = 16c^2 + 12c + 1
+          -- which is 4c^2 + 6c + 1 + (12c^2 + 6c + s*n)
+          -- For this to work, we need s*n ≤ 12c^2 + 6c
+          -- Since s ≤ 2c, we have s*n ≤ 2c*n
+          -- But we don't have a bound on n in terms of c
+          -- However, recall that n ≥ 100*0 + 4*c + 200 = 4c + 200
+          -- This means n is LARGE compared to c!
+          -- For n ≥ 4c + 200, we have s*n ≤ 2c*n ≤ 2c*(n), but
+          -- the issue is that the RHS (4c)^2 grows as c^2, while the LHS s*n grows as c*n
+          -- This won't work without a different bound.
+          -- Let's change approach: use the same bound (2c) instead of (4c) for k=0
+          sorry
+        | succ k' =>
+          -- k ≥ 1
+          have hk_pos : k ≥ 1 := by omega
+          calc n ≤ n * n := by omega
+            _ ≤ c * n ^ k := by
+                have : n ^ k ≥ n := Nat.pow_le_pow_right (by omega) (by omega)
+                calc n * n ≤ n * (c * n ^ k) := Nat.mul_le_mul_left n (Nat.mul_le_mul_right n this)
+                  _ = c * (n * n ^ k) := by ring
+                  _ = c * (n ^ (k + 1)) := by rw [← pow_succ]
+                  _ = c * n ^ k := by rw [Nat.add_comm 1 k]; rfl
+            _ ≤ c * n ^ k + c := by omega
+      -- Now we have s ≤ c * n^k + c and n ≤ c * n^k + c
+      -- So s + n ≤ 2 * (c * n^k + c)
+
+      -- And s ≤ c * n^k + c
+      -- Therefore:
+      -- s^2 + s*n + 5*s + 1
+      --   ≤ s * (s + n + 5) + 1
+      --   ≤ (c * n^k + c) * (2 * (c * n^k + c) + 5) + 1
+      calc s ^ 2 + s * n + 5 * s + 1
+          ≤ s * (s + n + 5) + 1 := by ring_nf; omega
+        _ ≤ (c * n ^ k + c) * (s + n + 5) + 1 := by
+            have : s * (s + n + 5) ≤ (c * n ^ k + c) * (s + n + 5) := Nat.mul_le_mul_right (s + n + 5) h_s_le
+            exact Nat.add_le_add_right this 1
+        _ ≤ (c * n ^ k + c) * ((c * n ^ k + c) + n + 5) + 1 := by
+            -- h_s_plus_n_plus_5 : s + n + 5 ≤ 2 * (c * n ^ k + c) + 5
+            -- But we need: s + n + 5 ≤ (c * n ^ k + c) + n + 5
+            -- This is equivalent to: s ≤ c * n ^ k + c, which is h_s_le
+            have : s + n + 5 ≤ (c * n ^ k + c) + n + 5 := by omega
+            exact Nat.add_le_add_left (Nat.mul_le_mul_left (c * n ^ k + c) this) 1
+        _ ≤ (4 * c * n ^ k + 4 * c) ^ 2 + 3 * (4 * c * n ^ k + 4 * c) + 1 := by
+            -- We directly show: (c*n^k + c)*((c*n^k + c) + n + 5) + 1 ≤ (4c*n^k + 4c)^2 + 3*(4c*n^k + 4c) + 1
+            nlinarith [sq_nonneg (c * n ^ k), sq_nonneg (c * n ^ k - n ^ k), sq_nonneg (c - 1), sq_nonneg (n ^ k - 1),
+              h_s_le, hn_le, hc_pos]
   -- Combine to get the counting inequality
   have h_card_lt : Fintype.card (NormalizedCircuit n (p n)) < 2 ^ (2 ^ n) := by
     calc Fintype.card (NormalizedCircuit n (p n))
@@ -1418,7 +1488,6 @@ theorem shannon_counting_argument :
               Fintype.card ((Fin n → Bool) → Bool) := by
     have h_func_card : Fintype.card ((Fin n → Bool) → Bool) = 2 ^ (2 ^ n) := by
       rw [Fintype.card_fun, Fintype.card_fun, Fintype.card_fin, Fintype.card_bool]
-      ring
     rw [h_func_card]
     exact h_card_lt
   -- Apply pigeonhole: denote is not surjective
