@@ -1438,30 +1438,47 @@ theorem shannon_counting_argument :
       -- Then use 4n^2 + 6n + 1 < 2^n for n ≥ 196
       have h_4n2_lt : 4 * n ^ 2 + 6 * n + 1 < 2 ^ n := four_n_squared_plus_six_n_plus_one_lt_two_pow_n n hn196
       -- Prove directly: s^2 + sn + 5s + 1 ≤ (4c*1 + 4c)^2 + 3*(4c*1 + 4c) + 1 = (8c)^2 + 3*8c + 1
-      -- We use direct computation for the k=0 case
-      -- After subst hk0, the goal is: s^2 + sn + 5s + 1 ≤ 64c^2 + 24c + 1
-      -- We have s ≤ 2c and n ≥ 4c + 100, so s*n ≤ 2c(4c + 100) = 8c^2 + 200c
-      -- Also s^2 ≤ (2c)^2 = 4c^2 and 5s ≤ 10c
-      -- So: s^2 + sn + 5s + 1 ≤ 4c^2 + (8c^2 + 200c) + 10c + 1 = 12c^2 + 210c + 1
-      -- We need: 12c^2 + 210c + 1 ≤ 64c^2 + 24c + 1
-      -- Which is: 0 ≤ 52c^2 - 186c, i.e., 0 ≤ 26c^2 - 93c, i.e., 0 ≤ c(26c - 93)
-      -- This holds when c = 0 or c ≥ 4 (since 26*4 - 93 = 104 - 93 = 11 ≥ 0)
-      -- For c = 1: 26 - 93 = -67 < 0, so we need different approach
-      -- For c = 2: 104 - 186 = -82 < 0
-      -- For c = 3: 234 - 279 = -45 < 0
-      -- For c = 4: 416 - 372 = 44 ≥ 0
+      -- We have: s^2 + sn + 5s + 1 ≤ 4c^2 + 2cn + 10c + 1 (from h_bound)
+      -- And: 4c^2 + 2cn + 10c + 1 ≤ 4n^2 + 6n + 1 (from h_bound2)
+      -- But we need to show: 4n^2 + 6n + 1 ≤ (8c)^2 + 3*8c + 1
+      -- This is NOT true in general!
+      -- 
+      -- The correct approach: we need s^2 + sn + 5s + 1 ≤ (8c)^2 + 3*8c + 1
+      -- Since s ≤ 2c, we have:
+      -- s^2 ≤ (2c)^2 = 4c^2
+      -- s*n ≤ 2c*n
+      -- 5s ≤ 10c
+      -- So: s^2 + sn + 5s + 1 ≤ 4c^2 + 2cn + 10c + 1
+      -- 
+      -- And we need: 4c^2 + 2cn + 10c + 1 ≤ 64c^2 + 24c + 1
+      -- This requires: 2cn + 10c + 1 ≤ 60c^2 + 24c
+      -- Or: 2cn ≤ 60c^2 + 14c - 1
+      -- Since n ≥ 4c + 100, we have 2c(4c + 100) ≤ 60c^2 + 14c - 1 ?
+      -- 8c^2 + 200c ≤ 60c^2 + 14c - 1
+      -- 0 ≤ 52c^2 - 186c - 1, which is true for c ≥ 4
+      -- For c = 1,2,3 we need to verify separately
+      -- Actually this is getting complicated. Let me use a simpler approach.
+      -- 
+      -- Use transitivity through h_poly_bound which already proves (4c)^2 + 3*(4c) + 1 < 2^n
+      -- But we need ≤ not <. Actually, h_poly_bound uses 4c and the RHS is (4c)^2 + 3*(4c) + 1
+      -- So: s^2 + sn + 5s + 1 ≤ 4c^2 + 2cn + 10c + 1 ≤ 64c^2 + 24c + 1 = (8c)^2 + 3*8c + 1
+      -- But wait, (4c*1 + 4c) = 8c, so RHS = (8c)^2 + 3*8c + 1
+      -- For c ≥ 1, we need: 4c^2 + 2cn + 10c + 1 ≤ 64c^2 + 24c + 1
+      -- Time to compute: is 2cn ≤ 60c^2 + 14c? Since n ≤ 4c + ... no this doesn't work.
+      -- 
+      -- Let me reconsider. After hk0, the goal is:
+      -- s^2 + sn + 5s + 1 ≤ (4*c*1 + 4*c)^2 + 3*(4*c*1 + 4*c) + 1
+      -- = (8c)^2 + 3*8c + 1 = 64c^2 + 24c + 1
+      -- We have h_bound: s^2 + sn + 5s + 1 ≤ 4c^2 + 2cn + 10c + 1
+      -- So we need: 4c^2 + 2cn + 10c + 1 ≤ 64c^2 + 24c + 1
+      -- Which is: 2cn ≤ 60c^2 + 14c
+      -- With n ≥ 4c + 100, we get 2c(4c + 100) = 8c^2 + 200c ≤ 60c^2 + 14c ?
+      -- 0 ≤ 52c^2 - 186c, which holds for c ≥ 4 (checked: c=4 gives 52*16 - 744 = 832 - 744 = 88 ≥ 0)
+      -- For c < 4, we need: 8c^2 + 200c ≤ 60c^2 + 14c, i.e., 186c ≤ 52c^2, i.e., 186 ≤ 52c, i.e., c ≥ 4
+      -- So this doesn't work for c < 4!
       --
-      -- The hint says we should NOT force the k≥1 style. So let's use h_4n2_lt:
-      -- We know: s^2 + sn + 5s + 1 ≤ 4n^2 + 6n + 1 < 2^n for n ≥ 196
-      -- Since 4n^2 + 6n + 1 < 2^n, in particular any value ≤ 4n^2 + 6n + 1 is also < 2^n
-      -- But our goal is ≤ (8c)^2 + 3*8c + 1 = 64c^2 + 24c + 1
-      -- We cannot prove this for c = 1,2,3 as shown above.
-      --
-      -- RECONSIDER: Maybe we need to use a DIFFERENT h_poly_bound_k0
-      -- Or perhaps the prompt expects us to use four_n_squared_plus_six_n_plus_one_lt_two_pow_n
-      -- to show: 4n^2 + 6n + 1 < 2^n
-      -- And then since s^2 + sn + 5s + 1 ≤ 4n^2 + 6n + 1, we have < 2^n
-      -- And < implies ≤, so we can use h_poly_bound_k0 := h_4n2_lt
+      -- FALLBACK: Just use transitivity through intermediate value
+      -- We show: s^2 + sn + 5s + 1 ≤ 64c^2 + 24c + 1
       sorry
     · -- k ≥ 1
       -- For k ≥ 1, we proceed with the existing strategy
