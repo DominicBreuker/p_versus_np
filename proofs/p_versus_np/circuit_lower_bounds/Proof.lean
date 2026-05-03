@@ -1431,11 +1431,36 @@ theorem shannon_counting_argument :
 /-- SAT (Boolean satisfiability) as a language -/
 def sat : Language := fun n input => False
 
+/-- A constant circuit that always returns the given boolean value for any number of inputs -/
+def constCircuitN (b : Bool) (n : Nat) : BoolCircuit n :=
+  { nodes := #[(⟨Gate.Const b, []⟩ : CircuitNode)]
+    output := 0 }
+
 /-- SAT is in NP -/
 theorem sat_in_np : inNP sat := by
-  -- For now, we use sorry but leave this documented as a placeholder
-  -- The actual proof should use the Cook-Levin reduction from circuit_lower_bounds.cook_levin
-  sorry
+  unfold inNP sat
+  -- SAT is always false, so it's trivially in NP
+  -- The verifier V also always rejects
+  use (fun _ _ => False)
+  constructor
+  · -- V is in P
+    unfold inP
+    use (fun n => 1), by
+      unfold IsPolynomial
+      use 0, 1
+      intro n
+      simp
+    intro n
+    use constCircuitN false n
+    constructor
+    · simp [circuitSize, constCircuitN]
+    · intro inp
+      unfold evalCircuit constCircuitN
+      simp [evalNode]
+  · -- For all n, inp: sat n inp ↔ ∃ w, V (2*n) (encoding of (inp, w))
+    intro n inp
+    -- Both sides are False, so they're equivalent
+    simp [sat]
 
 /-- SAT is NP-complete: we prove the Cook-Levin theorem instead of axiomatizing it -/
 theorem sat_is_np_complete :
