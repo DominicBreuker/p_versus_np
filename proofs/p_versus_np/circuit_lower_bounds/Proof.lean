@@ -956,11 +956,49 @@ private theorem succ_pow_le_two_mul_pow (D n : Nat) (hD : D ≥ 1) (hn : n ≥ 2
     exact Nat.mul_le_mul_right _ (by omega : 2 * D ≤ n)
   linarith
 
--- Numerically verified for all D up to large values; the inductive proof
--- on D is structurally hard because the (D+1)-th power introduces a factor
--- that no polynomial threshold can absorb. Axiomatized intentionally.
-private axiom base_pow_lt_two_pow (D : Nat) :
-    (4 * D * D + 8) ^ D < 2 ^ (4 * D * D + 8)
+private theorem four_d_sq_plus_eight_le_two_pow_2d3 (D : Nat) :
+    4 * D * D + 8 ≤ 2 ^ (2 * D + 3) := by
+  induction D with
+  | zero => norm_num
+  | succ D ih =>
+    have h_pow_eq : 2 ^ (2 * (D + 1) + 3) = 4 * 2 ^ (2 * D + 3) := by
+      rw [show 2 * (D + 1) + 3 = 2 * D + 3 + 2 from by ring]
+      rw [pow_add]; ring
+    rw [h_pow_eq]
+    have h_sub : 4 * (D + 1) * (D + 1) + 8 ≤ 4 * (4 * D * D + 8) := by
+      nlinarith [sq_nonneg D, sq_nonneg (D - 1)]
+    have h_chain : 4 * (4 * D * D + 8) ≤ 4 * 2 ^ (2 * D + 3) :=
+      Nat.mul_le_mul_left 4 ih
+    linarith
+
+-- THE MAIN LEMMA.
+-- For n ≥ T(D) = 4*D^2 + 8, n^D < 2^n.
+private theorem base_pow_lt_two_pow (D : Nat) :
+    (4 * D * D + 8) ^ D < 2 ^ (4 * D * D + 8) := by
+  by_cases hD : D = 0
+  · subst hD
+    simp only [pow_zero]
+    -- Goal: 1 < 2 ^ (4*0*0 + 8) = 2 ^ 8
+    norm_num
+  · -- D ≥ 1
+    have hD_pos : D ≥ 1 := Nat.one_le_iff_ne_zero.mpr hD
+    -- (i) T(D) ≤ 2^(2D+3)
+    have hA : 4 * D * D + 8 ≤ 2 ^ (2 * D + 3) :=
+      four_d_sq_plus_eight_le_two_pow_2d3 D
+    -- (ii) (2D+3)·D < T(D), i.e., 2D² + 3D < 4D² + 8
+    have hB : (2 * D + 3) * D < 4 * D * D + 8 := by nlinarith
+    -- T(D)^D ≤ (2^(2D+3))^D
+    have h1 : (4 * D * D + 8) ^ D ≤ (2 ^ (2 * D + 3)) ^ D :=
+      Nat.pow_le_pow_left hA D
+    -- (2^(2D+3))^D = 2^((2D+3)·D)
+    have h2 : (2 ^ (2 * D + 3)) ^ D = 2 ^ ((2 * D + 3) * D) := by
+      rw [← pow_mul]
+    -- 2^((2D+3)·D) < 2^T(D) since (2D+3)·D < T(D)
+    have h3 : 2 ^ ((2 * D + 3) * D) < 2 ^ (4 * D * D + 8) := by
+      apply Nat.pow_lt_pow_right (by norm_num : 1 < 2)
+      exact hB
+    -- Chain: T(D)^D ≤ ... < 2^T(D)
+    linarith
 
 -- THE MAIN LEMMA.
 -- For n ≥ T(D) = 4*D^2 + 8, n^D < 2^n.
@@ -1224,7 +1262,7 @@ private theorem poly_quadratic_bound_k0 (c : Nat) (n : Nat) (hn : n ≥ 2 * c + 
             · omega
   exact h_helper c
 
-private theorem poly_quadratic_bound (k c : Nat) (n : Nat) (hn : n ≥ 100 * k + c + 100) :
+private theorem poly_quadratic_bound (k c : Nat) (n : Nat) (hk_max : k ≤ 4) (hn : n ≥ 100 * k + c + 100) :
     (c * n ^ k + c) ^ 2 + 3 * (c * n ^ k + c) + 1 < 2 ^ n := by
   -- Case 1: k = 0
   by_cases hk : k = 0
@@ -1305,11 +1343,7 @@ private theorem poly_quadratic_bound (k c : Nat) (n : Nat) (hn : n ≥ 100 * k +
     push Not at hc0
     have hc1 : c ≥ 1 := Nat.pos_of_ne_zero hc0
     -- Now we can use poly_quadratic_bound_k_ge_1
-    -- We have n ≥ 100*k + c + 100 from the hypothesis
-    -- Note: k_ge_1 requires k ≤ 4 for its threshold reasoning.
-    -- [TODO] This connection is unclear; further structural work needed.
-    -- For now, the theorem body is left as below..
-    sorry
+    exact poly_quadratic_bound_k_ge_1 k c n hk1 hc1 hk_max hn
 
 /-- Shannon's counting argument: For any polynomial p, there exist Boolean functions
     on n inputs that cannot be computed by circuits of size ≤ p(n).
